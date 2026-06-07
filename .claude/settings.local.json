@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-Item \"C:\\\\Users\\\\andre\\\\Desktop\\\\ultrax_app\\\\templates\\\\index.html\")",
+      "Bash(Select-Object Length, LastWriteTime)",
+      "PowerShell($b = [System.IO.File]::ReadAllBytes\\(\"C:\\\\Users\\\\andre\\\\Desktop\\\\ultrax_app\\\\CLAUDE.md\"\\); $b[0..15] -join ' '; \"TotalBytes: $\\($b.Length\\)\")",
+      "Bash(python -c \"import jinja2; print\\('jinja2', jinja2.__version__\\)\")",
+      "Bash(cat)",
+      "Bash(python /tmp/render.py)",
+      "Bash(node *)",
+      "Bash(pip install *)",
+      "Bash(timeout 3 python app.py)",
+      "Bash(curl -s http://localhost:5000/api/years)",
+      "Bash(curl -s 'http://localhost:5000/api/dashboard?year=2026&unit=TODAS')",
+      "Bash(curl -s http://localhost:5000)",
+      "Bash(python *)"
+    ]
+  }
+}

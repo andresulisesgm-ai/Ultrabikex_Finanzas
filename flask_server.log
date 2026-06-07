@@ -1,0 +1,106 @@
+[OK] 717 cuentas cargadas desde Cuenta (account.account) (5).xlsx
+[OK] 717 cuentas insertadas/actualizadas en mapping
+DB inicializada en C:\Users\andre\Desktop\ultrax_app\data\ultrax.db
+Migración completada
+ * Serving Flask app 'app'
+ * Debug mode: on
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://10.3.182.23:5000
+Press CTRL+C to quit
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 103-382-363
+ * Detected change in 'C:\\Users\\andre\\Desktop\\ultrax_app\\engine.py', reloading
+[OK] 717 cuentas cargadas desde Cuenta (account.account) (5).xlsx
+[OK] 717 cuentas insertadas/actualizadas en mapping
+DB inicializada en C:\Users\andre\Desktop\ultrax_app\data\ultrax.db
+Migración completada
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 103-382-363
+127.0.0.1 - - [05/Jun/2026 22:12:54] "GET /api/eerr/completo?year=2026&unit=Rodeo HTTP/1.1" 200 -
+ * Detected change in 'C:\\Users\\andre\\Desktop\\ultrax_app\\validar_eerr.py', reloading
+[OK] 717 cuentas cargadas desde Cuenta (account.account) (5).xlsx
+[OK] 717 cuentas insertadas/actualizadas en mapping
+DB inicializada en C:\Users\andre\Desktop\ultrax_app\data\ultrax.db
+Migración completada
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 103-382-363
+127.0.0.1 - - [05/Jun/2026 22:16:58] "GET / HTTP/1.1" 302 -
+127.0.0.1 - - [05/Jun/2026 22:16:58] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:16:58] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [05/Jun/2026 22:17:04] "POST /api/login HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:17:04] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:17:04] "GET /api/years HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:17:04] "GET /api/dashboard?year=2026&unit=TODAS HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:17:06] "GET /api/eerr/divisa_real?year=2026&unit= HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:17:13] "GET /api/eerr/detalle?year=2026&unit= HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:17:15] "GET /api/eerr/completo?year=2026&unit= HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:17:19] "GET /api/eerr/completo?year=2026&unit=Rodeo HTTP/1.1" 200 -
+ * Detected change in 'C:\\Users\\andre\\Desktop\\ultrax_app\\validar_eerr.py', reloading
+[OK] 717 cuentas cargadas desde Cuenta (account.account) (5).xlsx
+[OK] 717 cuentas insertadas/actualizadas en mapping
+DB inicializada en C:\Users\andre\Desktop\ultrax_app\data\ultrax.db
+Migración completada
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 103-382-363
+127.0.0.1 - - [05/Jun/2026 22:17:27] "GET /api/eerr/completo?year=2026&unit=Rodeo HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:17:33] "GET /api/eerr/completo?year=2026&unit=Rodeo HTTP/1.1" 200 -
+ * Detected change in 'C:\\Users\\andre\\Desktop\\ultrax_app\\app.py', reloading
+[OK] 717 cuentas cargadas desde Cuenta (account.account) (5).xlsx
+[OK] 717 cuentas insertadas/actualizadas en mapping
+DB inicializada en C:\Users\andre\Desktop\ultrax_app\data\ultrax.db
+Migración completada
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 103-382-363
+ * Detected change in 'C:\\Users\\andre\\Desktop\\ultrax_app\\app.py', reloading
+[OK] 717 cuentas cargadas desde Cuenta (account.account) (5).xlsx
+[OK] 717 cuentas insertadas/actualizadas en mapping
+DB inicializada en C:\Users\andre\Desktop\ultrax_app\data\ultrax.db
+Migración completada
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 103-382-363
+ * Detected change in 'C:\\Users\\andre\\Desktop\\ultrax_app\\app.py', reloading
+[OK] 717 cuentas cargadas desde Cuenta (account.account) (5).xlsx
+[OK] 717 cuentas insertadas/actualizadas en mapping
+DB inicializada en C:\Users\andre\Desktop\ultrax_app\data\ultrax.db
+Migración completada
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 103-382-363
+127.0.0.1 - - [05/Jun/2026 22:27:36] "GET /api/eerr/completo?year=2026&unit=Rodeo HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:27:41] "GET /api/eerr/completo?year=2026&unit=Rodeo HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:27:47] "GET /api/eerr/completo?year=2026&unit=Rodeo HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:28:32] "GET /api/eerr/completo?year=2026&unit=Rodeo HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:28:35] "GET /api/eerr/completo?year=2026&unit=Rodeo HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:30:30] "GET / HTTP/1.1" 302 -
+127.0.0.1 - - [05/Jun/2026 22:30:30] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:30:31] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [05/Jun/2026 22:30:39] "POST /api/login HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:30:39] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:30:39] "GET /api/years HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:30:39] "GET /api/dashboard?year=2026&unit=TODAS HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:30:41] "GET /api/eerr/completo?year=2026&unit= HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:31:08] "GET /api/eerr/completo?year=2026&unit=Rodeo HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:36:35] "GET /api/eerr/completo?year=2026&unit=Terracota HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:38:47] "GET /api/eerr/completo?year=2026&unit= HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:38:50] "GET /api/eerr/divisa_real?year=2026&unit= HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:38:52] "GET /api/eerr/completo?year=2026&unit= HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:38:54] "GET /api/eerr/divisa_real?year=2026&unit= HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:38:57] "GET /api/eerr/completo?year=2026&unit= HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:40:45] "GET /api/eerr/completo?year=2026&unit=Rodeo HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:44:08] "POST /api/upload HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:44:08] "GET /api/years HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:44:10] "GET /api/eerr/divisa_real?year=2026&unit= HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:44:11] "GET /api/eerr/completo?year=2026&unit=Rodeo HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:44:36] "GET /api/dashboard?year=2026&unit=TODAS HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:44:40] "GET /api/dashboard?year=2026&unit=Rodeo HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:44:55] "GET /api/grafico/detalle?chart_id=ch-un&year=2026&unit=Rodeo HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:45:52] "GET /api/grafico/detalle?chart_id=ch-main&year=2026&unit=Rodeo HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 22:46:04] "GET /api/gasto/detalle?year=2026&unit=Rodeo&categoria=No%20Operacionales HTTP/1.1" 200 -

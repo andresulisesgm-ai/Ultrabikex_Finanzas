@@ -1,0 +1,371 @@
+================================================================================
+DIAGNOSTICO EERR - DISPARIDADES DE ESTRUCTURA Y MAPEO
+UltraX App - 2026-06-06
+================================================================================
+
+RESUMEN EJECUTIVO
+-----------------
+- 22 de 22 partidas esperadas de RRHH estan FALTANTES en EERR_STRUCTURE
+- Todas las partidas faltantes tienen cuentas Odoo mapeadas a ellas
+- SE ESTAN PERDIENDO MONTOS: los datos existen en la BD pero no aparecen en el EERR
+- Las comisiones NO son un bug - estan correctamente fuera de gastos operacionales
+
+
+================================================================================
+1. PARTIDAS FALTANTES EN EERR_STRUCTURE
+================================================================================
+
+ANALISIS: Se compararon las partidas definidas en new_eerr_structure.py contra
+la lista de 22 partidas que deben existir en el bloque RRHH segun el Excel.
+
+RESULTADO: Las 22 partidas estan FALTANTES en EERR_STRUCTURE
+
+IMPACTO CRITICO: Todas estas partidas tienen cuentas Odoo mapeadas en la tabla
+mapping, lo que significa que cuando se carga un archivo Excel de Odoo, los
+montos SI se guardan en la tabla financials, pero NO aparecen en el EERR porque
+la estructura no las incluye.
+
+
+DETALLE DE PARTIDAS FALTANTES Y SUS CUENTAS MAPEADAS:
+------------------------------------------------------
+
+1. Gastos de sueldos y salarios directivos
+   Cuenta: 6.01.02.01.002 | Gastos de sueldos y salarios directivos
+
+2. Gastos de horas extras, feriados y bono nocturno
+   Cuenta: 6.01.02.01.003 | Gastos de horas extras, feriados y bono nocturno
+
+3. Gastos de complemento de sueldos y salarios directivos
+   Cuenta: 6.01.02.01.005 | Gastos de complemento de sueldos y salarios directivos
+
+4. Gastos de Bono de alimentacion directivos
+   Cuenta: 6.01.02.01.007 | Gastos de Bono de alimentacion directivos
+
+5. Gastos de vacaciones directivos
+   Cuenta: 6.01.02.01.009 | Gastos de vacaciones directivos
+
+6. Gastos de complemento de vacaciones directivos
+   Cuenta: 6.01.02.01.011 | Gastos de complemento de vacaciones directivos
+
+7. Gastos de otros bonos empleados
+   Cuenta: 6.01.02.01.012 | Gastos de otros bonos empleados
+
+8. Gastos de bono vacacional empleados (YA EXISTE en EERR pero mal ubicado)
+   Cuenta: 6.01.02.02.001 | Gastos de bono vacacional empleados
+
+9. Gastos de bono vacacional directivos
+   Cuenta: 6.01.02.02.002 | Gastos de bono vacacional directivos
+
+10. Gastos de complemento bono vacacional empleados (YA EXISTE en EERR pero mal ubicado)
+    Cuenta: 6.01.02.02.003 | Gastos de complemento bono vacacional empleados
+
+11. Gastos de complemento bono vacacional directivos
+    Cuenta: 6.01.02.02.004 | Gastos de complemento bono vacacional directivos
+
+12. Gastos de utilidades empleados
+    Cuenta: 6.01.02.02.005 | Gastos de utilidades empleados
+
+13. Gastos de utilidades directivos
+    Cuenta: 6.01.02.02.006 | Gastos de utilidades directivos
+
+14. Gastos de complemento de utilidades empleados
+    Cuenta: 6.01.02.02.007 | Gastos de complemento de utilidades empleados
+
+15. Gastos de complemento de utilidades directivos
+    Cuenta: 6.01.02.02.008 | Gastos de complemento de utilidades directivos
+
+16. Gastos de prestaciones sociales empleados (YA EXISTE en EERR pero mal ubicado)
+    Cuenta: 6.01.02.02.009 | Gastos de prestaciones sociales empleados
+
+17. Gastos de prestaciones sociales directivos
+    Cuenta: 6.01.02.02.010 | Gastos de prestaciones sociales directivos
+
+18. Gastos de complemento de prestaciones sociales empleados
+    Cuenta: 6.01.02.02.011 | Gastos de complemento de prestaciones sociales empleados
+
+19. Gastos de complemento de prestaciones sociales directivos
+    Cuenta: 6.01.02.02.012 | Gastos de complemento de prestaciones sociales directivos
+
+20. Gastos de intereses sobre prestaciones sociales empleados (YA EXISTE en EERR pero mal ubicado)
+    Cuenta: 6.01.02.02.013 | Gastos de intereses sobre prestaciones sociales empleados
+
+21. Gastos de intereses sobre prestaciones sociales directivos
+    Cuenta: 6.01.02.02.014 | Gastos de intereses sobre prestaciones sociales directivos
+
+22. Gastos de complemento de intereses sobre prestaciones sociales empleados
+    Cuenta: 6.01.02.02.015 | Gastos de complemento de intereses sobre prestaciones sociales empleados
+
+23. Gastos de complemento de intereses sobre prestaciones sociales directivos
+    Cuenta: 6.01.02.02.016 | Gastos de complemento de intereses sobre prestaciones sociales directivos
+
+24. Gastos de bono de guarderia (YA EXISTE en EERR como "Gastos de pasivos laborales bono de guarderia")
+    Cuenta: 6.01.02.02.021 | Gastos de bono de guarderia
+
+25. Gastos de uniformes y dotacion al personal
+    Cuenta: 6.01.02.03.002 | Gastos de uniformes y dotacion al personal
+
+26. Gastos de capacitacion al personal
+    (No hay cuentas mapeadas - OK)
+
+
+PROBLEMA ADICIONAL DETECTADO:
+------------------------------
+Varias partidas SI existen en EERR_STRUCTURE pero con nombres ligeramente
+diferentes o sin la estructura jerarquica correcta:
+
+EN EERR_STRUCTURE (lineas 71-72):
+  - "Gastos de pasivos laborales utilidades" (partida simple)
+  - "Gastos de pasivos laborales prestaciones e intereses" (partida simple)
+
+DEBERIAN SER AGRUPADORES con sus partidas hijas:
+  - Gastos de pasivos laborales utilidades (HEADER)
+      - Gastos de bono vacacional empleados
+      - Gastos de bono vacacional directivos
+      - Gastos de complemento bono vacacional empleados
+      - Gastos de complemento bono vacacional directivos
+      - Gastos de utilidades empleados
+      - Gastos de utilidades directivos
+      - Gastos de complemento de utilidades empleados
+      - Gastos de complemento de utilidades directivos
+
+  - Gastos de pasivos laborales prestaciones e intereses (HEADER)
+      - Gastos de prestaciones sociales empleados
+      - Gastos de prestaciones sociales directivos
+      - Gastos de complemento de prestaciones sociales empleados
+      - Gastos de complemento de prestaciones sociales directivos
+      - Gastos de intereses sobre prestaciones sociales empleados
+      - Gastos de intereses sobre prestaciones sociales directivos
+      - Gastos de complemento de intereses sobre prestaciones sociales empleados
+      - Gastos de complemento de intereses sobre prestaciones sociales directivos
+
+
+================================================================================
+2. BUG DE COMISIONES
+================================================================================
+
+ANALISIS: Se revisó la ubicacion de las partidas de comisiones en
+new_eerr_structure.py y la logica de calculo en app.py
+
+UBICACION EN EERR_STRUCTURE (lineas 110-112):
+----------------------------------------------
+  Linea 110: Utilidad antes de Comisiones por Ventas (HEADER)
+  Linea 111: Gastos de comisiones por ventas (partida)
+  Linea 112: Gastos de comisiones por ventas taller (partida)
+  Linea 113: Utilidad despues de Comisiones por Ventas (HEADER)
+
+Las comisiones estan ubicadas ENTRE headers de utilidad, NO dentro del bloque
+"Subtotal Gastos de Comercializacion y Logistica" (lineas 88-96).
+
+
+LOGICA DE CALCULO EN app.py:
+-----------------------------
+
+calcular_subtotales_jerarquicos() (lineas 811-852):
+  - Para cada header (is_header=True), suma todas las partidas NO-header
+  - DESDE este header HASTA el siguiente header
+  - Metodo: posicion secuencial
+
+calcular_totales_especiales() (lineas 855-908):
+
+  Total Gastos Operacionales (lineas 870-878):
+    Solo suma estos subtotales especificos:
+      * Subtotal Gastos de Administracion
+      * Subtotal Gastos de Recursos Humanos
+      * Subtotal Gastos de Comercializacion y Logistica
+      * Subtotal Gastos de Mercadeo
+      * Subtotal Gastos de Tecnologia, Innovacion e Investigacion
+
+    Las comisiones NO estan en ninguno de estos subtotales.
+
+  Utilidad antes de Comisiones (lineas 881-883):
+    = Utilidad Bruta - Total Gastos Operacionales
+
+  Comisiones (lineas 886-888):
+    Suma explicita de:
+      * Gastos de comisiones por ventas
+      * Gastos de comisiones por ventas taller
+
+  Utilidad despues de Comisiones (lineas 891-893):
+    = Utilidad antes de Comisiones - comisiones
+
+
+CONCLUSION:
+-----------
+Las comisiones estan CORRECTAMENTE ubicadas FUERA de los gastos operacionales.
+Esto NO es un bug, es el diseño intencional del EERR segun el Excel de referencia.
+
+La logica es:
+  Utilidad Bruta
+  - Total Gastos Operacionales (sin comisiones)
+  = Utilidad antes de Comisiones
+  - Comisiones por Ventas
+  = Utilidad despues de Comisiones
+  - Otros Gastos no Operacionales
+  + Otros Ingresos no Operacionales
+  = Utilidad Neta
+
+Las comisiones se tratan como un rubro separado entre la utilidad operacional
+y la utilidad neta, similar a como se manejan los gastos financieros en algunos
+formatos de EERR.
+
+
+================================================================================
+3. VERIFICACION EN LA BASE DE DATOS
+================================================================================
+
+QUERY EJECUTADA:
+----------------
+SELECT m.partida,
+       COUNT(DISTINCT m.odoo_code) as cuentas,
+       SUM(f.amount) as total_ene
+FROM mapping m
+LEFT JOIN financials f ON m.partida = f.partida
+WHERE f.year = '2026' AND f.month = 'ENE' AND f.unit = 'Rodeo'
+  AND m.partida IN (
+    'Gastos de comisiones empleados',
+    'Gastos de comisiones por venta de personal externo',
+    'Gastos de comisiones por ventas',
+    'Gastos de comisiones por ventas taller'
+  )
+GROUP BY m.partida
+
+
+RESULTADO:
+----------
+Partida                                          Cuentas    Total ENE 2026
+-------------------------------------------------------------------------
+Gastos de comisiones empleados                      1          834.62
+Gastos de comisiones por venta de personal externo  1        2,502.98
+Gastos de comisiones por ventas                     1            0.00
+
+
+PARTIDAS ADICIONALES CON "COMISION" EN NOMBRE:
+-----------------------------------------------
+  - Comisiones por pagar (cuenta de pasivo 2.x)
+  - Ingresos por comisiones (ingreso no operativo)
+  - Gastos de comisiones bancarias (gasto administrativo)
+  - Gastos de comisiones por ventas (partida EERR)
+  - Gastos de comisiones empleados (partida EERR)
+  - Gastos de comisiones empleados del taller (partida EERR)
+  - Gastos de comisiones por venta de personal externo (partida EERR)
+
+
+OBSERVACIONES:
+--------------
+1. Existen multiples partidas de comisiones en el mapping
+2. "Gastos de comisiones empleados" y "Gastos de comisiones por venta de
+   personal externo" NO estan definidas en EERR_STRUCTURE
+3. Tienen montos reales en enero 2026 ($834.62 y $2,502.98 respectivamente)
+4. Estos montos se estan PERDIENDO porque no aparecen en el EERR
+5. Solo "Gastos de comisiones por ventas" y "Gastos de comisiones por ventas
+   taller" estan en EERR_STRUCTURE
+
+
+================================================================================
+RECOMENDACIONES
+================================================================================
+
+1. PRIORIDAD ALTA - Completar EERR_STRUCTURE con partidas RRHH faltantes
+
+   Agregar las 22 partidas faltantes en el bloque de RRHH, organizadas en
+   la estructura jerarquica correcta con agrupadores.
+
+   Estructura propuesta:
+
+   Subtotal Gastos de Recursos Humanos (HEADER principal)
+
+     Gastos de sueldos y salarios empleados y directivos (HEADER nivel 1)
+       Gastos de sueldos y salarios empleados
+       Gastos de sueldos y salarios directivos
+       Gastos de horas extras, feriados y bono nocturno
+       Gastos de Bono de alimentacion empleados
+       Gastos de Bono de alimentacion directivos
+
+     Gastos de complementos empleados y directivos (HEADER nivel 1)
+       Gastos de complemento de sueldos y salarios empleados
+       Gastos de complemento de sueldos y salarios directivos
+
+     Gastos de personal externo (HEADER nivel 1)
+       Gastos de servicios de personal externo
+
+     Gastos de pasivos laborales vacaciones (HEADER nivel 1)
+       Gastos de vacaciones empleados
+       Gastos de vacaciones directivos
+       Gastos de complemento de vacaciones empleados
+       Gastos de complemento de vacaciones directivos
+
+     Gastos de pasivos laborales utilidades (HEADER nivel 1)
+       Gastos de bono vacacional empleados
+       Gastos de bono vacacional directivos
+       Gastos de complemento bono vacacional empleados
+       Gastos de complemento bono vacacional directivos
+       Gastos de utilidades empleados
+       Gastos de utilidades directivos
+       Gastos de complemento de utilidades empleados
+       Gastos de complemento de utilidades directivos
+
+     Gastos de pasivos laborales prestaciones e intereses (HEADER nivel 1)
+       Gastos de prestaciones sociales empleados
+       Gastos de prestaciones sociales directivos
+       Gastos de complemento de prestaciones sociales empleados
+       Gastos de complemento de prestaciones sociales directivos
+       Gastos de intereses sobre prestaciones sociales empleados
+       Gastos de intereses sobre prestaciones sociales directivos
+       Gastos de complemento de intereses sobre prestaciones sociales empleados
+       Gastos de complemento de intereses sobre prestaciones sociales directivos
+
+     Gastos de pasivos laborales aportes (HEADER nivel 1)
+       Gastos de aporte patronal IVSS
+       Gastos de aporte patronal SPF
+       Gastos de aporte patronal FAOV
+       Gastos de aporte patronal INCES
+
+     Gastos de pasivos laborales bono de guarderia (partida simple)
+
+     Gastos de pasivos laborales HCM (HEADER nivel 1)
+       Gastos de poliza HCM
+
+     Gastos de salud y seguridad laboral (partida simple)
+
+     Gastos de salud y seguridad laboral dotacion (HEADER nivel 1)
+       Gastos de uniformes y dotacion al personal
+
+     Gastos de salud y seguridad laboral fiestas y agasajos (HEADER nivel 1)
+       Gastos de fiestas y agasajos al personal
+
+     Otros gastos de personal (HEADER nivel 1)
+       Gastos de otros bonos empleados
+       Gastos de transporte del personal
+       Gastos de donaciones y obsequios al personal
+       Gastos de capacitacion al personal
+
+
+2. PRIORIDAD MEDIA - Agregar partidas de comisiones faltantes
+
+   Agregar en la seccion de comisiones (despues de linea 110):
+     - Gastos de comisiones empleados
+     - Gastos de comisiones empleados del taller
+     - Gastos de comisiones por venta de personal externo
+
+   Y actualizar la logica en app.py lineas 886-888 para incluirlas en el
+   calculo de comisiones totales.
+
+
+3. PRIORIDAD BAJA - Documentar la logica de comisiones
+
+   Agregar comentarios en el codigo explicando por que las comisiones estan
+   fuera de gastos operacionales, para evitar confusion futura.
+
+
+4. VALIDACION POST-CAMBIOS
+
+   Despues de implementar los cambios:
+   - Regenerar el EERR para Rodeo ENE-FEB 2026
+   - Verificar que todas las partidas con montos en financials aparezcan
+   - Comparar subtotales con el Excel de referencia
+   - Validar que la suma jerarquica funcione correctamente
+
+
+================================================================================
+FIN DEL DIAGNOSTICO
+================================================================================
