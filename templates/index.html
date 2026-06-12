@@ -423,23 +423,7 @@ input[type=file]{display:none;}
   <div class="topbar">
     <div><h2 id="ptitle">Dashboard Financiero</h2><p id="psub">Estado de resultados consolidado</p></div>
     <div class="tr">
-      <select class="tb-sel" id="ysel" onchange="loadDash()">
-        <option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option>
-      </select>
-      <select class="tb-sel" id="usel" onchange="loadDash()">
-        <option value="TODAS">Todas las Unidades</option>
-        {% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
-      </select>
-      <select class="tb-sel" id="msel" onchange="loadDash()" style="display:none">
-        {% for m in months %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
-      </select>
-      <div class="toggle-divisa" onclick="toggleDivisaMode()" title="Alternar entre vista BCV y Divisa Real">
-        <span class="toggle-label">BCV</span>
-        <div class="toggle-switch" id="toggle-switch">
-          <div class="toggle-slider"></div>
-        </div>
-        <span class="toggle-label">Real</span>
-      </div>
+
       <button class="tb-sel" id="btnprint" onclick="window.print()" title="Imprimir o guardar como PDF esta hoja, con los filtros actuales" style="cursor:pointer">🖨 Imprimir / PDF</button>
     </div>
   </div>
@@ -497,121 +481,70 @@ input[type=file]{display:none;}
 
   <!-- DASHBOARD -->
   <div class="page" id="page-dashboard">
+    <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px;align-items:center">
+      <select class="csel" id="dash-unit" onchange="loadDash()" style="padding:5px 8px">
+        <option value="TODAS">Todas las Unidades</option>
+        {% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
+      </select>
+      <select class="csel" id="dash-month" style="padding:5px 8px">
+        <option value="">Todos</option>
+        {% for m in months %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+      </select>
+      <div id="dash-acum-toggle-container" style="display:none;align-items:center;gap:6px;background:var(--sf2);border:1px solid var(--bd);padding:5px 10px;border-radius:7px;font-size:11px;font-weight:600;color:var(--mu);height:28px;box-sizing:border-box">
+        <span>Mes</span>
+        <label class="switch-label" style="position:relative;display:inline-block;width:32px;height:18px;margin:0">
+          <input type="checkbox" id="dash-acum-toggle" style="opacity:0;width:0;height:0">
+          <span class="slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:var(--bd);border-radius:9px;transition:0.2s"></span>
+        </label>
+        <span>Acumulado</span>
+      </div>
+      <style>
+      #dash-acum-toggle:checked + .slider { background-color: var(--green) !important; }
+      #dash-acum-toggle:checked + .slider:before { transform: translateX(14px); }
+      .switch-label .slider:before {
+        position: absolute;
+        content: "";
+        height: 14px;
+        width: 14px;
+        left: 2px;
+        bottom: 2px;
+        background-color: white;
+        border-radius: 50%;
+        transition: 0.2s;
+      }
+      </style>
+      <select class="csel" id="dash-year" onchange="loadDash()" style="padding:5px 8px">
+        <option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option>
+      </select>
+    </div>
     <div class="banner b-all" id="banner"><span id="bico">⬡</span><span id="btxt">Vista Consolidada — Todas las Unidades</span></div>
     <div class="st-row"><span class="st-lbl">Datos:</span><span id="schips"><span class="s-empty">Sin datos</span></span></div>
 
-    <div class="tbar">
-      <div class="tbar-ttl">Indicadores KPI visibles</div>
-      <div class="pills">
-        <span class="pill on cb" data-id="ingr"  onclick="tkpi(this)"><span class="dot"></span>Ingresos</span>
-        <span class="pill on cg" data-id="ub"    onclick="tkpi(this)"><span class="dot"></span>Util. Bruta</span>
-        <span class="pill on cr" data-id="gas"   onclick="tkpi(this)"><span class="dot"></span>Gastos</span>
-        <span class="pill on ca" data-id="un"    onclick="tkpi(this)"><span class="dot"></span>Util. Neta</span>
-        <span class="pill cp"    data-id="mb"    onclick="tkpi(this)"><span class="dot"></span>Mg. Bruto %</span>
-        <span class="pill ct"    data-id="mn"    onclick="tkpi(this)"><span class="dot"></span>Mg. Neto %</span>
-        <span class="pill cb"    data-id="cos"   onclick="tkpi(this)"><span class="dot"></span>Costos</span>
-        <span class="pill cr"    data-id="rc"    onclick="tkpi(this)"><span class="dot"></span>%Costo/Vta</span>
-        <span class="pill ca"    data-id="ebt"   onclick="tkpi(this)"><span class="dot"></span>EBITDA</span>
-        <span class="pill cg"    data-id="rg"    onclick="tkpi(this)"><span class="dot"></span>%Gasto/Vta</span>
+    <div class="tbar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div>
+        <div class="tbar-ttl" id="kpi-tbar-ttl">Indicadores KPI visibles</div>
+        <div class="pills" id="kpi-pills-container">
+          <!-- Pills will be rendered here dynamically -->
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <button class="btn btn-outline" id="btn-edit-mode" onclick="enterEditMode()" style="padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer; border-radius: 6px; border: 1px solid var(--bd); background: var(--sf2); color: var(--mu);">✏️ Editar Dashboard</button>
+        <div id="edit-controls-group" style="display: none; gap: 8px;">
+          <button class="btn btn-secondary" onclick="openAddWidgetModal()" style="padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer; border-radius: 6px; background: var(--blue-l); color: var(--blue); border: 1px solid rgba(37,99,235,.2);">➕ Agregar Widget</button>
+          <button class="btn btn-success" onclick="saveDashboardConfig()" style="padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer; border-radius: 6px; background: var(--green); color: white; border: none;">💾 Guardar</button>
+          <button class="btn btn-danger" onclick="exitEditMode(false)" style="padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer; border-radius: 6px; background: var(--red); color: white; border: none;">✕ Cancelar</button>
+        </div>
       </div>
     </div>
 
     <div class="kgrid">
-      <div class="kc cb"       id="kc-ingr"><div class="kstripe"></div><div class="ktop"><span class="klbl">Ingresos Totales</span><span class="kico">💰</span></div><div class="kval" id="kv-ingr">—</div><div class="ksub">Acumulado año</div><div class="kbar"><div class="kbf" id="kb-ingr" style="width:100%"></div></div></div>
-      <div class="kc cg"       id="kc-ub">  <div class="kstripe"></div><div class="ktop"><span class="klbl">Utilidad Bruta</span><span class="kico">📈</span></div><div class="kval" id="kv-ub">—</div><div class="ksub" id="ks-ub">—</div><div class="kbar"><div class="kbf" id="kb-ub" style="width:0%"></div></div></div>
-      <div class="kc cr"       id="kc-gas"> <div class="kstripe"></div><div class="ktop"><span class="klbl">Total Gastos</span><span class="kico">📉</span></div><div class="kval" id="kv-gas">—</div><div class="ksub">Operac.+No operac.</div><div class="kbar"><div class="kbf" id="kb-gas" style="width:0%"></div></div></div>
-      <div class="kc ca"       id="kc-un">  <div class="kstripe"></div><div class="ktop"><span class="klbl">Utilidad Neta</span><span class="kico">🏆</span></div><div class="kval" id="kv-un">—</div><div class="ksub" id="ks-un">—</div><div class="kbar"><div class="kbf" id="kb-un" style="width:0%"></div></div></div>
-      <div class="kc cp hidden" id="kc-mb">  <div class="kstripe"></div><div class="ktop"><span class="klbl">Margen Bruto %</span><span class="kico">%</span></div><div class="kval" id="kv-mb">—</div><div class="ksub">Ref ≥30%</div><div class="kbar"><div class="kbf" id="kb-mb" style="width:0%"></div></div></div>
-      <div class="kc ct hidden" id="kc-mn">  <div class="kstripe"></div><div class="ktop"><span class="klbl">Margen Neto %</span><span class="kico">%</span></div><div class="kval" id="kv-mn">—</div><div class="ksub">Ref ≥5%</div><div class="kbar"><div class="kbf" id="kb-mn" style="width:0%"></div></div></div>
-      <div class="kc cb hidden" id="kc-cos"> <div class="kstripe"></div><div class="ktop"><span class="klbl">Costo de Ventas</span><span class="kico">🏭</span></div><div class="kval" id="kv-cos">—</div><div class="ksub">Acumulado año</div><div class="kbar"><div class="kbf" id="kb-cos" style="width:0%"></div></div></div>
-      <div class="kc cr hidden" id="kc-rc">  <div class="kstripe"></div><div class="ktop"><span class="klbl">%Costo/Venta</span><span class="kico">⚙️</span></div><div class="kval" id="kv-rc">—</div><div class="ksub">Eficiencia costos</div><div class="kbar"><div class="kbf" id="kb-rc" style="width:0%"></div></div></div>
-      <div class="kc ca hidden" id="kc-ebt"> <div class="kstripe"></div><div class="ktop"><span class="klbl">EBITDA aprox.</span><span class="kico">⭐</span></div><div class="kval" id="kv-ebt">—</div><div class="ksub">Util.Neta+Deprec.</div><div class="kbar"><div class="kbf" id="kb-ebt" style="width:0%"></div></div></div>
-      <div class="kc cg hidden" id="kc-rg">  <div class="kstripe"></div><div class="ktop"><span class="klbl">%Gasto/Venta</span><span class="kico">🔧</span></div><div class="kval" id="kv-rg">—</div><div class="ksub">Eficiencia operativa</div><div class="kbar"><div class="kbf" id="kb-rg" style="width:0%"></div></div></div>
+      <!-- KPI cards will be rendered here dynamically -->
     </div>
 
     <div id="wcon">
-      <!-- PUNTO DE EQUILIBRIO -->
-      <div class="wcard ww" id="wc-pe" draggable="true" style="display:none">
-        <div class="ch"><div><div class="ct">⚖️ Punto de Equilibrio</div><div class="cs">Solo disponible por unidad</div></div>
-          <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-pe">✕</button></div></div>
-        <div id="pe-card"></div>
-      </div>
-      <div class="wcard" id="wc-sem" draggable="true">
-        <div class="ch"><div><div class="ct">🚦 Semáforo Financiero</div><div class="cs">Estado de salud por indicador</div></div>
-          <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-sem">✕</button></div></div>
-        <div class="semrow" id="semrow"></div>
-      </div>
-      <!-- GAUGES -->
-      <div class="wcard" id="wc-gau" draggable="true">
-        <div class="ch"><div><div class="ct">⏱ Indicadores Gauge</div><div class="cs">Margen Neto · Cobertura PE · Eficiencia Operativa</div></div>
-          <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-gau">✕</button></div></div>
-        <div class="grow" id="grow"></div>
-      </div>
-      <!-- RANKING -->
-      <div class="wcard" id="wc-rank" draggable="true">
-        <div class="ch"><div><div class="ct">🏅 Ranking de Rentabilidad</div><div class="cs">Ordenado por margen neto</div></div>
-          <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-rank">✕</button></div></div>
-        <div id="rankbody"></div>
-      </div>
-      <!-- EVOLUCIÓN PRINCIPAL -->
-      <div class="wcard ww" id="wc-main" draggable="true">
-        <div class="ch"><div><div class="ct">Ingresos · Costos · Gastos</div><div class="cs">Evolución mensual · clic para ver detalle</div></div>
-          <div class="cact"><span class="dh">⠿</span>
-            <select class="csel" id="mtype" onchange="rebuildMain()"><option value="bar">Barras</option><option value="line">Líneas</option><option value="combo">Combo</option></select>
-            <button class="bcl" data-w="wc-main">✕</button></div></div>
-        <div class="cv h240"><canvas id="ch-main"></canvas></div>
-      </div>
-      <!-- TREEMAP -->
-      <div class="wcard" id="wc-tm" draggable="true">
-        <div class="ch"><div><div class="ct" id="tm-title">Participación por Unidad</div><div class="cs">Ingresos proporcionales</div></div>
-          <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-tm">✕</button></div></div>
-        <div class="tmw" id="tmcon"></div>
-      </div>
-      <!-- RADAR -->
-      <div class="wcard" id="wc-rad" draggable="true">
-        <div class="ch"><div><div class="ct" id="rad-title">Comparativo Multidimensional</div><div class="cs" id="rad-sub">Por unidad de negocio</div></div>
-          <div class="cact"><span class="dh">⠿</span><select class="csel ctsel" id="ct-ch-rad" onchange="setChartType('ch-rad',this.value)" title="Tipo de gráfico"><option value="radar">Radar</option><option value="line">Líneas</option><option value="bar">Barras</option></select><button class="bcl" data-w="wc-rad">✕</button></div></div>
-        <div class="cv h200"><canvas id="ch-rad"></canvas></div>
-      </div>
-      <!-- MÁRGENES -->
-      <div class="wcard" id="wc-mg" draggable="true">
-        <div class="ch"><div><div class="ct">Márgenes %</div><div class="cs">Bruto y neto mensual · clic para ver detalle</div></div>
-          <div class="cact"><span class="dh">⠿</span><select class="csel ctsel" id="ct-ch-mg" onchange="setChartType('ch-mg',this.value)" title="Tipo de gráfico"><option value="line">Líneas</option><option value="bar">Barras</option></select><button class="bcl" data-w="wc-mg">✕</button></div></div>
-        <div class="cv h200"><canvas id="ch-mg"></canvas></div>
-      </div>
-      <!-- UTILIDAD NETA -->
-      <div class="wcard" id="wc-un" draggable="true">
-        <div class="ch"><div><div class="ct">Utilidad Neta Mensual</div><div class="cs">+/− por mes · clic para ver detalle</div></div>
-          <div class="cact"><span class="dh">⠿</span><select class="csel ctsel" id="ct-ch-un" onchange="setChartType('ch-un',this.value)" title="Tipo de gráfico"><option value="bar">Barras</option><option value="line">Líneas</option></select><button class="bcl" data-w="wc-un">✕</button></div></div>
-        <div class="cv h200"><canvas id="ch-un"></canvas></div>
-      </div>
-      <!-- ESTRUCTURA GASTOS -->
-      <div class="wcard" id="wc-est" draggable="true">
-        <div class="ch"><div><div class="ct">Estructura de Gastos</div><div class="cs">Por categoría · clic para ver detalle</div></div>
-          <div class="cact"><span class="dh">⠿</span><select class="csel ctsel" id="ct-ch-est" onchange="setChartType('ch-est',this.value)" title="Tipo de gráfico"><option value="doughnut">Dona</option><option value="pie">Pastel</option><option value="bar">Barras</option></select><button class="bcl" data-w="wc-est">✕</button></div></div>
-        <div class="cv h200"><canvas id="ch-est"></canvas></div>
-      </div>
-      <!-- TOP GASTOS -->
-      <div class="wcard ww" id="wc-tg" draggable="true">
-        <div class="ch"><div><div class="ct">Top 10 Gastos</div><div class="cs">Mayor impacto · clic para ver detalle</div></div>
-          <div class="cact"><span class="dh">⠿</span><select class="csel ctsel" id="ct-ch-tg" onchange="setChartType('ch-tg',this.value)" title="Tipo de gráfico"><option value="bar">Barras</option><option value="line">Líneas</option></select><button class="bcl" data-w="wc-tg">✕</button></div></div>
-        <div class="cv h280"><canvas id="ch-tg"></canvas></div>
-      </div>
-      <!-- WATERFALL -->
-      <div class="wcard ww" id="wc-wf" draggable="true">
-        <div class="ch"><div><div class="ct">Cascada P&amp;L</div><div class="cs">De ingresos a utilidad neta</div></div>
-          <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-wf">✕</button></div></div>
-        <div class="wf" id="wf"></div>
-      </div>
-      <!-- TABLA -->
-      <div class="wcard ww" id="wc-tbl" draggable="true">
-        <div class="ch"><div><div class="ct">Resumen Mensual</div><div class="cs">Detalle por período</div></div>
-          <div class="cact"><span class="dh">⠿</span>
-            <select class="csel" id="tblmode" onchange="rTable()"><option value="$">Montos</option><option value="%">%</option></select>
-            <button class="bcl" data-w="wc-tbl">✕</button></div></div>
-        <div class="tw"><table><thead><tr><th>Mes</th><th>Ingresos</th><th>Costos</th><th>Util.Bruta</th><th>Gastos</th><th>Util.Neta</th><th>Mg.Bruto</th><th>Mg.Neto</th><th>%Costo</th><th>%Gasto</th></tr></thead><tbody id="tbody"></tbody></table></div>
-      </div>
+      <!-- Main widgets will be rendered here dynamically -->
     </div>
+
     <div id="rbar"><button class="btns" onclick="restoreW()">↺ Mostrar todos los gráficos</button></div>
   </div>
 
@@ -658,7 +591,7 @@ input[type=file]{display:none;}
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div style="font-size:12px;font-weight:700">Estado de Situación Financiera (Balance General)</div>
         <div style="display:flex;gap:6px;align-items:center">
-          <select class="csel" id="esf-unit" onchange="loadESF()" style="padding:5px 8px"><option value="">Consolidado</option>{% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}</select>
+          <select class="csel" id="esf-unit" onchange="loadESF()" style="padding:5px 8px">{% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}</select>
           <select class="csel" id="esf-year" onchange="loadESF()" style="padding:5px 8px"><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option></select>
           <button class="btns" onclick="window.location.href='/api/export/esf?year='+G('esf-year').value+(G('esf-unit').value?'&unit='+encodeURIComponent(G('esf-unit').value):'')" style="font-size:11px">↓ Excel</button>
           <button class="btns" onclick="window.location.href='/api/export/esf/pdf?year='+G('esf-year').value+(G('esf-unit').value?'&unit='+encodeURIComponent(G('esf-unit').value):'')" style="font-size:11px">↓ PDF</button>
@@ -877,6 +810,20 @@ input[type=file]{display:none;}
     <div class="fg"><label>Nombre en Odoo</label><input type="text" id="m-name"></div>
     <div class="fg"><label>Partida en Eff Ultrax</label><input type="text" id="m-partida"></div>
     <div class="fg"><label>Tipo</label><select id="m-sign"><option value="-1">Gasto / Costo</option><option value="1">Ingreso</option></select></div>
+    <div class="fg" id="m-group-container" style="display:none">
+      <label>Reubicar en Subtotal EERR</label>
+      <select id="m-group" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px">
+        <option value="original">(Original)</option>
+        <option value="Subtotal Gastos de Administración">Administración</option>
+        <option value="Subtotal Gastos de Recursos Humanos">Recursos Humanos</option>
+        <option value="Subtotal Gastos de Comercialización y Logistica">Comercialización y Logística</option>
+        <option value="Subtotal Gastos de Mercadeo">Mercadeo</option>
+        <option value="Subtotal Gastos de TI+I">TI+I</option>
+      </select>
+    </div>
+    <div id="m-group-blocked-msg" style="display:none;font-size:11px;color:var(--mu);margin-bottom:12px;padding:6px 10px;background:var(--bg);border-radius:6px;border:1px solid var(--border)">
+      ℹ️ Esta partida está bloqueada o no califica para reubicación.
+    </div>
     <div class="mfoot"><button class="btnc" onclick="closeModal()">Cancelar</button><button class="btnm" onclick="saveMap()">Guardar</button></div>
   </div>
 </div>
@@ -931,6 +878,19 @@ input[type=file]{display:none;}
   </div>
 </div>
 
+<!-- MODAL AGREGAR WIDGET -->
+<div class="ov" id="add-widget-modal">
+  <div class="modal" style="width:400px;max-width:96vw">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
+      <div style="font-size:14px;font-weight:700;color:var(--fg)">Agregar Widgets Disponibles</div>
+      <button class="btnc" onclick="closeAddWidgetModal()" style="padding:4px 10px;flex-shrink:0">✕</button>
+    </div>
+    <div id="add-widget-list" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto;padding-right:4px">
+      <!-- List of available widgets will be generated here -->
+    </div>
+  </div>
+</div>
+
 <script>
 // ── UTILS ─────────────────────────────────────────────────────────────────
 const G=id=>document.getElementById(id);
@@ -970,7 +930,656 @@ const LS={
 };
 
 // Estado del modo Divisa Real (BCV o Real)
-let modoDivisaReal=LS.get('modo_divisa_real',false);
+let modoDivisaReal=false;
+
+// ── DASHBOARD BUILDER CONFIG & LOGIC ──
+const DEFAULT_DASHBOARD_CONFIG = [
+  {
+    "id": "kc-ingr",
+    "type": "kpi",
+    "title": "Ingresos Totales",
+    "subtitle": "Acumulado año",
+    "icon": "💰",
+    "colorClass": "cb",
+    "visible": true,
+    "order": 1,
+    "dataset": "ingresos"
+  },
+  {
+    "id": "kc-ub",
+    "type": "kpi",
+    "title": "Utilidad Bruta",
+    "subtitle": "",
+    "icon": "📈",
+    "colorClass": "cg",
+    "visible": true,
+    "order": 2,
+    "dataset": "utilidad_bruta"
+  },
+  {
+    "id": "kc-gas",
+    "type": "kpi",
+    "title": "Total Gastos",
+    "subtitle": "Operac.+No operac.",
+    "icon": "📉",
+    "colorClass": "cr",
+    "visible": true,
+    "order": 3,
+    "dataset": "gastos"
+  },
+  {
+    "id": "kc-un",
+    "type": "kpi",
+    "title": "Utilidad Neta",
+    "subtitle": "",
+    "icon": "🏆",
+    "colorClass": "ca",
+    "visible": true,
+    "order": 4,
+    "dataset": "utilidad_neta"
+  },
+  {
+    "id": "kc-mb",
+    "type": "kpi",
+    "title": "Margen Bruto %",
+    "subtitle": "Ref ≥30%",
+    "icon": "%",
+    "colorClass": "cp",
+    "visible": false,
+    "order": 5,
+    "dataset": "margen_bruto"
+  },
+  {
+    "id": "kc-mn",
+    "type": "kpi",
+    "title": "Margen Neto %",
+    "subtitle": "Ref ≥5%",
+    "icon": "%",
+    "colorClass": "ct",
+    "visible": false,
+    "order": 6,
+    "dataset": "margen_neto"
+  },
+  {
+    "id": "kc-cos",
+    "type": "kpi",
+    "title": "Costo de Ventas",
+    "subtitle": "Acumulado año",
+    "icon": "🏭",
+    "colorClass": "cb",
+    "visible": false,
+    "order": 7,
+    "dataset": "costos"
+  },
+  {
+    "id": "kc-rc",
+    "type": "kpi",
+    "title": "%Costo/Venta",
+    "subtitle": "Eficiencia costos",
+    "icon": "⚙️",
+    "colorClass": "cr",
+    "visible": false,
+    "order": 8,
+    "dataset": "ratio_costo"
+  },
+  {
+    "id": "kc-ebt",
+    "type": "kpi",
+    "title": "EBITDA",
+    "subtitle": "Acumulado año",
+    "icon": "⭐",
+    "colorClass": "ca",
+    "visible": false,
+    "order": 9,
+    "dataset": "ebitda"
+  },
+  {
+    "id": "kc-rg",
+    "type": "kpi",
+    "title": "%Gasto/Venta",
+    "subtitle": "Eficiencia operativa",
+    "icon": "🔧",
+    "colorClass": "cg",
+    "visible": false,
+    "order": 10,
+    "dataset": "ratio_gasto"
+  },
+  {
+    "id": "wc-pe",
+    "type": "special",
+    "title": "Punto de Equilibrio",
+    "subtitle": "Solo disponible por unidad",
+    "visible": false,
+    "order": 11,
+    "doubleWidth": true,
+    "dataset": "punto_equilibrio"
+  },
+  {
+    "id": "wc-sem",
+    "type": "special",
+    "title": "Semáforo Financiero",
+    "subtitle": "Estado de salud por indicador",
+    "visible": true,
+    "order": 12,
+    "doubleWidth": false,
+    "dataset": "semaforo"
+  },
+  {
+    "id": "wc-gau",
+    "type": "special",
+    "title": "Indicadores Gauge",
+    "subtitle": "Margen Neto · Cobertura PE · Eficiencia Operativa",
+    "visible": true,
+    "order": 13,
+    "doubleWidth": false,
+    "dataset": "gauges"
+  },
+  {
+    "id": "wc-rank",
+    "type": "special",
+    "title": "Ranking de Rentabilidad",
+    "subtitle": "Ordenado por margen neto",
+    "visible": true,
+    "order": 14,
+    "doubleWidth": false,
+    "dataset": "ranking"
+  },
+  {
+    "id": "wc-main",
+    "type": "chart",
+    "title": "Ingresos · Costos · Gastos",
+    "subtitle": "Evolución mensual · clic para ver detalle",
+    "visible": true,
+    "order": 15,
+    "doubleWidth": true,
+    "chartType": "bar",
+    "dataset": "ingresos_costos_gastos"
+  },
+  {
+    "id": "wc-tm",
+    "type": "special",
+    "title": "Participación por Unidad",
+    "subtitle": "Ingresos proporcionales",
+    "visible": true,
+    "order": 16,
+    "doubleWidth": false,
+    "dataset": "participacion_unidad"
+  },
+  {
+    "id": "wc-rad",
+    "type": "chart",
+    "title": "Comparativo Multidimensional",
+    "subtitle": "Por unidad de negocio",
+    "visible": true,
+    "order": 17,
+    "doubleWidth": false,
+    "chartType": "radar",
+    "dataset": "comparativo_multidimensional"
+  },
+  {
+    "id": "wc-mg",
+    "type": "chart",
+    "title": "Márgenes %",
+    "subtitle": "Bruto y neto mensual · clic para ver detalle",
+    "visible": true,
+    "order": 18,
+    "doubleWidth": false,
+    "chartType": "line",
+    "dataset": "margenes"
+  },
+  {
+    "id": "wc-un",
+    "type": "chart",
+    "title": "Utilidad Neta Mensual",
+    "subtitle": "+/− por mes · clic para ver detalle",
+    "visible": true,
+    "order": 19,
+    "doubleWidth": false,
+    "chartType": "bar",
+    "dataset": "utilidad_neta_mensual"
+  },
+  {
+    "id": "wc-est",
+    "type": "chart",
+    "title": "Estructura de Gastos",
+    "subtitle": "Por categoría · clic para ver detalle",
+    "visible": true,
+    "order": 20,
+    "doubleWidth": false,
+    "chartType": "doughnut",
+    "dataset": "estructura_gastos"
+  },
+  {
+    "id": "wc-tg",
+    "type": "chart",
+    "title": "Top 10 Gastos",
+    "subtitle": "Mayor impacto · clic para ver detalle",
+    "visible": true,
+    "order": 21,
+    "doubleWidth": true,
+    "chartType": "bar",
+    "dataset": "top_gastos"
+  },
+  {
+    "id": "wc-wf",
+    "type": "special",
+    "title": "Cascada P&L",
+    "subtitle": "De ingresos a utilidad neta",
+    "visible": true,
+    "order": 22,
+    "doubleWidth": true,
+    "dataset": "cascada_pl"
+  },
+  {
+    "id": "wc-tbl",
+    "type": "table",
+    "title": "Resumen Mensual",
+    "subtitle": "Detalle por período",
+    "visible": true,
+    "order": 23,
+    "doubleWidth": true,
+    "dataset": "tabla_resumen"
+  }
+];
+
+const WIDGET_TEMPLATES = {
+  'wc-pe': `
+    <div class="ch"><div><div class="ct">⚖️ Punto de Equilibrio</div><div class="cs">Solo disponible por unidad</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-pe">✕</button></div></div>
+    <div id="pe-card"></div>
+  `,
+  'wc-sem': `
+    <div class="ch"><div><div class="ct">🚦 Semáforo Financiero</div><div class="cs">Estado de salud por indicador</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-sem">✕</button></div></div>
+    <div class="semrow" id="semrow"></div>
+  `,
+  'wc-gau': `
+    <div class="ch"><div><div class="ct">⏱ Indicadores Gauge</div><div class="cs">Margen Neto · Cobertura PE · Eficiencia Operativa</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-gau">✕</button></div></div>
+    <div class="grow" id="grow"></div>
+  `,
+  'wc-rank': `
+    <div class="ch"><div><div class="ct">🏅 Ranking de Rentabilidad</div><div class="cs">Ordenado por margen neto</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-rank">✕</button></div></div>
+    <div id="rankbody"></div>
+  `,
+  'wc-main': `
+    <div class="ch"><div><div class="ct">Ingresos · Costos · Gastos</div><div class="cs">Evolución mensual · clic para ver detalle</div></div>
+      <div class="cact"><span class="dh">⠿</span>
+        <select class="csel" id="mtype" onchange="rebuildMain()"><option value="bar">Barras</option><option value="line">Líneas</option><option value="combo">Combo</option></select>
+        <button class="bcl" data-w="wc-main">✕</button></div></div>
+    <div class="cv h240"><canvas id="ch-main"></canvas></div>
+  `,
+  'wc-tm': `
+    <div class="ch"><div><div class="ct" id="tm-title">Participación por Unidad</div><div class="cs">Ingresos proporcionales</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-tm">✕</button></div></div>
+    <div class="tmw" id="tmcon"></div>
+  `,
+  'wc-rad': `
+    <div class="ch"><div><div class="ct" id="rad-title">Comparativo Multidimensional</div><div class="cs" id="rad-sub">Por unidad de negocio</div></div>
+      <div class="cact"><span class="dh">⠿</span><select class="csel ctsel" id="ct-ch-rad" onchange="setChartType('ch-rad',this.value)" title="Tipo de gráfico"><option value="radar">Radar</option><option value="line">Líneas</option><option value="bar">Barras</option></select><button class="bcl" data-w="wc-rad">✕</button></div></div>
+    <div class="cv h200"><canvas id="ch-rad"></canvas></div>
+  `,
+  'wc-mg': `
+    <div class="ch"><div><div class="ct">Márgenes %</div><div class="cs">Bruto y neto mensual · clic para ver detalle</div></div>
+      <div class="cact"><span class="dh">⠿</span><select class="csel ctsel" id="ct-ch-mg" onchange="setChartType('ch-mg',this.value)" title="Tipo de gráfico"><option value="line">Líneas</option><option value="bar">Barras</option></select><button class="bcl" data-w="wc-mg">✕</button></div></div>
+    <div class="cv h200"><canvas id="ch-mg"></canvas></div>
+  `,
+  'wc-un': `
+    <div class="ch"><div><div class="ct">Utilidad Neta Mensual</div><div class="cs">+/− por mes · clic para ver detalle</div></div>
+      <div class="cact"><span class="dh">⠿</span><select class="csel ctsel" id="ct-ch-un" onchange="setChartType('ch-un',this.value)" title="Tipo de gráfico"><option value="bar">Barras</option><option value="line">Líneas</option></select><button class="bcl" data-w="wc-un">✕</button></div></div>
+    <div class="cv h200"><canvas id="ch-un"></canvas></div>
+  `,
+  'wc-est': `
+    <div class="ch"><div><div class="ct">Estructura de Gastos</div><div class="cs">Por categoría · clic para ver detalle</div></div>
+      <div class="cact"><span class="dh">⠿</span><select class="csel ctsel" id="ct-ch-est" onchange="setChartType('ch-est',this.value)" title="Tipo de gráfico"><option value="doughnut">Dona</option><option value="pie">Pastel</option><option value="bar">Barras</option></select><button class="bcl" data-w="wc-est">✕</button></div></div>
+    <div class="cv h200"><canvas id="ch-est"></canvas></div>
+  `,
+  'wc-tg': `
+    <div class="ch"><div><div class="ct">Top 10 Gastos</div><div class="cs">Mayor impacto · clic para ver detalle</div></div>
+      <div class="cact"><span class="dh">⠿</span><select class="csel ctsel" id="ct-ch-tg" onchange="setChartType('ch-tg',this.value)" title="Tipo de gráfico"><option value="bar">Barras</option><option value="line">Líneas</option></select><button class="bcl" data-w="wc-tg">✕</button></div></div>
+    <div class="cv h280"><canvas id="ch-tg"></canvas></div>
+  `,
+  'wc-wf': `
+    <div class="ch"><div><div class="ct">Cascada P&amp;L</div><div class="cs">De ingresos a utilidad neta</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-wf">✕</button></div></div>
+    <div class="wf" id="wf"></div>
+  `,
+  'wc-tbl': `
+    <div class="ch"><div><div class="ct">Resumen Mensual</div><div class="cs">Detalle por período</div></div>
+      <div class="cact"><span class="dh">⠿</span>
+        <select class="csel" id="tblmode" onchange="rTable()"><option value="$">Montos</option><option value="%">%</option></select>
+        <button class="bcl" data-w="wc-tbl">✕</button></div></div>
+    <div class="tw"><table><thead><tr><th>Mes</th><th>Ingresos</th><th>Costos</th><th>Util.Bruta</th><th>Gastos</th><th>Util.Neta</th><th>Mg.Bruto</th><th>Mg.Neto</th><th>%Costo</th><th>%Gasto</th></tr></thead><tbody id="tbody"></tbody></table></div>
+  `
+};
+
+window.DASHBOARD_CONFIG = [];
+window.DASHBOARD_EDIT_MODE = false;
+let ORIGINAL_CONFIG_BACKUP = null;
+
+async function initDashboardConfig() {
+  try {
+    const res = await fetch('/api/dashboard/config');
+    if (!res.ok) throw new Error('Error al cargar config');
+    window.DASHBOARD_CONFIG = await res.json();
+    
+    // Aplicar localStorage overrides para modo normal (retrocompatibilidad)
+    const localHidden = LS.get('hidden', null);
+    const localKPI = LS.get('kpi', null);
+    const localOrder = LS.get('worder', null);
+
+    if (localHidden) {
+      window.DASHBOARD_CONFIG.forEach(w => {
+        if (localHidden.includes(w.id)) w.visible = false;
+      });
+    }
+
+    if (localKPI) {
+      window.DASHBOARD_CONFIG.forEach(w => {
+        if (w.type === 'kpi') {
+          const kpiId = w.id.replace('kc-', '');
+          w.visible = localKPI.includes(kpiId);
+        }
+      });
+    }
+
+    if (localOrder) {
+      window.DASHBOARD_CONFIG.sort((a, b) => {
+        const ai = localOrder.indexOf(a.id);
+        const bi = localOrder.indexOf(b.id);
+        if (ai === -1 && bi === -1) return 0;
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      });
+      window.DASHBOARD_CONFIG.forEach((w, idx) => {
+        w.order = idx + 1;
+      });
+    }
+  } catch (err) {
+    console.error('Failed to load dashboard config:', err);
+    window.DASHBOARD_CONFIG = JSON.parse(JSON.stringify(DEFAULT_DASHBOARD_CONFIG));
+  }
+}
+
+function enterEditMode() {
+  window.DASHBOARD_EDIT_MODE = true;
+  ORIGINAL_CONFIG_BACKUP = JSON.parse(JSON.stringify(window.DASHBOARD_CONFIG));
+  
+  G('btn-edit-mode').style.display = 'none';
+  G('edit-controls-group').style.display = 'flex';
+
+  renderDashboardWidgets();
+  loadDash();
+}
+
+function exitEditMode(save = false) {
+  window.DASHBOARD_EDIT_MODE = false;
+  
+  G('btn-edit-mode').style.display = 'inline-block';
+  G('edit-controls-group').style.display = 'none';
+
+  if (!save && ORIGINAL_CONFIG_BACKUP) {
+    window.DASHBOARD_CONFIG = ORIGINAL_CONFIG_BACKUP;
+  }
+  
+  renderDashboardWidgets();
+  loadDash();
+}
+
+async function saveDashboardConfig() {
+  syncConfigFromDOM();
+
+  try {
+    const res = await fetch('/api/dashboard/config', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(window.DASHBOARD_CONFIG)
+    });
+    if (!res.ok) {
+      alert('Error al guardar la configuración');
+      return;
+    }
+    localStorage.removeItem('worder');
+    localStorage.removeItem('hidden');
+    localStorage.removeItem('kpi');
+    
+    alert('Configuración guardada exitosamente');
+    exitEditMode(true);
+  } catch (err) {
+    console.error('Error saving config:', err);
+    alert('Error de red al guardar la configuración');
+  }
+}
+
+function syncConfigFromDOM() {
+  const wcon = G('wcon');
+  const kgrid = document.querySelector('.kgrid');
+  
+  let currentOrder = 1;
+
+  if (kgrid) {
+    [...kgrid.children].forEach(child => {
+      const w = window.DASHBOARD_CONFIG.find(item => item.id === child.id);
+      if (w) {
+        w.order = currentOrder++;
+        w.visible = !child.classList.contains('hidden');
+      }
+    });
+  }
+
+  if (wcon) {
+    [...wcon.children].forEach(child => {
+      const w = window.DASHBOARD_CONFIG.find(item => item.id === child.id);
+      if (w) {
+        w.order = currentOrder++;
+        w.visible = !child.classList.contains('whidden');
+        w.doubleWidth = child.classList.contains('ww');
+        
+        const select = child.querySelector('.ctsel');
+        if (select) {
+          w.chartType = select.value;
+        }
+      }
+    });
+  }
+}
+
+function openAddWidgetModal() {
+  const modal = G('add-widget-modal');
+  const list = G('add-widget-list');
+  if (!modal || !list) return;
+
+  list.innerHTML = '';
+  const hiddenWidgets = window.DASHBOARD_CONFIG.filter(w => !w.visible);
+
+  if (hiddenWidgets.length === 0) {
+    list.innerHTML = `<p style="color: var(--mu2); font-size: 12px; text-align: center; padding: 10px;">Todos los widgets están en uso.</p>`;
+  } else {
+    hiddenWidgets.forEach(w => {
+      const item = document.createElement('div');
+      item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 8px; background: var(--sf2); border: 1px solid var(--bd); border-radius: 6px; margin-bottom: 4px;';
+      
+      const typeLabel = w.type === 'kpi' ? '🔑 KPI' : w.type === 'chart' ? '📊 Gráfico' : '⚙️ Especial';
+      
+      item.innerHTML = `
+        <div>
+          <div style="font-size: 11px; font-weight: 600; color: var(--fg);">${w.title}</div>
+          <div style="font-size: 9px; color: var(--mu2);">${typeLabel}</div>
+        </div>
+        <button onclick="addWidget('${w.id}')" style="background: var(--blue); color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 10px; cursor: pointer; font-weight: 600;">➕ Agregar</button>
+      `;
+      list.appendChild(item);
+    });
+  }
+
+  modal.classList.add('show');
+}
+
+function closeAddWidgetModal() {
+  const modal = G('add-widget-modal');
+  if (modal) modal.classList.remove('show');
+}
+
+function addWidget(id) {
+  const w = window.DASHBOARD_CONFIG.find(item => item.id === id);
+  if (w) {
+    w.visible = true;
+    renderDashboardWidgets();
+    loadDash();
+  }
+  closeAddWidgetModal();
+}
+
+function removeWidget(id) {
+  const w = window.DASHBOARD_CONFIG.find(item => item.id === id);
+  if (w) {
+    w.visible = false;
+    renderDashboardWidgets();
+    loadDash();
+  }
+}
+
+function toggleWidgetWidth(id) {
+  const w = window.DASHBOARD_CONFIG.find(item => item.id === id);
+  if (w) {
+    w.doubleWidth = !w.doubleWidth;
+    renderDashboardWidgets();
+    loadDash();
+  }
+}
+
+function renderDashboardWidgets() {
+  const wcon = G('wcon');
+  if (!wcon) return;
+  wcon.innerHTML = '';
+
+  const sortedWidgets = window.DASHBOARD_CONFIG
+    .filter(w => w.type !== 'kpi')
+    .sort((a, b) => a.order - b.order);
+
+  sortedWidgets.forEach(w => {
+    let isVisible = w.visible;
+    const localHidden = LS.get('hidden', []);
+    if (localHidden.includes(w.id)) {
+      isVisible = false;
+    }
+
+    const wcard = document.createElement('div');
+    wcard.className = `wcard ${w.doubleWidth ? 'ww' : ''} ${isVisible ? '' : 'whidden'}`;
+    wcard.id = w.id;
+    wcard.setAttribute('draggable', 'true');
+    
+    let extraControls = '';
+    if (window.DASHBOARD_EDIT_MODE) {
+      wcard.classList.remove('whidden');
+      wcard.style.border = '2px dashed var(--blue)';
+      extraControls = `
+        <div class="edit-card-overlay" style="position: absolute; top: 0; right: 0; background: rgba(37,99,235,0.08); padding: 4px; border-bottom-left-radius: 8px; display: flex; gap: 4px; z-index: 10;">
+          <label style="font-size: 10px; display: flex; align-items: center; gap: 2px; cursor: pointer; color: var(--blue); font-weight: 600;">
+            <input type="checkbox" ${w.doubleWidth ? 'checked' : ''} onchange="toggleWidgetWidth('${w.id}')" style="cursor: pointer;"> Ancho Doble
+          </label>
+          <button onclick="removeWidget('${w.id}')" style="background: var(--red); color: white; border: none; border-radius: 4px; padding: 2px 6px; font-size: 10px; cursor: pointer; font-weight: bold;">✕ Quitar</button>
+        </div>
+      `;
+      wcard.style.position = 'relative';
+    }
+
+    const content = WIDGET_TEMPLATES[w.id] || '';
+    wcard.innerHTML = content + extraControls;
+    wcon.appendChild(wcard);
+  });
+
+  renderKPIs();
+  initClose();
+  initDrag();
+  scheduleMasonry();
+}
+
+function renderKPIs() {
+  const kgrid = document.querySelector('.kgrid');
+  if (!kgrid) return;
+  kgrid.innerHTML = '';
+
+  const kpis = window.DASHBOARD_CONFIG
+    .filter(w => w.type === 'kpi')
+    .sort((a, b) => a.order - b.order);
+
+  kpis.forEach(w => {
+    let isVisible = w.visible;
+    const localKPI = LS.get('kpi', null);
+    if (localKPI !== null) {
+      isVisible = localKPI.includes(w.id.replace('kc-', ''));
+    }
+
+    const kc = document.createElement('div');
+    kc.className = `kc ${w.colorClass} ${isVisible ? '' : 'hidden'}`;
+    kc.id = w.id;
+
+    let extraControls = '';
+    if (window.DASHBOARD_EDIT_MODE) {
+      kc.classList.remove('hidden');
+      kc.style.border = '2px dashed var(--blue)';
+      kc.style.position = 'relative';
+      extraControls = `
+        <button onclick="removeWidget('${w.id}')" style="position: absolute; top: 2px; right: 2px; background: var(--red); color: white; border: none; border-radius: 4px; padding: 1px 4px; font-size: 8px; cursor: pointer; z-index: 10;">✕</button>
+      `;
+    }
+
+    kc.innerHTML = `
+      <div class="kstripe"></div>
+      <div class="ktop">
+        <span class="klbl">${w.title}</span>
+        <span class="kico">${w.icon}</span>
+      </div>
+      <div class="kval" id="kv-${w.id.replace('kc-', '')}">—</div>
+      <div class="ksub" id="ks-${w.id.replace('kc-', '')}">${w.subtitle || ''}</div>
+      <div class="kbar">
+        <div class="kbf" id="kb-${w.id.replace('kc-', '')}" style="width:0%"></div>
+      </div>
+      ${extraControls}
+    `;
+    kgrid.appendChild(kc);
+  });
+
+  renderKPIPills();
+}
+
+function renderKPIPills() {
+  const container = G('kpi-pills-container');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const kpis = window.DASHBOARD_CONFIG
+    .filter(w => w.type === 'kpi')
+    .sort((a, b) => a.order - b.order);
+
+  kpis.forEach(w => {
+    let isVisible = w.visible;
+    const localKPI = LS.get('kpi', null);
+    if (localKPI !== null) {
+      isVisible = localKPI.includes(w.id.replace('kc-', ''));
+    }
+
+    const pill = document.createElement('span');
+    pill.className = `pill ${isVisible ? 'on' : ''} ${w.colorClass}`;
+    pill.dataset.id = w.id.replace('kc-', '');
+    pill.onclick = () => {
+      if (window.DASHBOARD_EDIT_MODE) {
+        w.visible = !w.visible;
+        renderDashboardWidgets();
+        loadDash();
+      } else {
+        tkpi(pill);
+      }
+    };
+    pill.innerHTML = `<span class="dot"></span>${w.title}`;
+    container.appendChild(pill);
+  });
+}
 
 // ── PAGES ─────────────────────────────────────────────────────────────────
 function showPage(name,el){
@@ -1405,7 +2014,7 @@ function chartGastoClick(id,els){
   else if(id==='ch-tg'){const g=(DD.top_gastos||[])[idx]; if(g)openGastoDetalle({partida:g.partida});}
 }
 async function openGastoDetalle(q){
-  const year=G('ysel').value, unit=G('usel').value;
+  const year=G('dash-year').value, unit=G('dash-unit').value;
   let url=`/api/gasto/detalle?year=${year}&unit=${encodeURIComponent(unit)}`;
   url += q.partida ? `&partida=${encodeURIComponent(q.partida)}` : `&categoria=${encodeURIComponent(q.categoria)}`;
   G('det-title').textContent='Cargando…'; G('det-sub').textContent=''; G('det-parts').innerHTML='';
@@ -1436,7 +2045,7 @@ function chartUniversalClick(id,els){
   openUniversalDetalle(id);
 }
 async function openUniversalDetalle(id){
-  const year=G('ysel').value, unit=G('usel').value;
+  const year=G('dash-year').value, unit=G('dash-unit').value;
   let url=`/api/grafico/detalle?chart_id=${id}&year=${year}&unit=${encodeURIComponent(unit)}`;
   G('det-title').textContent='Cargando…'; G('det-sub').textContent=''; G('det-parts').innerHTML='';
   G('detmod').classList.add('show');
@@ -1520,11 +2129,11 @@ function rTable(){
 // ── DASHBOARD LOAD ────────────────────────────────────────────────────────
 async function loadDash(){
   try{
-    const year=G('ysel').value, unit=G('usel').value;
+    const year=G('dash-year').value, unit=G('dash-unit').value;
 
     // Modo Divisa Real: carga datos ajustados de un mes específico
     if(modoDivisaReal){
-      const month=G('msel').value;
+      const month=G('dash-month').value;
       const res=await fetch(`/api/dashboard_divisa_real?year=${year}&month=${month}&unit=${unit}`);
       if(!res.ok){
         const err=await res.json();
@@ -1562,6 +2171,21 @@ async function loadDash(){
       DD=await res.json();
       DD._modo_divisa=false;
     }
+
+    const selectedMonth = G('dash-month').value; // '' = Todos
+    const modoAcum = document.getElementById('dash-acum-toggle').checked;
+
+    let mesesFiltrados;
+    if (!selectedMonth) {
+      mesesFiltrados = DD.months;
+    } else if (modoAcum) {
+      mesesFiltrados = DD.months.filter((m, i) => MO.indexOf(m.month) <= MO.indexOf(selectedMonth));
+    } else {
+      mesesFiltrados = DD.months.filter(m => m.month === selectedMonth);
+    }
+
+    // Redefinir para sincronizar automáticamente todas las vistas de gráficos y tablas
+    DD.months = mesesFiltrados;
     const isTodas=unit==='TODAS';
     const ban=G('banner');ban.className='banner '+(isTodas?'b-all':'b-unit');
     G('bico').textContent=isTodas?'⬡':'◎';
@@ -1579,9 +2203,13 @@ async function loadDash(){
 
     const byU={};(DD.loaded||[]).forEach(l=>{if(!byU[l.unit])byU[l.unit]=[];byU[l.unit].push(l.month);});
     G('schips').innerHTML=Object.entries(byU).map(([u,ms])=>`<span class="s-chip">${u}: ${ms.join(' ')}</span>`).join(' ')||'<span class="s-empty">Sin datos cargados</span>';
-    const tI=DD.months.reduce((a,m)=>a+m.ingresos,0),tC=DD.months.reduce((a,m)=>a+m.costos,0),tG=DD.months.reduce((a,m)=>a+m.gastos,0);
-    const ub=tI-tC,un=tI-tC-tG,mb=tI?ub/tI*100:0,mn=tI?un/tI*100:0,rc=tI?tC/tI*100:0,rg=tI?tG/tI*100:0;
-    const depr=(DD.top_gastos||[]).filter(g=>g.partida.toLowerCase().includes('deprecia')||g.partida.toLowerCase().includes('amortiz')).reduce((a,g)=>a+g.total,0);
+    const tI = DD.totals ? DD.totals.ingresos : mesesFiltrados.reduce((a,m)=>a+m.ingresos,0);
+    const tC = DD.totals ? DD.totals.costos : mesesFiltrados.reduce((a,m)=>a+m.costos,0);
+    const tG = DD.totals ? DD.totals.gastos : mesesFiltrados.reduce((a,m)=>a+m.gastos,0);
+    const ub = DD.totals ? DD.totals.utilidad_bruta : (tI - tC);
+    const un = DD.totals ? DD.totals.utilidad_neta : (tI - tC - tG);
+    const ebt = DD.totals ? DD.totals.ebitda : un;
+    const mb=tI?ub/tI*100:0,mn=tI?un/tI*100:0,rc=tI?tC/tI*100:0,rg=tI?tG/tI*100:0;
     const sk=(id,v,s,b)=>{const kv=G('kv-'+id);if(kv)kv.textContent=v;const ks=G('ks-'+id);if(ks&&s)ks.textContent=s;const kb=G('kb-'+id);if(kb)kb.style.width=cl(b,0,100)+'%';};
     sk('ingr',fmtS(tI),'Acumulado año',100);sk('ub',fmtS(ub),'Margen: '+pct(mb),mb);
     sk('gas',fmtS(tG),null,tI?tG/tI*100:0);sk('un',fmtS(un),'Margen: '+pct(mn),cl(Math.abs(mn),0,100));
@@ -1589,7 +2217,7 @@ async function loadDash(){
     sk('mb',pct(mb),null,mb);G('kv-mb').style.color=mb>=30?'var(--green)':mb>=20?'var(--amber)':'var(--red)';
     sk('mn',pct(mn),null,Math.abs(mn));G('kv-mn').style.color=mn>=5?'var(--green)':mn>=0?'var(--amber)':'var(--red)';
     sk('cos',fmtS(tC),null,rc);sk('rc',pct(rc),null,rc);
-    sk('ebt',fmtS(un+depr),null,tI?(un+depr)/tI*100:0);sk('rg',pct(rg),null,rg);
+    sk('ebt',fmtS(ebt),null,tI?ebt/tI*100:0);sk('rg',pct(rg),null,rg);
     const peCov=DD.punto_equilibrio?.cobertura_pct??null;
     const ia=DD.indicadores_avanzados||null;
     renderSem(mb,mn,rc,rg,un,peCov,ia);
@@ -1806,7 +2434,7 @@ function toggleDivisaMode(){
   modoDivisaReal=!modoDivisaReal;
   LS.set('modo_divisa_real',modoDivisaReal);
   const toggle=G('toggle-switch');
-  const msel=G('msel');
+  const msel=G('dash-month');
   if(toggle){
     if(modoDivisaReal){
       toggle.parentElement.classList.add('active');
@@ -1825,7 +2453,7 @@ function toggleDivisaMode(){
 // Inicializar estado del toggle al cargar página
 function initDivisaToggle(){
   const toggle=G('toggle-switch');
-  const msel=G('msel');
+  const msel=G('dash-month');
   if(toggle&&modoDivisaReal){
     toggle.parentElement.classList.add('active');
     if(msel)msel.style.display='block';
@@ -1910,31 +2538,75 @@ async function loadERRDivisa(){
 
   // Rows
   let rows='';
-  const totales=[
-    'Total Ingresos','Total Ingresos Operativos','Total Ingresos No Operativos',
-    'Total Costo de Ventas',
-    'Utilidad Bruta','Utilidad Bruta Mercancía y Taller','Utilidad Bruta Servicios','Utilidad Bruta Eventos',
-    'Total Gastos','Subtotal Gastos Operacionales','Subtotal Gastos de Administración','Subtotal Gastos de Recursos Humanos','Subtotal Gastos de Comercialización y Logística','Subtotal Gastos de Mercadeo',
-    'Subtotal Gastos TI+I','Otros Gastos no Operacionales',
-    'Utilidad Neta','ISLR','Utilidad Neta después de ISLR'
-  ];
+  // Build hierarchy mapping each row index to its parent row index
+  const parentIndices = new Array(d.rows.length).fill(null);
+  const stack = []; // array of {indent, index}
+  
+  for (let i = 0; i < d.rows.length; i++) {
+    const row = d.rows[i];
+    const explicitParentName = row.parent_name;
+    let parentIndex = null;
+    
+    if (explicitParentName && explicitParentName !== 'None' && explicitParentName !== 'null') {
+      parentIndex = d.rows.findIndex(r => r.partida === explicitParentName);
+      if (parentIndex === -1) parentIndex = null;
+    }
+    
+    if (parentIndex === null) {
+      while (stack.length > 0 && stack[stack.length - 1].indent >= row.indent) {
+        stack.pop();
+      }
+      if (stack.length > 0) {
+        parentIndex = stack[stack.length - 1].index;
+      }
+    }
+    
+    parentIndices[i] = parentIndex;
+    stack.push({ indent: row.indent, index: i });
+  }
 
-  for(const row of d.rows){
-    const isHdr=row.is_header;
-    const isTotal=totales.includes(row.partida);
-    const useBold=row.bold || isHdr || isTotal;
-    const bgColor=row.bg_color?`#${row.bg_color.substring(2)}`:null;
-    const bgColorWithAlpha=bgColor?bgColor+'66':'';
-    const rStyle=isHdr?hRowStyle:(bgColorWithAlpha?`background:${bgColorWithAlpha}`:'');
-    const boldStyle=useBold?'font-weight:700':'';
-    const cellBg=bgColorWithAlpha?`background:${bgColorWithAlpha}`:'background:#fff';
+  // Determine which row indices are parents
+  const isParent = new Array(d.rows.length).fill(false);
+  for (let i = 0; i < d.rows.length; i++) {
+    const pIdx = parentIndices[i];
+    if (pIdx !== null) {
+      isParent[pIdx] = true;
+    }
+  }
 
-    let r=`<tr style="${rStyle}"><td style="${lStyle};position:sticky;left:0;${cellBg};z-index:6;min-width:220px;width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:2px solid var(--bd);padding-left:${isTotal?'8px':'20px'};${useBold?'font-weight:700':''}">${row.partida}</td>`;
-    r+=`<td style="${cStyle};${boldStyle}">${fmtZ(row.year_prev.valor)}</td>`;
-    r+=`<td style="${cStyle}">${pctZ(row.year_prev.pct_vtas)}</td>`;
-    r+=`<td style="${cStyle};border-right:2px solid var(--bd)">${pctZ(row.year_prev.pct_gastos)}</td>`;
+  for (let i = 0; i < d.rows.length; i++) {
+    const row = d.rows[i];
+    const isHdr = row.is_header;
+    const isTotal = row.indent === 0;
+    const useBold = row.bold || isHdr || isTotal;
+    const bgColor = row.bg_color ? `#${row.bg_color.substring(2)}` : null;
+    const bgColorWithAlpha = bgColor ? bgColor + '66' : '';
+    
+    const parentIdx = parentIndices[i];
+    const hasChildren = isParent[i];
+    
+    const isVisibleInitially = row.indent <= 1;
+    const displayStyle = isVisibleInitially ? '' : 'display:none;';
+    const rStyle = displayStyle + (isHdr ? hRowStyle : (bgColorWithAlpha ? `background:${bgColorWithAlpha}` : ''));
+    const boldStyle = useBold ? 'font-weight:700' : '';
+    const cellBg = bgColorWithAlpha ? `background:${bgColorWithAlpha}` : 'background:#fff';
+    
+    const padLeft = (row.indent * 12 + 8) + 'px';
 
-    // Renderizar celdas según tipo de mes
+    const isAlwaysExpanded = row.partida === "Total Ingresos" || row.partida === "Total Gastos Operacionales";
+    let toggleHtml = '';
+    if (hasChildren && !isAlwaysExpanded) {
+      toggleHtml = `<span class="eerr-toggle" onclick="toggleEERRRow(event, 'divisa-${i}')" style="cursor:pointer;margin-right:6px;display:inline-block;width:12px;font-family:monospace;color:var(--primary);font-weight:bold">▶</span>`;
+    }
+
+    let r = `<tr data-row-id="divisa-${i}" data-parent-id="${parentIdx !== null ? 'divisa-' + parentIdx : ''}" data-indent="${row.indent}" data-expanded="${isAlwaysExpanded ? 'true' : 'false'}" style="${rStyle}">`;
+    r += `<td style="${lStyle};position:sticky;left:0;${cellBg};z-index:6;min-width:220px;width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:2px solid var(--bd);padding-left:${padLeft};${boldStyle}">${toggleHtml}${row.partida}</td>`;
+
+    r += `<td style="${cStyle};${boldStyle}">${fmtZ(row.year_prev.valor)}</td>`;
+    r += `<td style="${cStyle}">${pctZ(row.year_prev.pct_vtas)}</td>`;
+    r += `<td style="${cStyle};border-right:2px solid var(--bd)">${pctZ(row.year_prev.pct_gastos)}</td>`;
+    
+      // Renderizar celdas según tipo de mes
     for(let i=0;i<row.meses.length;i++){
       const m=row.meses[i];
       const type=m.type;
@@ -2006,15 +2678,83 @@ async function revert(id){if(!confirm('¿Revertir esta carga?'))return;const r=a
 async function loadMap(){const r=await fetch('/api/mapping');MAP=await r.json();renderMap(MAP);}
 function renderMap(data){G('mcnt').textContent=data.length+' cuentas';G('mbody').innerHTML=data.map(m=>`<tr><td><code style="background:var(--blue-l);padding:2px 5px;border-radius:4px;font-size:10px;color:var(--blue);font-family:'DM Mono'">${m.odoo_code}</code></td><td style="color:var(--mu)">${m.odoo_name}</td><td>${m.partida}</td><td><span class="chip ${m.sign==1?'chg':'chb'}">${m.sign==1?'Ingreso':'Gasto/Costo'}</span></td><td style="display:flex;gap:5px;padding:6px 8px"><button class="btns" onclick="editMap('${m.odoo_code}')">✏️</button><button class="btnd" onclick="delMap('${m.odoo_code}')">🗑️</button></td></tr>`).join('');}
 function filterMap(){const q=G('msrch').value.toLowerCase();renderMap(MAP.filter(m=>m.odoo_code.includes(q)||m.odoo_name.toLowerCase().includes(q)||m.partida.toLowerCase().includes(q)));}
-function openModal(){G('m-code').value='';G('m-name').value='';G('m-partida').value='';G('m-sign').value='-1';G('modal').classList.add('show');}
-function editMap(code){
+let OVERRIDES_DATA = null;
+async function fetchOverrides() {
+  const r = await fetch('/api/eerr_nodes/overrides');
+  OVERRIDES_DATA = await r.json();
+}
+function openModal(){
+  G('m-code').value='';
+  G('m-name').value='';
+  G('m-partida').value='';
+  G('m-sign').value='-1';
+  G('m-group-container').style.display = 'none';
+  G('m-group-blocked-msg').style.display = 'none';
+  G('modal').classList.add('show');
+}
+async function editMap(code){
   if(!isAdmin()){alert('⛔ Acceso denegado: se requiere rol de administrador');return;}
-  const m=MAP.find(x=>x.odoo_code===code);if(!m)return;G('m-code').value=m.odoo_code;G('m-name').value=m.odoo_name;G('m-partida').value=m.partida;G('m-sign').value=m.sign;G('modal').classList.add('show');
+  const m=MAP.find(x=>x.odoo_code===code);if(!m)return;
+  G('m-code').value=m.odoo_code;
+  G('m-name').value=m.odoo_name;
+  G('m-partida').value=m.partida;
+  G('m-sign').value=m.sign;
+  
+  await fetchOverrides();
+  const movable = OVERRIDES_DATA.movable_partidas.find(p => p.partida_name === m.partida);
+  
+  if (movable) {
+    G('m-group-container').style.display = 'block';
+    G('m-group-blocked-msg').style.display = 'none';
+    const optOrig = G('m-group').options[0];
+    optOrig.textContent = `(Original: ${movable.original_subtotal.replace('Subtotal Gastos de ', '')})`;
+    
+    const hasOverride = OVERRIDES_DATA.overrides.find(o => o.partida_name === m.partida);
+    if (hasOverride) {
+      G('m-group').value = hasOverride.target_subtotal;
+    } else {
+      G('m-group').value = 'original';
+    }
+  } else {
+    G('m-group-container').style.display = 'none';
+    G('m-group-blocked-msg').style.display = 'block';
+    const blocked_leaves = [
+      'Gasto por impuesto a las pensiones',
+      'Gastos de IGTF',
+      'Gastos de comisiones bancarias',
+      'Gastos de impresiones de material gráfico',
+      'Gastos de patrocinio y donación'
+    ];
+    if (blocked_leaves.includes(m.partida)) {
+      G('m-group-blocked-msg').innerHTML = 'ℹ️ Esta partida está <strong>bloqueada</strong> por reglas de presentación fija (impuestos, IGTF, comisiones).';
+    } else {
+      G('m-group-blocked-msg').innerHTML = 'ℹ️ Esta partida no califica para reubicación (es un ingreso, costo de ventas o cuenta no operacional).';
+    }
+  }
+  G('modal').classList.add('show');
 }
 function closeModal(){G('modal').classList.remove('show');}
 async function saveMap(){
   if(!isAdmin()){alert('⛔ Acceso denegado: se requiere rol de administrador');return;}
-  const d={odoo_code:G('m-code').value.trim(),odoo_name:G('m-name').value.trim(),partida:G('m-partida').value.trim(),sign:parseInt(G('m-sign').value)};if(!d.odoo_code||!d.partida)return alert('Código y Partida obligatorios');await fetch('/api/mapping',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});closeModal();loadMap();
+  const d={odoo_code:G('m-code').value.trim(),odoo_name:G('m-name').value.trim(),partida:G('m-partida').value.trim(),sign:parseInt(G('m-sign').value)};
+  if(!d.odoo_code||!d.partida)return alert('Código y Partida obligatorios');
+  
+  await fetch('/api/mapping',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+  
+  if (G('m-group-container').style.display === 'block') {
+    const target = G('m-group').value;
+    await fetch('/api/eerr_nodes/overrides', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        partida_name: d.partida,
+        target_subtotal: target
+      })
+    });
+  }
+  
+  closeModal();
+  loadMap();
 }
 async function toggleMapLog(){
   const p=G('maplog-panel');
@@ -2043,7 +2783,7 @@ async function delMap(code){
 async function loadData(){const y=G('d-year').value,u=G('d-unit').value;const r=await fetch(`/api/data?year=${y}&unit=${u}`);const data=await r.json();G('dbody').innerHTML=data.map(row=>`<tr><td>${row.year}</td><td>${row.month}</td><td><span class="chip chb">${row.unit}</span></td><td style="color:var(--mu)">${row.partida}</td><td style="text-align:right;font-weight:600;font-family:'DM Mono'">${fmt(row.amount)}</td></tr>`).join('');}
 
 // ── EXCEL ─────────────────────────────────────────────────────────────────
-function openExcelModal(){G('ex-year').value=G('ysel').value;G('ex-unit').value=G('usel').value==='TODAS'?'':G('usel').value;G('exmod').classList.add('show');}
+function openExcelModal(){G('ex-year').value=G('dash-year').value;G('ex-unit').value=G('dash-unit').value==='TODAS'?'':G('dash-unit').value;G('exmod').classList.add('show');}
 function closeExcel(){G('exmod').classList.remove('show');}
 function doExport(){let url=`/api/export/excel?year=${G('ex-year').value}`;const u=G('ex-unit').value,mf=G('ex-mf').value,mt=G('ex-mt').value;if(u)url+=`&unit=${encodeURIComponent(u)}`;if(mf)url+=`&month_from=${mf}`;if(mt)url+=`&month_to=${mt}`;window.location.href=url;closeExcel();}
 
@@ -2143,76 +2883,120 @@ async function loadEERR(){
 
   // Rows
   let rows='';
-  const totales=[
-    'Total Ingresos','Total Ingresos Operativos','Total Ingresos No Operativos',
-    'Total Costo de Ventas',
-    'Utilidad Bruta','Utilidad Bruta Mercancía y Taller','Utilidad Bruta Servicios','Utilidad Bruta Eventos',
-    'Total Gastos','Subtotal Gastos Operacionales','Subtotal Gastos de Administración','Subtotal Gastos de Recursos Humanos','Subtotal Gastos de Comercialización y Logística','Subtotal Gastos de Mercadeo',
-    'Subtotal Gastos TI+I','Otros Gastos no Operacionales',
-    'Utilidad Neta','ISLR','Utilidad Neta después de ISLR'
-  ];
 
-  for(const row of d.rows){
-    const isHdr=row.is_header;
-    const isTotal=totales.includes(row.partida);
-    const useBold=row.bold || isHdr || isTotal;
-    const bgColor=row.bg_color?`#${row.bg_color.substring(2)}`:null;
-    const bgColorWithAlpha=bgColor?bgColor+'66':'';
-    const rStyle=isHdr?hRowStyle:(bgColorWithAlpha?`background:${bgColorWithAlpha}`:'');
-    const boldStyle=useBold?'font-weight:700':'';
-    const cellBg=bgColorWithAlpha?`background:${bgColorWithAlpha}`:'background:#fff';
+  // Build hierarchy mapping each row index to its parent row index
+  const parentIndices = new Array(d.rows.length).fill(null);
+  const stack = []; // array of {indent, index}
+  
+  for (let i = 0; i < d.rows.length; i++) {
+    const row = d.rows[i];
+    const explicitParentName = row.parent_name;
+    let parentIndex = null;
+    
+    if (explicitParentName && explicitParentName !== 'None' && explicitParentName !== 'null') {
+      parentIndex = d.rows.findIndex(r => r.partida === explicitParentName);
+      if (parentIndex === -1) parentIndex = null;
+    }
+    
+    if (parentIndex === null) {
+      while (stack.length > 0 && stack[stack.length - 1].indent >= row.indent) {
+        stack.pop();
+      }
+      if (stack.length > 0) {
+        parentIndex = stack[stack.length - 1].index;
+      }
+    }
+    
+    parentIndices[i] = parentIndex;
+    stack.push({ indent: row.indent, index: i });
+  }
 
-    let r=`<tr style="${rStyle}"><td style="${lStyle};position:sticky;left:0;${cellBg};z-index:6;min-width:220px;width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:2px solid var(--bd);padding-left:${isTotal?'8px':'20px'};${useBold?'font-weight:700':''}">${row.partida}</td>`;
-    r+=`<td style="${cStyle};${boldStyle}">${fmtZ(row.year_prev.valor)}</td>`;
-    r+=`<td style="${cStyle}">${pctZ(row.year_prev.pct_vtas)}</td>`;
-    r+=`<td style="${cStyle};border-right:2px solid var(--bd)">${pctZ(row.year_prev.pct_gastos)}</td>`;
+  // Determine which row indices are parents
+  const isParent = new Array(d.rows.length).fill(false);
+  for (let i = 0; i < d.rows.length; i++) {
+    const pIdx = parentIndices[i];
+    if (pIdx !== null) {
+      isParent[pIdx] = true;
+    }
+  }
 
-    // Renderizar celdas según tipo de mes
-    for(let i=0;i<row.meses.length;i++){
-      const m=row.meses[i];
-      const type=m.type;
-      const bg=i%2===0?'background-color:#f0f4f8':'background-color:#ffffff';
-      const bLeft='border-left:2px solid var(--bd)';
+  for (let i = 0; i < d.rows.length; i++) {
+    const row = d.rows[i];
+    const isHdr = row.is_header;
+    const isTotal = row.indent === 0;
+    const useBold = row.bold || isHdr || isTotal;
+    const bgColor = row.bg_color ? `#${row.bg_color.substring(2)}` : null;
+    const bgColorWithAlpha = bgColor ? bgColor + '66' : '';
+    
+    const parentIdx = parentIndices[i];
+    const hasChildren = isParent[i];
+    
+    // Initial visibility: only rows with indent <= 1 are visible, others are hidden (display: none)
+    // Reversibility/adjustability note: to change the initial level of visibility, adjust this condition.
+    const isVisibleInitially = row.indent <= 1;
+    const displayStyle = isVisibleInitially ? '' : 'display:none;';
+    const rStyle = displayStyle + (isHdr ? hRowStyle : (bgColorWithAlpha ? `background:${bgColorWithAlpha}` : ''));
+    const boldStyle = useBold ? 'font-weight:700' : '';
+    const cellBg = bgColorWithAlpha ? `background:${bgColorWithAlpha}` : 'background:#fff';
+    
+    // Indent visual layout
+    const padLeft = (row.indent * 12 + 8) + 'px';
 
-      // TODOS: Monto, %V, %G
-      r+=`<td style="${cStyle};${bg};${bLeft};${boldStyle}">${fmtZ(m.ejecutado.valor)}</td>`;
-      r+=`<td style="${cStyle};${bg}">${pctZ(m.ejecutado.pct_vtas)}</td>`;
-      r+=`<td style="${cStyle};${bg}">${pctZ(m.ejecutado.pct_gastos)}</td>`;
+    const isAlwaysExpanded = row.partida === "Total Ingresos" || row.partida === "Total Gastos Operacionales";
+    let toggleHtml = '';
+    if (hasChildren && !isAlwaysExpanded) {
+      toggleHtml = `<span class="eerr-toggle" onclick="toggleEERRRow(event, ${i})" style="cursor:pointer;margin-right:6px;display:inline-block;width:12px;font-family:monospace;color:var(--primary);font-weight:bold">▶</span>`;
+    }
 
-      // Tipo B+ (FEB, ABR, MAY, JUL, AGO, OCT, NOV, MAR, SEP, JUN, DIC)
-      if(type!=='A'){
-        r+=`<td style="${cStyle};${bg}">${varCol(m.vari_rel)}</td>`;
+    let r = `<tr data-row-id="${i}" data-parent-id="${parentIdx !== null ? parentIdx : ''}" data-indent="${row.indent}" data-expanded="${isAlwaysExpanded ? 'true' : 'false'}" style="${rStyle}">`;
+    r += `<td style="${lStyle};position:sticky;left:0;${cellBg};z-index:6;min-width:220px;width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:2px solid var(--bd);padding-left:${padLeft};${boldStyle}">${toggleHtml}${row.partida}</td>`;
 
-        if(type==='E'){  // DIC: AÑO
-          r+=`<td style="${cStyle};${bg};${boldStyle}">${fmtZ(m.anio.valor)}</td>`;
-          r+=`<td style="${cStyle};${bg}">${pctZ(m.anio.pct_vtas)}</td>`;
-          r+=`<td style="${cStyle};${bg}">${pctZ(m.anio.pct_gastos)}</td>`;
-        }else{  // Resto: ACUM EJEC
-          r+=`<td style="${cStyle};${bg};${boldStyle}">${fmtZ(m.acum_ejecutado.valor)}</td>`;
-          r+=`<td style="${cStyle};${bg}">${pctZ(m.acum_ejecutado.pct_vtas)}</td>`;
-          r+=`<td style="${cStyle};${bg}">${pctZ(m.acum_ejecutado.pct_gastos)}</td>`;
+    r += `<td style="${cStyle};${boldStyle}">${fmtZ(row.year_prev.valor)}</td>`;
+    r += `<td style="${cStyle}">${pctZ(row.year_prev.pct_vtas)}</td>`;
+    r += `<td style="${cStyle};border-right:2px solid var(--bd)">${pctZ(row.year_prev.pct_gastos)}</td>`;
+
+    // Render celdas por tipo de mes
+    for (let j = 0; j < row.meses.length; j++) {
+      const m = row.meses[j];
+      const type = m.type;
+      const bg = j % 2 === 0 ? 'background-color:#f0f4f8' : 'background-color:#ffffff';
+      const bLeft = 'border-left:2px solid var(--bd)';
+
+      r += `<td style="${cStyle};${bg};${bLeft};${boldStyle}">${fmtZ(m.ejecutado.valor)}</td>`;
+      r += `<td style="${cStyle};${bg}">${pctZ(m.ejecutado.pct_vtas)}</td>`;
+      r += `<td style="${cStyle};${bg}">${pctZ(m.ejecutado.pct_gastos)}</td>`;
+
+      if (type !== 'A') {
+        r += `<td style="${cStyle};${bg}">${varCol(m.vari_rel)}</td>`;
+
+        if (type === 'E') {
+          r += `<td style="${cStyle};${bg};${boldStyle}">${fmtZ(m.anio.valor)}</td>`;
+          r += `<td style="${cStyle};${bg}">${pctZ(m.anio.pct_vtas)}</td>`;
+          r += `<td style="${cStyle};${bg}">${pctZ(m.anio.pct_gastos)}</td>`;
+        } else {
+          r += `<td style="${cStyle};${bg};${boldStyle}">${fmtZ(m.acum_ejecutado.valor)}</td>`;
+          r += `<td style="${cStyle};${bg}">${pctZ(m.acum_ejecutado.pct_vtas)}</td>`;
+          r += `<td style="${cStyle};${bg}">${pctZ(m.acum_ejecutado.pct_gastos)}</td>`;
         }
 
-        // Tipo C+ (MAR, SEP, JUN, DIC)
-        if(type==='C' || type==='D' || type==='E'){
-          r+=`<td style="${cStyle};${bg}">${fmtZ(m.acum_ppto.valor)}</td>`;
-          r+=`<td style="${cStyle};${bg}">${pctZ(m.acum_ppto.pct_vtas)}</td>`;
-          r+=`<td style="${cStyle};${bg}">${varCol(m.var_ppto)}</td>`;
+        if (type === 'C' || type === 'D' || type === 'E') {
+          r += `<td style="${cStyle};${bg}">${fmtZ(m.acum_ppto.valor)}</td>`;
+          r += `<td style="${cStyle};${bg}">${pctZ(m.acum_ppto.pct_vtas)}</td>`;
+          r += `<td style="${cStyle};${bg}">${varCol(m.var_ppto)}</td>`;
 
-          // Tipo D (JUN)
-          if(type==='D'){
-            r+=`<td style="${cStyle};${bg}">${fmtZ(m.prom_6_ejec.valor)}</td>`;
-            r+=`<td style="${cStyle};${bg}">${pctZ(m.prom_6_ejec.pct_vtas)}</td>`;
-            r+=`<td style="${cStyle};${bg}">${pctZ(m.prom_6_ejec.pct_gastos)}</td>`;
-            r+=`<td style="${cStyle};${bg}">${fmtZ(m.prom_6_ppto.valor)}</td>`;
-            r+=`<td style="${cStyle};${bg}">${pctZ(m.prom_6_ppto.pct_vtas)}</td>`;
-            r+=`<td style="${cStyle};${bg}">${varCol(m.var_ppto_prom)}</td>`;
+          if (type === 'D') {
+            r += `<td style="${cStyle};${bg}">${fmtZ(m.prom_6_ejec.valor)}</td>`;
+            r += `<td style="${cStyle};${bg}">${pctZ(m.prom_6_ejec.pct_vtas)}</td>`;
+            r += `<td style="${cStyle};${bg}">${pctZ(m.prom_6_ejec.pct_gastos)}</td>`;
+            r += `<td style="${cStyle};${bg}">${fmtZ(m.prom_6_ppto.valor)}</td>`;
+            r += `<td style="${cStyle};${bg}">${pctZ(m.prom_6_ppto.pct_vtas)}</td>`;
+            r += `<td style="${cStyle};${bg}">${varCol(m.var_ppto_prom)}</td>`;
           }
         }
       }
     }
-    r+='</tr>';
-    rows+=r;
+    r += '</tr>';
+    rows += r;
   }
 
   G('eerr-body').innerHTML=`
@@ -2266,7 +3050,7 @@ async function loadCmp(){
 }
 
 function doPdfExport(){
-  const year=G('ysel').value, unit=G('usel').value==='TODAS'?'':G('usel').value;
+  const year=G('dash-year').value, unit=G('dash-unit').value==='TODAS'?'':G('dash-unit').value;
   let url=`/api/export/pdf?year=${year}`;
   if(unit)url+=`&unit=${encodeURIComponent(unit)}`;
   window.location.href=url;
@@ -2408,7 +3192,7 @@ function renderESF() {
   if (!ESF_DATA) return;
   const qAll = esfQ === 0;
   const quarters = qAll ? [1,2,3,4] : [esfQ];
-  const qLabels = {1:'Q1 (Mar)', 2:'Q2 (Jun)', 3:'Q3 (Sep)', 4:'Q4 (Dic)'};
+  const qLabels = {1:'Q1 (Ene–Mar)', 2:'Q2 (Abr–Jun)', 3:'Q3 (Jul–Sep)', 4:'Q4 (Oct–Dic)'};
 
   // Columnas: nombre + Q cols + var cols (si hay más de 1)
   const qCols = quarters.map(q => `90px`).join(' ');
@@ -2763,6 +3547,72 @@ async function fillYears(){
   } catch(e) { console.error('fillYears:', e); }
 }
 
+function toggleNoteGroup(event, parentName) {
+  event.stopPropagation();
+  const toggleBtn = event.currentTarget;
+  const isExpanded = toggleBtn.textContent === '▼';
+  
+  // Find all note rows with data-parent equal to parentName
+  const noteRows = document.querySelectorAll(`tr[data-parent="${parentName}"]`);
+  noteRows.forEach(row => {
+    row.style.display = isExpanded ? 'none' : '';
+  });
+  
+  // Toggle the icon
+  toggleBtn.textContent = isExpanded ? '▶' : '▼';
+}
+
+function updateEERRRowVisibility() {
+  const rows = document.querySelectorAll('tr[data-row-id]');
+  const expandedStates = {};
+  
+  rows.forEach(r => {
+    const id = r.getAttribute('data-row-id');
+    const expanded = r.getAttribute('data-expanded') === 'true';
+    expandedStates[id] = expanded;
+  });
+  
+  function isRowVisible(id, indent, parentId) {
+    if (indent <= 1) {
+      return true;
+    }
+    if (parentId === null || parentId === undefined || parentId === '') {
+      return false;
+    }
+    
+    const parentRow = document.querySelector(`tr[data-row-id="${parentId}"]`);
+    if (!parentRow) return false;
+    
+    const parentIndent = parseInt(parentRow.getAttribute('data-indent') || '0', 10);
+    const parentParentId = parentRow.getAttribute('data-parent-id');
+    
+    return isRowVisible(parentId, parentIndent, parentParentId) && expandedStates[parentId];
+  }
+  
+  rows.forEach(r => {
+    const id = r.getAttribute('data-row-id');
+    const indent = parseInt(r.getAttribute('data-indent') || '0', 10);
+    const parentId = r.getAttribute('data-parent-id');
+    
+    const visible = isRowVisible(id, indent, parentId);
+    r.style.display = visible ? '' : 'none';
+  });
+}
+
+function toggleEERRRow(event, rowId) {
+  event.stopPropagation();
+  const rowEl = document.querySelector(`tr[data-row-id="${rowId}"]`);
+  if (!rowEl) return;
+  const toggleBtn = rowEl.querySelector('.eerr-toggle');
+  if (!toggleBtn) return;
+  
+  const isExpanded = rowEl.getAttribute('data-expanded') === 'true';
+  rowEl.setAttribute('data-expanded', isExpanded ? 'false' : 'true');
+  toggleBtn.textContent = isExpanded ? '▶' : '▼';
+  
+  updateEERRRowVisibility();
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────────
 (async function init() {
   if (document.readyState === 'loading') {
@@ -2770,12 +3620,20 @@ async function fillYears(){
     return;
   }
   updateUserInfo();
-  applyKpi();
-  initClose();
-  initDrag();
+  await initDashboardConfig();
+  renderDashboardWidgets();
   initModalResize();
-  initDivisaToggle();
   await fillYears();
+
+  G('dash-month').addEventListener('change', function() {
+    const hasMes = this.value !== '';
+    document.getElementById('dash-acum-toggle-container').style.display = hasMes ? 'flex' : 'none';
+    if (!hasMes) document.getElementById('dash-acum-toggle').checked = false;
+    loadDash();
+  });
+
+  document.getElementById('dash-acum-toggle').addEventListener('change', loadDash);
+
   loadDash();
 })();
 </script>
