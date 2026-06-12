@@ -2803,6 +2803,9 @@ def eerr_divisa_real():
             'parent': parent,
             'bold': bold,
             'bg_color': bg_color,
+            'es_nota': es_nota,
+            'parent_name': parent_name,
+            'indent': indent,
             'year_prev': {
                 'valor': round(prev_val, 2),
                 'pct_vtas': prev_pct_vtas,
