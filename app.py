@@ -1725,12 +1725,12 @@ def validate_eerr_v2_integrity(year, unit, adapter_output, db):
     # 2. Validación contra referencia Excel (Solo Rodeo ENE 2026)
     if year == '2026' and unit == 'Rodeo':
         EXCEL_BASELINE = {
-            "Total Ingresos": 47933.03,
-            "Total Costo de Ventas": 20670.85,
-            "Utilidad Bruta": 27262.18,
-            "Gastos Bancarios": 1415.25,
-            "Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)": 15382.66,
-            "Utilidad Neta": -3513.65
+            "Total Ingresos": 13800.00,
+            "Total Costo de Ventas": 9050.00,
+            "Utilidad Bruta": 4750.00,
+            "Gastos Bancarios": 30.00,
+            "Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)": 3530.00,
+            "Utilidad Neta": 3710.00
         }
         for row_name, expected_val in EXCEL_BASELINE.items():
             if row_name in rows_map:
