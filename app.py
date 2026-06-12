@@ -352,101 +352,443 @@ def dashboard():
     unit = request.args.get('unit', 'TODAS')
     db   = get_db()
     ing_p, cos_p, gas_p = get_clasificacion(db)
-    uc = '' if unit == 'TODAS' else f"AND unit='{unit}'"
 
-    def by_month(partidas):
-        if not partidas: return {}
-        ph   = ','.join('?' * len(partidas))
-        rows = db.execute(
-            f'SELECT month, SUM(amount) t FROM financials WHERE year=? AND partida IN ({ph}) {uc} GROUP BY month',
-            [year] + list(partidas)
-        ).fetchall()
-        return {r['month']: r['t'] or 0 for r in rows}
+    # 1. Obtener los datos del EERR
+    eerr_unit_param = '' if unit == 'TODAS' else unit
+    eerr_data = eerr_completo_v2_ui_adapter(year, eerr_unit_param)
 
-    def u_sum(partidas, uname):
-        if not partidas: return 0
-        ph  = ','.join('?' * len(partidas))
-        row = db.execute(
-            f'SELECT SUM(amount) FROM financials WHERE year=? AND unit=? AND partida IN ({ph})',
-            [year, uname] + list(partidas)
-        ).fetchone()
-        return row[0] or 0
+    # Función auxiliar para extraer datos del EERR
+    def get_eerr_values(partida_name):
+        row = next((r for r in eerr_data['rows'] if r['partida'] == partida_name), None)
+        if not row:
+            return {m: 0.0 for m in MONTHS}, 0.0
+        
+        monthly_vals = {}
+        total_anual = 0.0
+        for m_data in row['meses']:
+            m_name = m_data['month']
+            val = m_data['ejecutado']['valor']
+            monthly_vals[m_name] = val
+            total_anual += val
+            
+        return monthly_vals, round(total_anual, 2)
 
-    im, cm, gm = by_month(ing_p), by_month(cos_p), by_month(gas_p)
+    # Extracción directa de los nodos del EERR
+    ingresos_mes, tI = get_eerr_values('Total Ingresos')
+    costos_mes, tC   = get_eerr_values('Total Costo de Ventas')
+    ub_mes, ub       = get_eerr_values('Utilidad Bruta')
+    gastos_mes, tG   = get_eerr_values('Total Gastos Operacionales y No Operacionales')
+    ebt_mes, ebt     = get_eerr_values('Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)')
+    un_mes, un       = get_eerr_values('Utilidad Neta')
 
+    # 2. Desglose por unidad (por_unidad)
     por_unidad = []
     for u in UNITS:
-        i = u_sum(ing_p, u); c = u_sum(cos_p, u); g = u_sum(gas_p, u)
-        if i or c or g:
-            ub = i - c; un = i - c - g
+        eerr_u = eerr_completo_v2_ui_adapter(year, u)
+        
+        def get_u_total(p_name):
+            r = next((row for row in eerr_u['rows'] if row['partida'] == p_name), None)
+            return sum(m['ejecutado']['valor'] for m in r['meses']) if r else 0.0
+
+        i_u = get_u_total('Total Ingresos')
+        c_u = get_u_total('Total Costo de Ventas')
+        g_u = get_u_total('Total Gastos Operacionales y No Operacionales')
+        ub_u = get_u_total('Utilidad Bruta')
+        un_u = get_u_total('Utilidad Neta')
+
+        mb_u = round(ub_u / i_u * 100, 1) if i_u else 0
+        mn_u = round(un_u / i_u * 100, 1) if i_u else 0
+        rc_u = round(c_u / i_u * 100, 1) if i_u else 0
+        rg_u = round(g_u / i_u * 100, 1) if i_u else 0
+
+        if i_u or c_u or g_u:
             por_unidad.append({
-                'unit': u, 'ingresos': round(i, 2), 'costos': round(c, 2), 'gastos': round(g, 2),
-                'utilidad_bruta': round(ub, 2), 'utilidad_neta': round(un, 2),
-                'margen_bruto': round(ub / i * 100, 1) if i else 0,
-                'margen_neto': round(un / i * 100, 1) if i else 0,
-                'ratio_costo': round(c / i * 100, 1) if i else 0,
-                'ratio_gasto': round(g / i * 100, 1) if i else 0
+                'unit': u, 'ingresos': round(i_u, 2), 'costos': round(c_u, 2), 'gastos': round(g_u, 2),
+                'utilidad_bruta': round(ub_u, 2), 'utilidad_neta': round(un_u, 2),
+                'margen_bruto': mb_u, 'margen_neto': mn_u, 'ratio_costo': rc_u, 'ratio_gasto': rg_u
             })
 
-    top_gastos = []
-    if gas_p:
-        rows = db.execute(
-            f'SELECT partida, SUM(amount) t FROM financials WHERE year=? AND partida IN ({",".join("?"*len(gas_p))}) {uc} GROUP BY partida ORDER BY t DESC LIMIT 10',
-            [year] + list(gas_p)
-        ).fetchall()
-        top_gastos = [dict(r) for r in rows]
+    # 3. Top 10 Gastos desglosados
+    gas_rows = []
+    for r in eerr_data['rows']:
+        if not r['is_header'] and r['partida'] in gas_p:
+            val_anual = sum(m['ejecutado']['valor'] for m in r['meses'])
+            if val_anual > 0:
+                gas_rows.append({
+                    'partida': r['partida'],
+                    'total': round(val_anual, 2),
+                    't': round(val_anual, 2)
+                })
+    top_gastos = sorted(gas_rows, key=lambda x: x['total'], reverse=True)[:10]
 
+    # Compatibilidad de EBITDA: asegurar que depreciación esté en top_gastos para que la fórmula simplificada de JS (un + depr) cuadre exactamente
+    depr_row = next((r for r in eerr_data['rows'] if r['partida'] == 'Depreciaciones, deterioro y Amortización'), None)
+    depr_val = sum(m['ejecutado']['valor'] for m in depr_row['meses']) if depr_row else 0.0
+    
+    depr_in_top = any(g['partida'] == 'Depreciaciones, deterioro y Amortización' for g in top_gastos)
+    if not depr_in_top and depr_val > 0:
+        top_gastos.append({
+            'partida': 'Depreciaciones, deterioro y Amortización',
+            'total': round(depr_val, 2),
+            't': round(depr_val, 2)
+        })
+
+    # 4. Distribución por categorías (cat_gastos)
+    subtotal_mapping = {
+        'Subtotal Gastos de Administración': 'Administración',
+        'Subtotal Gastos de Recursos Humanos': 'Rec. Humanos',
+        'Subtotal Gastos de Comercialización y Logistica': 'Comercialización',
+        'Subtotal Gastos de Mercadeo': 'Mercadeo',
+        'Subtotal Gastos de TI+I': 'TI+I',
+        'Otros Gastos no Operacionales': 'No Operacionales'
+    }
+    
     cat_gastos = []
-    if gas_p:
-        for cat, kws in GASTO_CATS.items():
-            matching = [p for p in gas_p if any(k.lower() in p.lower() for k in kws)]
-            if matching:
-                ph = ','.join('?' * len(matching))
-                t  = db.execute(
-                    f'SELECT SUM(amount) FROM financials WHERE year=? AND partida IN ({ph}) {uc}',
-                    [year] + matching
-                ).fetchone()[0] or 0
-                if t: cat_gastos.append({'categoria': cat, 'total': round(t, 2)})
+    for subtotal_name, cat_name in subtotal_mapping.items():
+        _, val_anual = get_eerr_values(subtotal_name)
+        if val_anual > 0:
+            cat_gastos.append({
+                'categoria': cat_name,
+                'total': val_anual
+            })
 
+    # 5. Datos Mensuales (months_data)
     months_data = []
     for m in MONTHS:
-        i = im.get(m, 0); c = cm.get(m, 0); g = gm.get(m, 0); ub = i - c; un = i - c - g
+        i = ingresos_mes.get(m, 0.0)
+        c = costos_mes.get(m, 0.0)
+        g = gastos_mes.get(m, 0.0)
+        u_b = ub_mes.get(m, 0.0)
+        u_n = un_mes.get(m, 0.0)
+        
         months_data.append({
             'month': m, 'ingresos': round(i, 2), 'costos': round(c, 2), 'gastos': round(g, 2),
-            'utilidad_bruta': round(ub, 2), 'utilidad_neta': round(un, 2),
-            'margen_bruto': round(ub / i * 100, 1) if i else 0,
-            'margen_neto': round(un / i * 100, 1) if i else 0,
+            'utilidad_bruta': round(u_b, 2), 'utilidad_neta': round(u_n, 2),
+            'margen_bruto': round(u_b / i * 100, 1) if i else 0,
+            'margen_neto': round(u_n / i * 100, 1) if i else 0,
             'ratio_costo': round(c / i * 100, 1) if i else 0,
             'ratio_gasto': round(g / i * 100, 1) if i else 0
         })
 
+    # 6. Punto de Equilibrio (pe) usando los totales consolidados
     pe = None
-    if unit != 'TODAS':
-        ti = sum(m['ingresos'] for m in months_data)
-        tc = sum(m['costos']   for m in months_data)
-        tg = sum(m['gastos']   for m in months_data)
-        if ti > 0:
-            mc = 1 - tc / ti
-            if mc > 0:
-                pev = tg / mc
-                pe  = {
-                    'pe_ingresos': round(pev, 2), 'ingresos_actuales': round(ti, 2),
-                    'cobertura_pct': round(ti / pev * 100, 1) if pev else 0,
-                    'margen_contribucion_pct': round(mc * 100, 1)
-                }
+    if unit != 'TODAS' and tI > 0:
+        mc = 1 - tC / tI
+        if mc > 0:
+            pev = tG / mc
+            pe = {
+                'pe_ingresos': round(pev, 2),
+                'ingresos_actuales': round(tI, 2),
+                'cobertura_pct': round(tI / pev * 100, 1) if pev else 0,
+                'margen_contribucion_pct': round(mc * 100, 1)
+            }
 
+    # 7. Meses cargados
     loaded = db.execute(
         'SELECT DISTINCT unit, month FROM financials WHERE year=? ORDER BY unit, month', (year,)
     ).fetchall()
 
-    # Incluir indicadores avanzados si hay datos ESF
-    indicadores_avanzados = compute_indicadores(db, year, unit if unit != 'TODAS' else '')
+    # 8. Indicadores Avanzados pasando ingresos y utilidad neta calculados
+    indicadores_avanzados = compute_indicadores(db, year, '' if unit == 'TODAS' else unit, tI, un)
+
+    totals = {
+        'ingresos': round(tI, 2),
+        'costos': round(tC, 2),
+        'utilidad_bruta': round(ub, 2),
+        'gastos': round(tG, 2),
+        'ebitda': round(ebt, 2),
+        'utilidad_neta': round(un, 2)
+    }
 
     return jsonify({
         'months': months_data, 'por_unidad': por_unidad, 'top_gastos': top_gastos,
         'cat_gastos': cat_gastos, 'loaded': [{'unit': r['unit'], 'month': r['month']} for r in loaded],
-        'punto_equilibrio': pe, 'indicadores_avanzados': indicadores_avanzados
     })
+
+
+# ── Dashboard Builder Config ──────────────────────────────────────────────────
+
+DEFAULT_DASHBOARD_CONFIG = [
+  {
+    "id": "kc-ingr",
+    "type": "kpi",
+    "title": "Ingresos Totales",
+    "subtitle": "Acumulado año",
+    "icon": "💰",
+    "colorClass": "cb",
+    "visible": True,
+    "order": 1,
+    "dataset": "ingresos"
+  },
+  {
+    "id": "kc-ub",
+    "type": "kpi",
+    "title": "Utilidad Bruta",
+    "subtitle": "",
+    "icon": "📈",
+    "colorClass": "cg",
+    "visible": True,
+    "order": 2,
+    "dataset": "utilidad_bruta"
+  },
+  {
+    "id": "kc-gas",
+    "type": "kpi",
+    "title": "Total Gastos",
+    "subtitle": "Operac.+No operac.",
+    "icon": "📉",
+    "colorClass": "cr",
+    "visible": True,
+    "order": 3,
+    "dataset": "gastos"
+  },
+  {
+    "id": "kc-un",
+    "type": "kpi",
+    "title": "Utilidad Neta",
+    "subtitle": "",
+    "icon": "🏆",
+    "colorClass": "ca",
+    "visible": True,
+    "order": 4,
+    "dataset": "utilidad_neta"
+  },
+  {
+    "id": "kc-mb",
+    "type": "kpi",
+    "title": "Margen Bruto %",
+    "subtitle": "Ref ≥30%",
+    "icon": "%",
+    "colorClass": "cp",
+    "visible": False,
+    "order": 5,
+    "dataset": "margen_bruto"
+  },
+  {
+    "id": "kc-mn",
+    "type": "kpi",
+    "title": "Margen Neto %",
+    "subtitle": "Ref ≥5%",
+    "icon": "%",
+    "colorClass": "ct",
+    "visible": False,
+    "order": 6,
+    "dataset": "margen_neto"
+  },
+  {
+    "id": "kc-cos",
+    "type": "kpi",
+    "title": "Costo de Ventas",
+    "subtitle": "Acumulado año",
+    "icon": "🏭",
+    "colorClass": "cb",
+    "visible": False,
+    "order": 7,
+    "dataset": "costos"
+  },
+  {
+    "id": "kc-rc",
+    "type": "kpi",
+    "title": "%Costo/Venta",
+    "subtitle": "Eficiencia costos",
+    "icon": "⚙️",
+    "colorClass": "cr",
+    "visible": False,
+    "order": 8,
+    "dataset": "ratio_costo"
+  },
+  {
+    "id": "kc-ebt",
+    "type": "kpi",
+    "title": "EBITDA",
+    "subtitle": "Acumulado año",
+    "icon": "⭐",
+    "colorClass": "ca",
+    "visible": False,
+    "order": 9,
+    "dataset": "ebitda"
+  },
+  {
+    "id": "kc-rg",
+    "type": "kpi",
+    "title": "%Gasto/Venta",
+    "subtitle": "Eficiencia operativa",
+    "icon": "🔧",
+    "colorClass": "cg",
+    "visible": False,
+    "order": 10,
+    "dataset": "ratio_gasto"
+  },
+  {
+    "id": "wc-pe",
+    "type": "special",
+    "title": "Punto de Equilibrio",
+    "subtitle": "Solo disponible por unidad",
+    "visible": False,
+    "order": 11,
+    "doubleWidth": True,
+    "dataset": "punto_equilibrio"
+  },
+  {
+    "id": "wc-sem",
+    "type": "special",
+    "title": "Semáforo Financiero",
+    "subtitle": "Estado de salud por indicador",
+    "visible": True,
+    "order": 12,
+    "doubleWidth": False,
+    "dataset": "semaforo"
+  },
+  {
+    "id": "wc-gau",
+    "type": "special",
+    "title": "Indicadores Gauge",
+    "subtitle": "Margen Neto · Cobertura PE · Eficiencia Operativa",
+    "visible": True,
+    "order": 13,
+    "doubleWidth": False,
+    "dataset": "gauges"
+  },
+  {
+    "id": "wc-rank",
+    "type": "special",
+    "title": "Ranking de Rentabilidad",
+    "subtitle": "Ordenado por margen neto",
+    "visible": True,
+    "order": 14,
+    "doubleWidth": False,
+    "dataset": "ranking"
+  },
+  {
+    "id": "wc-main",
+    "type": "chart",
+    "title": "Ingresos · Costos · Gastos",
+    "subtitle": "Evolución mensual · clic para ver detalle",
+    "visible": True,
+    "order": 15,
+    "doubleWidth": True,
+    "chartType": "bar",
+    "dataset": "ingresos_costos_gastos"
+  },
+  {
+    "id": "wc-tm",
+    "type": "special",
+    "title": "Participación por Unidad",
+    "subtitle": "Ingresos proporcionales",
+    "visible": True,
+    "order": 16,
+    "doubleWidth": False,
+    "dataset": "participacion_unidad"
+  },
+  {
+    "id": "wc-rad",
+    "type": "chart",
+    "title": "Comparativo Multidimensional",
+    "subtitle": "Por unidad de negocio",
+    "visible": True,
+    "order": 17,
+    "doubleWidth": False,
+    "chartType": "radar",
+    "dataset": "comparativo_multidimensional"
+  },
+  {
+    "id": "wc-mg",
+    "type": "chart",
+    "title": "Márgenes %",
+    "subtitle": "Bruto y neto mensual · clic para ver detalle",
+    "visible": True,
+    "order": 18,
+    "doubleWidth": False,
+    "chartType": "line",
+    "dataset": "margenes"
+  },
+  {
+    "id": "wc-un",
+    "type": "chart",
+    "title": "Utilidad Neta Mensual",
+    "subtitle": "+/− por mes · clic para ver detalle",
+    "visible": True,
+    "order": 19,
+    "doubleWidth": False,
+    "chartType": "bar",
+    "dataset": "utilidad_neta_mensual"
+  },
+  {
+    "id": "wc-est",
+    "type": "chart",
+    "title": "Estructura de Gastos",
+    "subtitle": "Por categoría · clic para ver detalle",
+    "visible": True,
+    "order": 20,
+    "doubleWidth": False,
+    "chartType": "doughnut",
+    "dataset": "estructura_gastos"
+  },
+  {
+    "id": "wc-tg",
+    "type": "chart",
+    "title": "Top 10 Gastos",
+    "subtitle": "Mayor impacto · clic para ver detalle",
+    "visible": True,
+    "order": 21,
+    "doubleWidth": True,
+    "chartType": "bar",
+    "dataset": "top_gastos"
+  },
+  {
+    "id": "wc-wf",
+    "type": "special",
+    "title": "Cascada P&L",
+    "subtitle": "De ingresos a utilidad neta",
+    "visible": True,
+    "order": 22,
+    "doubleWidth": True,
+    "dataset": "cascada_pl"
+  },
+  {
+    "id": "wc-tbl",
+    "type": "table",
+    "title": "Resumen Mensual",
+    "subtitle": "Detalle por período",
+    "visible": True,
+    "order": 23,
+    "doubleWidth": True,
+    "dataset": "tabla_resumen"
+  }
+]
+
+@app.route('/api/dashboard/config', methods=['GET'])
+@login_required
+def get_dashboard_config():
+    import json
+    username = session.get('username')
+    db = get_db()
+    row = db.execute('SELECT config_json FROM dashboard_config WHERE username = ?', [username]).fetchone()
+    if row:
+        return jsonify(json.loads(row['config_json']))
+    return jsonify(DEFAULT_DASHBOARD_CONFIG)
+
+@app.route('/api/dashboard/config', methods=['POST'])
+@login_required
+def save_dashboard_config():
+    import json
+    username = session.get('username')
+    config_data = request.get_json()
+    if not isinstance(config_data, list):
+        return jsonify({'error': 'La configuración debe ser una lista de widgets'}), 400
+    
+    config_json = json.dumps(config_data)
+    db = get_db()
+    db.execute('''
+        INSERT INTO dashboard_config (username, config_json, updated_at)
+        VALUES (?, ?, datetime('now', 'localtime'))
+        ON CONFLICT(username) DO UPDATE SET
+            config_json = excluded.config_json,
+            updated_at = excluded.updated_at
+    ''', [username, config_json])
+    db.commit()
+    return jsonify({'ok': True})
+
 
 
 # ── Detalle de gasto (drill-down de gráficos interactivos) ──────────────────────
@@ -873,8 +1215,8 @@ def calcular_totales_especiales(subtotales, by_partida, month, ing_p, cos_p, gas
     otros_ing = subtotales.get('Otros Ingresos no Operacionales', 0)
     totales['Otros Ingresos no Operacionales'] = otros_ing
 
-    # 3. Total Ingresos = Operativos + No Operativos
-    totales['Total Ingresos'] = totales['Total Ingresos Operativos'] + otros_ing
+    # 3. Total Ingresos = Solo Ingresos Operativos (según Excel)
+    totales['Total Ingresos'] = totales['Total Ingresos Operativos']
 
     # 4. Total Costo de Ventas
     totales['Total Costo de Ventas'] = sum(by_partida.get(p, {}).get(month, 0) for p in cos_p)
@@ -912,6 +1254,18 @@ def calcular_totales_especiales(subtotales, by_partida, month, ing_p, cos_p, gas
     # 10. Otros Gastos no Operacionales (ya calculado por subtotales)
     totales['Otros Gastos no Operacionales'] = subtotales.get('Otros Gastos no Operacionales', 0)
 
+    # 10.5. EBIT y EBITDA (alineados a las fórmulas de Excel)
+    gastos_impuestos = subtotales.get('Gastos de impuestos, tasas y contribuciones', 0)
+    gastos_intereses = subtotales.get('Gastos de intereses sobre préstamos', 0)
+    depreciaciones = subtotales.get('Depreciaciones, deterioro y Amortización', 0)
+
+    totales['Utilidad antes de Intereses e Impuestos (EBIT)'] = (
+        totales['Utilidad después de Comisiones por Ventas'] + gastos_intereses + gastos_impuestos
+    )
+    totales['Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)'] = (
+        totales['Utilidad antes de Intereses e Impuestos (EBIT)'] + depreciaciones
+    )
+
     # 11. Utilidad Neta
     totales['Utilidad Neta'] = (
         totales['Utilidad después de Comisiones por Ventas'] -
@@ -928,43 +1282,35 @@ def calcular_totales_especiales(subtotales, by_partida, month, ing_p, cos_p, gas
     return totales
 
 
-@app.route('/api/eerr/completo', methods=['GET'])
-def eerr_completo():
-    """
-    Estado de Resultados COMPLETO con estructura exacta del Excel.
-    Tipos de mes:
-    - ENE: Monto, %V, %G (3 cols)
-    - FEB, ABR, MAY, JUL, AGO, OCT, NOV: + Vari Rel, ACUM EJEC, %V, %G (7 cols)
-    - MAR, SEP: + ACUM PPTO, %V, Var PPTO (10 cols)
-    - JUN: + PROM 6 EJEC, %V, %G, PROM 6 PPTO, %V, Var PPTO (16 cols)
-    - DIC: Monto, %V, %G, Vari Rel, AÑO, %V, %G, ACUM PPTO, %V, Var PPTO (10 cols)
-    """
+def eerr_completo_v2_ui_adapter(year, unit):
     from engine import EERR_STRUCTURE
-
-    year = request.args.get('year', str(datetime.now().year))
-    unit = request.args.get('unit', '')
     db   = get_db()
 
     year_prev = str(int(year) - 1)
     uc = f"AND unit='{unit}'" if unit else ''
 
-    # Mapeo de estructura por mes
     MONTH_TYPES = {
-        'ENE': 'A',  # 3 cols
-        'FEB': 'B',  # 7 cols
-        'MAR': 'C',  # 10 cols
+        'ENE': 'A',
+        'FEB': 'B',
+        'MAR': 'C',
         'ABR': 'B',
         'MAY': 'B',
-        'JUN': 'D',  # 16 cols
+        'JUN': 'D',
         'JUL': 'B',
         'AGO': 'B',
-        'SEPT': 'C',  # 10 cols
+        'SEPT': 'C',
         'OCT': 'B',
         'NOV': 'B',
-        'DIC': 'E',  # 10 cols
+        'DIC': 'E',
     }
 
-    # Leer datos año actual por partida y mes
+    # 1. Clasificación
+    ing_p, cos_p, gas_p = get_clasificacion(db)
+
+    # 2. Obtener grupos de presentación de mapping_groups_v2
+    groups_v2, _ = get_grouped_partidas_v2(db, 'eerr')
+
+    # 3. Leer datos año actual por partida y mes
     rows_curr = db.execute(
         f'''SELECT partida, month, SUM(amount) amount FROM financials
             WHERE year=? {uc} GROUP BY partida, month''',
@@ -981,7 +1327,7 @@ def eerr_completo():
             WHERE year=? {uc} GROUP BY partida''',
         [year_prev]
     ).fetchall()
-    by_prev = {r['partida']: r['amount'] for r in rows_prev}
+    by_prev_raw = {r['partida']: r['amount'] for r in rows_prev}
 
     # Leer presupuesto por partida y mes
     rows_budget = db.execute(
@@ -993,88 +1339,196 @@ def eerr_completo():
     for r in rows_budget:
         by_budget.setdefault(r['partida'], {})[r['month']] = r['amount']
 
-    # Clasificación
-    ing_p, cos_p, gas_p = get_clasificacion(db)
+    import unicodedata
+    def norm(s):
+        if not s: return ''
+        s = ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
+        return s.lower().strip()
 
-    # Obtener grupos de presentación
-    groups, grouped_partidas = get_grouped_partidas(db, 'eerr')
+    def resolve_leaf_value(partida_name, month, data_dict):
+        if partida_name in groups_v2:
+            return sum(data_dict.get(p, {}).get(month, 0) for p in groups_v2[partida_name])
+        val = data_dict.get(partida_name, {}).get(month, 0)
+        if val == 0:
+            pn_norm = norm(partida_name)
+            for k, v in data_dict.items():
+                if norm(k) == pn_norm:
+                    return v.get(month, 0)
+        return val
 
-    # Totales de ingresos y gastos por mes
+    def resolve_leaf_value_prev(partida_name, data_dict):
+        if partida_name in groups_v2:
+            return sum(data_dict.get(p, 0) for p in groups_v2[partida_name])
+        val = data_dict.get(partida_name, 0)
+        if val == 0:
+            pn_norm = norm(partida_name)
+            for k, v in data_dict.items():
+                if norm(k) == pn_norm:
+                    return v
+        return val
+
+    from engine import build_effective_structure
+    db_overrides = db.execute('SELECT partida_name, target_subtotal FROM eerr_nodes').fetchall()
+    effective = build_effective_structure(EERR_STRUCTURE, db_overrides=db_overrides)
+    structure_with_levels = [(node['partida_name'], node['is_header'], node['level']) for node in effective]
+
+    # Pre-calcular subtotales para todos los meses
+    subtotales_por_mes = {}
+    for m in MONTHS:
+        subtotales_por_mes[m] = {}
+        # Primero popular nodos hoja
+        for name, is_header, level in structure_with_levels:
+            if not is_header:
+                subtotales_por_mes[m][name] = resolve_leaf_value(name, m, by_partida)
+
+        # Luego calcular subtotales jerárquicos de forma recursiva/bottom-up
+        for i, (name, is_header, level) in enumerate(structure_with_levels):
+            if is_header:
+                total = 0
+                j = i + 1
+                while j < len(structure_with_levels):
+                    c_name, c_is_header, c_level = structure_with_levels[j]
+                    if c_level <= level:
+                        break
+                    if not c_is_header:
+                        # Excluir cuentas que se duplicarían
+                        if name == 'Subtotal Gastos de Administración' and c_name in [
+                            'Gasto por impuesto a las pensiones',
+                            'Gastos de IGTF',
+                            'Gastos de comisiones bancarias'
+                        ]:
+                            pass
+                        elif name == 'Subtotal Gastos de Mercadeo' and c_name in [
+                            'Gastos de impresiones de material gráfico',
+                            'Gastos de patrocinio y donación'
+                        ]:
+                            pass
+                        else:
+                            total += subtotales_por_mes[m].get(c_name, 0)
+                    j += 1
+                subtotales_por_mes[m][name] = total
+
+    # Definición de partidas operativas para Total Ingresos
+    op_ing_partidas = ing_p - {
+        'Ingresos por alquileres',
+        'Ingresos por intereses',
+        'Ingresos por comisiones',
+        'Ingresos por servicios administrativos',
+        'Sobrante en ventas',
+        'Sobrante de inventarios',
+        'Ganancia en venta de activos',
+        'Ganancia por tasa cambiaria',
+        'Ganancia por diferencias en pagos'
+    }
+
+    valores_calculados_por_mes = {}
     ingresos_ejec_mes = {}
     gastos_ejec_mes = {}
     ingresos_ppto_mes = {}
     gastos_ppto_mes = {}
 
-    # Totales año anterior
-    ingresos_prev = sum(by_prev.get(p, 0) for p in ing_p)
-    gastos_prev = sum(by_prev.get(p, 0) for p in gas_p)
-
     for m in MONTHS:
-        ingresos_ejec_mes[m] = sum(by_partida.get(p, {}).get(m, 0) for p in ing_p)
-        gastos_ejec_mes[m] = sum(by_partida.get(p, {}).get(m, 0) for p in gas_p)
-        ingresos_ppto_mes[m] = sum(by_budget.get(p, {}).get(m, 0) for p in ing_p)
+        ingresos_operativos = sum(by_partida.get(p, {}).get(m, 0) for p in op_ing_partidas)
+        otros_ing = subtotales_por_mes[m].get('Otros Ingresos no Operacionales', 0)
+        costo_ventas = sum(by_partida.get(p, {}).get(m, 0) for p in cos_p)
+        utilidad_bruta = ingresos_operativos - costo_ventas
+
+        gastos_operacionales = 0
+        for nombre in ['Subtotal Gastos de Administración',
+                       'Subtotal Gastos de Recursos Humanos',
+                       'Subtotal Gastos de Comercialización y Logistica',
+                       'Subtotal Gastos de Mercadeo',
+                       'Subtotal Gastos de TI+I']:
+            gastos_operacionales += subtotales_por_mes[m].get(nombre, 0)
+
+        comisiones = 0
+        for nombre in ['Gastos de comisiones empleados',
+                       'Gastos de comisiones empleados del taller',
+                       'Gastos de comisiones por venta de personal externo']:
+            comisiones += subtotales_por_mes[m].get(nombre, 0)
+
+        utilidad_despues_comisiones = utilidad_bruta - gastos_operacionales
+        utilidad_antes_comisiones = utilidad_despues_comisiones + comisiones
+
+        otros_gastos = subtotales_por_mes[m].get('Otros Gastos no Operacionales', 0)
+        gastos_impuestos = subtotales_por_mes[m].get('Gastos de impuestos, tasas y contribuciones', 0)
+        gastos_intereses = subtotales_por_mes[m].get('Gastos de intereses sobre préstamos', 0)
+        depreciaciones = subtotales_por_mes[m].get('Depreciaciones, deterioro y Amortización', 0)
+
+        ebit = utilidad_bruta - gastos_operacionales + gastos_intereses + gastos_impuestos
+        ebitda = ebit + depreciaciones
+
+        utilidad_neta = utilidad_despues_comisiones - otros_gastos + otros_ing
+        islr = subtotales_por_mes[m].get('ISLR', 0)
+        utilidad_neta_despues_islr = utilidad_neta - islr
+
+        totales_mes = {
+            'Total Ingresos Operativos': ingresos_operativos,
+            'Otros Ingresos no Operacionales': otros_ing,
+            'Total Ingresos': ingresos_operativos,
+            'Total Costo de Ventas': costo_ventas,
+            'Utilidad Bruta': utilidad_bruta,
+            'Total Gastos Operacionales': gastos_operacionales,
+            'Utilidad antes de Comisiones por Ventas': utilidad_antes_comisiones,
+            'Utilidad después de Comisiones por Ventas': utilidad_despues_comisiones,
+            'Otros Gastos no Operacionales': otros_gastos,
+            'Total Gastos Operacionales y No Operacionales': gastos_operacionales + otros_gastos,
+            'Utilidad antes de Intereses e Impuestos (EBIT)': ebit,
+            'Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)': ebitda,
+            'Utilidad Neta': utilidad_neta,
+            'ISLR': islr,
+            'Utilidad Neta despues de ISLR': utilidad_neta_despues_islr,
+            'Utilidad Bruta por Venta de Mercancia y Taller': (
+                subtotales_por_mes[m].get('Subtotal Ingresos por Venta de Mercancia', 0)
+                + subtotales_por_mes[m].get('Subtotal Ingresos por Taller', 0)
+                - subtotales_por_mes[m].get('Subtotal Costo de Ventas por Mercancia', 0)
+            ),
+            'Utilidad Bruta por Servicios': (
+                subtotales_por_mes[m].get('Subtotal Ingresos por Servicios', 0)
+                - subtotales_por_mes[m].get('Subtotal Costo de Ventas por Servicios', 0)
+            ),
+            'Utilidad Bruta por Eventos': (
+                subtotales_por_mes[m].get('Subtotal Ingresos por Eventos', 0)
+                - subtotales_por_mes[m].get('Subtotal Costo de Ventas por Eventos', 0)
+            )
+        }
+
+        valores_calculados_por_mes[m] = {**subtotales_por_mes[m], **totales_mes}
+
+        ingresos_ejec_mes[m] = ingresos_operativos
+        gastos_ejec_mes[m] = gastos_operacionales
+        ingresos_ppto_mes[m] = sum(by_budget.get(p, {}).get(m, 0) for p in op_ing_partidas)
         gastos_ppto_mes[m] = sum(by_budget.get(p, {}).get(m, 0) for p in gas_p)
+
+    ingresos_prev = sum(by_prev_raw.get(p, 0) for p in op_ing_partidas)
+    gastos_prev = sum(by_prev_raw.get(p, 0) for p in gas_p)
 
     def safe_pct(num, den):
         return round(num / den * 100, 1) if den != 0 else 0
 
     def safe_var(val, base):
-        """Calcula variación relativa porcentual."""
-        if base == 0:
-            return None
+        if base == 0: return None
         return round((val - base) / abs(base) * 100, 1)
 
-    # PRE-CALCULAR SUBTOTALES PARA TODOS LOS MESES
-    subtotales_por_mes = {}
-    totales_por_mes = {}
-    for m in MONTHS:
-        # Paso 1: Calcular subtotales jerárquicos
-        subtotales_por_mes[m] = calcular_subtotales_jerarquicos(
-            EERR_STRUCTURE, by_partida, m, ing_p, cos_p, gas_p, groups, grouped_partidas
-        )
-        # Paso 2: Calcular totales especiales
-        totales_por_mes[m] = calcular_totales_especiales(
-            subtotales_por_mes[m], by_partida, m, ing_p, cos_p, gas_p
-        )
-
-    # Combinar subtotales y totales
-    valores_calculados_por_mes = {}
-    for m in MONTHS:
-        valores_calculados_por_mes[m] = {**subtotales_por_mes[m], **totales_por_mes[m]}
-
-    # Construir filas según EERR_STRUCTURE
     rows = []
-    for item in EERR_STRUCTURE:
-        partida_name = item[0]
-        is_header = item[1]
-        parent = item[2] if len(item) > 2 else None
-        bold = item[3] if len(item) > 3 else False
-        bg_color = item[4] if len(item) > 4 else None
+    for node in effective:
+        partida_name = node['partida_name']
+        is_header = node['is_header']
+        parent = None
+        bold = node['bold']
+        bg_color = node['bg_color']
+        es_nota = node['es_nota']
+        parent_name = node['parent_name']
+        indent = node['indent']
 
-        # CAMBIO: Para headers, usar valores pre-calculados
         if is_header:
-            # Es un header/total: usar valor calculado
-            matching = None  # No buscar partidas individuales
+            prev_val = valores_calculados_por_mes.get('DIC', {}).get(partida_name, 0)
         else:
-            # Es una partida individual: buscar como antes
-            if partida_name in groups:
-                matching = groups[partida_name]
-            else:
-                matching = [p for p in (ing_p | cos_p | gas_p)
-                            if p.lower() == partida_name.lower()
-                            and p not in grouped_partidas]
-
-        # Año anterior (mismo cálculo)
-        if is_header:
-            # Para headers: calcular suma del año anterior también
-            prev_val = valores_calculados_por_mes.get('DIC', {}).get(partida_name, 0) if 'DIC' in valores_calculados_por_mes else 0
-        else:
-            prev_val = sum(by_prev.get(p, 0) for p in matching) if matching else 0
+            prev_val = resolve_leaf_value_prev(partida_name, by_prev_raw)
 
         prev_pct_vtas = safe_pct(prev_val, ingresos_prev)
         prev_pct_gastos = safe_pct(prev_val, gastos_prev)
 
-        # Por cada mes
         meses_data = []
         acum_ejec = 0
         acum_ppto = 0
@@ -1084,31 +1538,26 @@ def eerr_completo():
         acum_gas_ppto = 0
         val_ejec_mes_anterior = None
 
-        for i, m in enumerate(MONTHS):
+        for m in MONTHS:
             month_type = MONTH_TYPES[m]
 
-            # CAMBIO: Obtener valor según si es header o partida
             if is_header:
                 val_ejec = valores_calculados_por_mes[m].get(partida_name, 0)
-                val_ppto = 0  # Los headers no tienen presupuesto directo
+                val_ppto = 0
             else:
-                val_ejec = sum(by_partida.get(p, {}).get(m, 0) for p in matching) if matching else 0
-                val_ppto = sum(by_budget.get(p, {}).get(m, 0) for p in matching) if matching else 0
+                val_ejec = resolve_leaf_value(partida_name, m, by_partida)
+                val_ppto = resolve_leaf_value(partida_name, m, by_budget)
 
             acum_ejec += val_ejec
             acum_ppto += val_ppto
-
-            # Acumular ingresos y gastos
             acum_ing_ejec += ingresos_ejec_mes[m]
             acum_ing_ppto += ingresos_ppto_mes[m]
             acum_gas_ejec += gastos_ejec_mes[m]
             acum_gas_ppto += gastos_ppto_mes[m]
 
-            # Porcentajes del mes ejecutado
             pct_vtas_ejec = safe_pct(val_ejec, ingresos_ejec_mes[m])
             pct_gastos_ejec = safe_pct(val_ejec, gastos_ejec_mes[m])
 
-            # Base de datos del mes
             mes_data = {
                 'type': month_type,
                 'month': m,
@@ -1119,13 +1568,10 @@ def eerr_completo():
                 }
             }
 
-            # Tipo B+ (FEB, ABR, MAY, JUL, AGO, OCT, NOV, MAR, SEP, JUN, DIC)
             if month_type != 'A':
-                # Variación relativa vs mes anterior
                 mes_data['vari_rel'] = safe_var(val_ejec, val_ejec_mes_anterior) if val_ejec_mes_anterior is not None else None
 
-                # Acumulado ejecutado
-                if month_type == 'E':  # DIC: columna AÑO en lugar de ACUM EJEC
+                if month_type == 'E':  # DIC
                     mes_data['anio'] = {
                         'valor': round(acum_ejec, 2),
                         'pct_vtas': safe_pct(acum_ejec, acum_ing_ejec),
@@ -1138,7 +1584,6 @@ def eerr_completo():
                         'pct_gastos': safe_pct(acum_ejec, acum_gas_ejec),
                     }
 
-                # Tipo C+ (MAR, SEP, JUN, DIC)
                 if month_type in ('C', 'D', 'E'):
                     mes_data['acum_ppto'] = {
                         'valor': round(acum_ppto, 2),
@@ -1146,8 +1591,7 @@ def eerr_completo():
                     }
                     mes_data['var_ppto'] = safe_var(acum_ejec, acum_ppto)
 
-                    # Tipo D (JUN): promedios 6 meses
-                    if month_type == 'D':
+                    if month_type == 'D':  # JUN
                         prom_ejec = acum_ejec / 6
                         prom_ppto = acum_ppto / 6
                         prom_ing_ejec = acum_ing_ejec / 6
@@ -1175,6 +1619,9 @@ def eerr_completo():
             'parent': parent,
             'bold': bold,
             'bg_color': bg_color,
+            'es_nota': es_nota,
+            'parent_name': parent_name,
+            'indent': indent,
             'year_prev': {
                 'valor': round(prev_val, 2),
                 'pct_vtas': prev_pct_vtas,
@@ -1183,12 +1630,230 @@ def eerr_completo():
             'meses': meses_data,
         })
 
-    return jsonify({
+    return {
         'year': year,
         'year_prev': year_prev,
         'unit': unit,
         'rows': rows,
-    })
+    }
+
+
+def validate_eerr_v2_integrity(year, unit, adapter_output, db):
+    """
+    Guarda de integridad para EERR V2 y el adaptador V1.
+    Realiza validaciones de coherencia financiera y de contrato de interfaz,
+    registrando cualquier desviación de forma no bloqueante.
+    """
+    import logging
+    logger = logging.getLogger('eerr_v2_integrity_guard')
+    
+    if not logger.handlers:
+        logging.basicConfig(level=logging.INFO)
+        try:
+            fh = logging.FileHandler('integrity_guard.log', encoding='utf-8')
+            fh.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+            logger.addHandler(fh)
+        except Exception:
+            pass
+
+    discrepancies = []
+    
+    # 1. Validación de subtotales vs suma de hojas
+    from engine import EERR_STRUCTURE, build_effective_structure
+    db_overrides = db.execute('SELECT partida_name, target_subtotal FROM eerr_nodes').fetchall()
+    effective = build_effective_structure(EERR_STRUCTURE, db_overrides=db_overrides)
+    structure_with_levels = [(node['partida_name'], node['is_header'], node['level']) for node in effective]
+
+    rows_map = {r['partida']: r for r in adapter_output['rows']}
+    
+    for i, (name, is_header, level) in enumerate(structure_with_levels):
+        if is_header:
+            j = i + 1
+            child_leaves = []
+            while j < len(structure_with_levels):
+                c_name, c_is_header, c_level = structure_with_levels[j]
+                if c_level <= level:
+                    break
+                if not c_is_header:
+                    if name == 'Subtotal Gastos de Administración' and c_name in [
+                        'Gasto por impuesto a las pensiones',
+                        'Gastos de IGTF',
+                        'Gastos de comisiones bancarias'
+                    ]:
+                        pass
+                    elif name == 'Subtotal Gastos de Mercadeo' and c_name in [
+                        'Gastos de impresiones de material gráfico',
+                        'Gastos de patrocinio y donación'
+                    ]:
+                        pass
+                    else:
+                        child_leaves.append(c_name)
+                j += 1
+                
+            for m_idx, m in enumerate(MONTHS):
+                sum_leaves = 0.0
+                for leaf_name in child_leaves:
+                    if leaf_name in rows_map:
+                        sum_leaves += rows_map[leaf_name]['meses'][m_idx]['ejecutado']['valor']
+                
+                header_val = 0.0
+                if name in rows_map:
+                    header_val = rows_map[name]['meses'][m_idx]['ejecutado']['valor']
+                
+                if name in [
+                    'Subtotal Gastos de Administración',
+                    'Subtotal Gastos de Recursos Humanos',
+                    'Subtotal Gastos de Comercialización y Logistica',
+                    'Subtotal Gastos de Mercadeo',
+                    'Subtotal Gastos de TI+I',
+                    'Gastos de sueldos y salarios empleados y directivos',
+                    'Gastos de complementos empleados y directivos',
+                    'Gastos de personal externo',
+                    'Gastos de pasivos laborales vacaciones',
+                    'Gastos de pasivos laborales utilidades',
+                    'Gastos de pasivos laborales prestaciones e intereses',
+                    'Gastos de pasivos laborales aportes',
+                    'Gastos de pasivos laborales HCM',
+                    'Gastos de salud y seguridad laboral fiestas y agasajos',
+                    'Otros gastos de personal'
+                ]:
+                    diff = abs(header_val - sum_leaves)
+                    if diff > 0.05:
+                        msg = f"Discrepancia de subtotal en [{name}] para el mes {m}: Valor Header={header_val:.2f}, Suma Hojas={sum_leaves:.2f} (Diff={diff:.2f})"
+                        discrepancies.append(msg)
+
+    # 2. Validación contra referencia Excel (Solo Rodeo ENE 2026)
+    if year == '2026' and unit == 'Rodeo':
+        EXCEL_BASELINE = {
+            "Total Ingresos": 47933.03,
+            "Total Costo de Ventas": 20670.85,
+            "Utilidad Bruta": 27262.18,
+            "Gastos Bancarios": 1415.25,
+            "Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)": 15382.66,
+            "Utilidad Neta": -3513.65
+        }
+        for row_name, expected_val in EXCEL_BASELINE.items():
+            if row_name in rows_map:
+                actual_val = rows_map[row_name]['meses'][0]['ejecutado']['valor']
+                diff = abs(actual_val - expected_val)
+                if diff > 0.05:
+                    msg = f"Descuadre contra Excel Baseline en [{row_name}]: Esperado={expected_val:.2f}, Obtenido={actual_val:.2f} (Diff={diff:.2f})"
+                    discrepancies.append(msg)
+            else:
+                discrepancies.append(f"Fila obligatoria de Excel Baseline [{row_name}] no encontrada en la respuesta")
+
+    # 3. Validación de cuentas activas en financials sin mapear en mapping_groups_v2
+    try:
+        missing_mappings = db.execute('''
+            SELECT DISTINCT m.partida, m.odoo_code
+            FROM financials f
+            JOIN (
+                SELECT odoo_code, partida FROM mapping m
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM mapping sub 
+                    WHERE sub.odoo_code LIKE m.odoo_code || '.%' AND sub.odoo_code != m.odoo_code
+                )
+            ) m ON f.partida = m.partida
+            LEFT JOIN mapping_groups_v2 mg ON m.odoo_code = mg.odoo_code
+            WHERE mg.odoo_code IS NULL AND f.year = ?
+        ''', [year]).fetchall()
+        for r in missing_mappings:
+            msg = f"Cuenta transaccional activa sin mapear en mapping_groups_v2: Partida='{r['partida']}', OdooCode='{r['odoo_code']}'"
+            discrepancies.append(msg)
+    except Exception as e:
+        discrepancies.append(f"Error al validar cuentas sin mapear: {str(e)}")
+
+    # 4. Validación del contrato de la API del Frontend
+    required_keys_always = {'type', 'month', 'ejecutado'}
+    required_keys_ejecutado = {'valor', 'pct_vtas', 'pct_gastos'}
+    
+    for r in adapter_output['rows']:
+        partida = r['partida']
+        for m_idx, m_data in enumerate(r['meses']):
+            missing_keys = required_keys_always - set(m_data.keys())
+            if missing_keys:
+                discrepancies.append(f"Fila [{partida}] mes index {m_idx}: Faltan claves básicas del contrato: {missing_keys}")
+                continue
+                
+            ejec = m_data['ejecutado']
+            if not isinstance(ejec, dict):
+                discrepancies.append(f"Fila [{partida}] mes index {m_idx}: 'ejecutado' debe ser un diccionario")
+                continue
+            missing_ejec = required_keys_ejecutado - set(ejec.keys())
+            if missing_ejec:
+                discrepancies.append(f"Fila [{partida}] mes index {m_idx}: Faltan claves en 'ejecutado': {missing_ejec}")
+            
+            m_type = m_data['type']
+            
+            if m_type != 'A':
+                if 'vari_rel' not in m_data:
+                    discrepancies.append(f"Fila [{partida}] mes index {m_idx}: Falta 'vari_rel' en mes tipo {m_type}")
+                
+                if m_type == 'E':
+                    if 'anio' not in m_data:
+                        discrepancies.append(f"Fila [{partida}] mes index {m_idx}: Falta 'anio' en mes tipo E")
+                    else:
+                        missing_anio = required_keys_ejecutado - set(m_data['anio'].keys())
+                        if missing_anio:
+                            discrepancies.append(f"Fila [{partida}] mes index {m_idx}: Faltan claves en 'anio': {missing_anio}")
+                else:
+                    if 'acum_ejecutado' not in m_data:
+                        discrepancies.append(f"Fila [{partida}] mes index {m_idx}: Falta 'acum_ejecutado' en mes tipo {m_type}")
+                    else:
+                        missing_acum = required_keys_ejecutado - set(m_data['acum_ejecutado'].keys())
+                        if missing_acum:
+                            discrepancies.append(f"Fila [{partida}] mes index {m_idx}: Faltan claves en 'acum_ejecutado': {missing_acum}")
+                
+                if m_type in ('C', 'D', 'E'):
+                    if 'acum_ppto' not in m_data:
+                        discrepancies.append(f"Fila [{partida}] mes index {m_idx}: Falta 'acum_ppto' en mes tipo {m_type}")
+                    else:
+                        missing_ppto = {'valor', 'pct_vtas'} - set(m_data['acum_ppto'].keys())
+                        if missing_ppto:
+                            discrepancies.append(f"Fila [{partida}] mes index {m_idx}: Faltan claves en 'acum_ppto': {missing_ppto}")
+                    if 'var_ppto' not in m_data:
+                        discrepancies.append(f"Fila [{partida}] mes index {m_idx}: Falta 'var_ppto' en mes tipo {m_type}")
+                        
+                    if m_type == 'D':
+                        if 'prom_6_ejec' not in m_data:
+                            discrepancies.append(f"Fila [{partida}] mes index {m_idx}: Falta 'prom_6_ejec' en mes tipo D")
+                        else:
+                            missing_prom_ejec = required_keys_ejecutado - set(m_data['prom_6_ejec'].keys())
+                            if missing_prom_ejec:
+                                discrepancies.append(f"Fila [{partida}] mes index {m_idx}: Faltan claves en 'prom_6_ejec': {missing_prom_ejec}")
+                        if 'prom_6_ppto' not in m_data:
+                            discrepancies.append(f"Fila [{partida}] mes index {m_idx}: Falta 'prom_6_ppto' en mes tipo D")
+                        else:
+                            missing_prom_ppto = {'valor', 'pct_vtas'} - set(m_data['prom_6_ppto'].keys())
+                            if missing_prom_ppto:
+                                discrepancies.append(f"Fila [{partida}] mes index {m_idx}: Faltan claves en 'prom_6_ppto': {missing_prom_ppto}")
+                        if 'var_ppto_prom' not in m_data:
+                            discrepancies.append(f"Fila [{partida}] mes index {m_idx}: Falta 'var_ppto_prom' en mes tipo D")
+
+    if discrepancies:
+        logger.warning(f"--- DETECTADAS DISCREPANCIAS DE INTEGRIDAD (EERR V2) - Unidad={unit}, Año={year} ---")
+        for d in discrepancies:
+            logger.warning(d)
+        return False, discrepancies
+    else:
+        logger.info(f"Integridad validada exitosamente para Unidad={unit}, Año={year}. Sin descuadres.")
+        return True, []
+
+
+@app.route('/api/eerr/completo', methods=['GET'])
+def eerr_completo():
+    year = request.args.get('year', str(datetime.now().year))
+    unit = request.args.get('unit', '')
+
+    data = eerr_completo_v2_ui_adapter(year, unit)
+    
+    try:
+        db = get_db()
+        validate_eerr_v2_integrity(year, unit, data, db)
+    except Exception as e:
+        app.logger.error(f"Error al ejecutar validacion de integridad: {str(e)}")
+
+    return jsonify(data)
 
 
 # ── ESF ───────────────────────────────────────────────────────────────────────
@@ -1274,7 +1939,7 @@ def compute_esf(db, year, unit=''):
     return result_quarters, quarters_available
 
 
-def compute_indicadores(db, year, unit=''):
+def compute_indicadores(db, year, unit='', ingresos=0.0, util_neta=0.0):
     """
     Calcula indicadores financieros combinando datos de ESF + EERR.
     Retorna dict con indicadores: ROE, ROA, Ratio Corriente, Prueba Ácida,
@@ -1289,20 +1954,6 @@ def compute_indicadores(db, year, unit=''):
     last_q = max(quarters_available)
     esf = result_quarters[last_q]['totales']
 
-    # Obtener datos EERR del año completo
-    uc = f"AND unit='{unit}'" if unit else ''
-    rows = db.execute(
-        f'''SELECT SUM(amount) total, account_number FROM financials
-            WHERE year=? {uc} GROUP BY account_number''',
-        [year]
-    ).fetchall()
-
-    ingresos = sum(r['total'] for r in rows if r['account_number'].startswith('4'))
-    costos   = sum(r['total'] for r in rows if r['account_number'].startswith('5'))
-    gastos   = sum(r['total'] for r in rows if r['account_number'].startswith('6'))
-    util_bruta = ingresos - costos
-    util_neta  = util_bruta - gastos
-
     tot_activos = esf.get('TOTAL ACTIVOS', 0)
     tot_ac      = esf.get('ACTIVOS CORRIENTES', 0)
     tot_pc      = esf.get('TOTAL PASIVOS CORRIENTES', 0)
@@ -1313,6 +1964,7 @@ def compute_indicadores(db, year, unit=''):
     tot_cxc     = esf.get('Total Cuentas por Cobrar (neto)', 0)
 
     # Ingresos y costos trimestrales (para rotación inventarios)
+    uc = f"AND unit='{unit}'" if unit else ''
     meses_q = {1:[1,2,3], 2:[4,5,6], 3:[7,8,9], 4:[10,11,12]}[last_q]
     rows_q = db.execute(
         f'''SELECT SUM(amount) total, account_number FROM financials
@@ -1616,15 +2268,24 @@ def dashboard_divisa_real():
 
     # Obtener tasas del período
     tasas_row = db.execute(
-        'SELECT * FROM tasas_periodo WHERE year=? AND month=?',
+        'SELECT tasa_bcv_promedio, tasa_paralela_promedio, factor_recargo FROM tasas_periodo WHERE year=? AND month=?',
         (year, month)
     ).fetchone()
 
     if not tasas_row:
         return jsonify({'error': f'No hay tasas configuradas para {month} {year}'}), 404
 
-    diferencial = tasas_row['factor_diferencial']
-    recargo     = tasas_row['factor_recargo']
+    bcv = tasas_row['tasa_bcv_promedio']
+    paralela = tasas_row['tasa_paralela_promedio']
+    recargo = tasas_row['factor_recargo']
+
+    # Validación de tasas
+    if bcv is None or bcv <= 0:
+        return jsonify({'error': f"Tasa BCV promedio inválida o cero para el mes {month} {year}"}), 400
+    if paralela is None or paralela <= 0:
+        return jsonify({'error': f"Tasa paralela promedio inválida o cero para el mes {month} {year}"}), 400
+
+    diferencial = paralela / bcv
 
     # Obtener métodos de pago del período
     metodos_rows = db.execute(
@@ -1635,13 +2296,18 @@ def dashboard_divisa_real():
     # Dict: (unit, odoo_code) -> pct_cash
     metodos_map = {(r['unit'], r['odoo_code']): r['pct_cash'] for r in metodos_rows}
 
-    # Obtener datos financials del mes con JOIN a mapping para obtener odoo_code
-    uc = '' if unit == 'TODAS' else f"AND f.unit='{unit}'"
+    # ── PASO 2: OBTENER UN SOLO odoo_code REPRESENTATIVO POR PARTIDA ──
+    # Si una partida tiene varios mapping (relación 1:N), tomamos el de menor rowid para evitar duplicación.
+    mapping_rows = db.execute(
+        'SELECT partida, odoo_code, sign, MIN(rowid) FROM mapping GROUP BY partida'
+    ).fetchall()
+    partida_to_mapping = {r['partida']: (r['odoo_code'], r['sign']) for r in mapping_rows}
+
+    # ── PASO 1: LEER DATOS REALES DE financials ──
+    uc_no_prefix = '' if unit == 'TODAS' else f"AND unit='{unit}'"
     rows = db.execute(
-        f'''SELECT f.unit, f.partida, m.odoo_code, f.amount, m.sign
-            FROM financials f
-            LEFT JOIN mapping m ON f.partida = m.partida
-            WHERE f.year=? AND f.month=? {uc}''',
+        f'''SELECT unit, partida, amount FROM financials
+            WHERE year=? AND month=? {uc_no_prefix}''',
         (year, month)
     ).fetchall()
 
@@ -1654,8 +2320,8 @@ def dashboard_divisa_real():
         pct_cash = metodos_map.get((unit, odoo_code))
 
         if pct_cash is None:
-            # Sin configuración, asumir 100% Cash (sin ajuste)
-            return amount
+            # FALLBACK EXPLÍCITO: Si no hay configuración para la cuenta/unidad, asumir 100% Cash (factor = 1)
+            pct_cash = 100.0
 
         # % BCV = 100 - % Cash
         pct_bcv = 100 - pct_cash
@@ -1675,7 +2341,14 @@ def dashboard_divisa_real():
     for r in rows:
         partida = r['partida']
         amount_literal = r['amount']
-        amount_ajustado = aplicar_factor(amount_literal, r['unit'], r['odoo_code'], r['sign'])
+        
+        mapping_info = partida_to_mapping.get(partida)
+        if mapping_info:
+            odoo_code, sign = mapping_info
+        else:
+            odoo_code, sign = None, None
+
+        amount_ajustado = aplicar_factor(amount_literal, r['unit'], odoo_code, sign)
 
         data_literal[partida] = data_literal.get(partida, 0) + amount_literal
         data_ajustado[partida] = data_ajustado.get(partida, 0) + amount_ajustado
@@ -1705,8 +2378,8 @@ def dashboard_divisa_real():
         'month': month,
         'unit': unit,
         'tasas': {
-            'bcv': tasas_row['tasa_bcv_promedio'],
-            'paralela': tasas_row['tasa_paralela_promedio'],
+            'bcv': bcv,
+            'paralela': paralela,
             'diferencial': diferencial,
             'recargo': recargo
         },
@@ -1733,8 +2406,6 @@ def dashboard_divisa_real():
             'utilidad_distribuible': round(un_real, 2),
         }
     })
-
-
 @app.route('/api/eerr/divisa_real', methods=['GET'])
 @login_required
 def eerr_divisa_real():
@@ -1744,7 +2415,7 @@ def eerr_divisa_real():
     pero con montos ajustados por factor diferencial según % Cash/BCV.
     Parámetros: year, unit
     """
-    from engine import EERR_STRUCTURE
+    from engine import EERR_STRUCTURE, build_effective_structure
 
     year = request.args.get('year', str(datetime.now().year))
     unit = request.args.get('unit', '')
@@ -1753,66 +2424,83 @@ def eerr_divisa_real():
     year_prev = str(int(year) - 1)
     uc = f"AND unit='{unit}'" if unit else ''
 
-    # Mapeo de estructura por mes
     MONTH_TYPES = {
         'ENE': 'A', 'FEB': 'B', 'MAR': 'C', 'ABR': 'B', 'MAY': 'B', 'JUN': 'D',
         'JUL': 'B', 'AGO': 'B', 'SEPT': 'C', 'OCT': 'B', 'NOV': 'B', 'DIC': 'E',
     }
 
-    # ── CARGAR TASAS Y MÉTODOS DE PAGO POR MES ──
+    # ── PASO 4: CARGAR TASAS DESDE tasas_periodo ──
+    tasas_rows = db.execute(
+        'SELECT month, tasa_bcv_promedio, tasa_paralela_promedio, factor_diferencial FROM tasas_periodo WHERE year=?',
+        [year]
+    ).fetchall()
+    
     tasas_by_month = {}
-    metodos_by_month = {}
+    for r in tasas_rows:
+        m = r['month']
+        bcv = r['tasa_bcv_promedio']
+        paralela = r['tasa_paralela_promedio']
+        
+        # Validación de tasas
+        if bcv is None or bcv <= 0:
+            return jsonify({'error': f"Tasa BCV promedio inválida o cero para el mes {m} {year}"}), 400
+        if paralela is None or paralela <= 0:
+            return jsonify({'error': f"Tasa paralela promedio inválida o cero para el mes {m} {year}"}), 400
+            
+        diferencial = paralela / bcv
+        tasas_by_month[m] = {
+            'diferencial': diferencial
+        }
 
-    for m in MONTHS:
-        # Tasas del período
-        tasas_row = db.execute(
-            'SELECT * FROM tasas_periodo WHERE year=? AND month=?',
-            (year, m)
-        ).fetchone()
-
-        if tasas_row:
-            tasas_by_month[m] = {
-                'diferencial': tasas_row['factor_diferencial'],
-                'recargo': tasas_row['factor_recargo']
-            }
-
-        # Métodos de pago del período
-        metodos_rows = db.execute(
-            'SELECT unit, odoo_code, pct_cash FROM metodo_pago_cuenta WHERE year=? AND month=?',
-            (year, m)
-        ).fetchall()
-
-        metodos_by_month[m] = {(r['unit'], r['odoo_code']): r['pct_cash'] for r in metodos_rows}
-
-    # ── LEER DATOS Y APLICAR FACTORES ──
-    # Obtener datos con odoo_code para aplicar factores
+    # ── PASO 1: LEER DATOS REALES DE financials ──
     rows_curr = db.execute(
-        f'''SELECT f.partida, f.month, f.unit, f.amount, m.odoo_code
-            FROM financials f
-            LEFT JOIN mapping m ON f.partida = m.partida
-            WHERE f.year=? {uc}''',
+        f'''SELECT partida, month, unit, amount FROM financials
+            WHERE year=? {uc}''',
         [year]
     ).fetchall()
 
-    # Aplicar factores y agregar por partida/mes
+    # Validar que existan tasas para todos los meses que contienen transacciones (Paso 4)
+    months_in_data = set(r['month'] for r in rows_curr)
+    for m in months_in_data:
+        if m not in tasas_by_month:
+            return jsonify({'error': f"Faltan tasas de cambio (tasas_periodo) para el periodo {year}/{m}"}), 400
+
+    # ── PASO 2: OBTENER UN SOLO odoo_code REPRESENTATIVO POR PARTIDA ──
+    # Si una partida tiene varios mapping (relación 1:N), tomamos el de menor rowid para evitar duplicación.
+    mapping_rows = db.execute(
+        'SELECT partida, odoo_code, MIN(rowid) FROM mapping GROUP BY partida'
+    ).fetchall()
+    partida_to_code = {r['partida']: r['odoo_code'] for r in mapping_rows}
+
+    # ── PASO 3: CARGAR CONFIGURACIÓN DE % Cash/BCV ──
+    metodos_rows = db.execute(
+        'SELECT month, unit, odoo_code, pct_cash FROM metodo_pago_cuenta WHERE year=?',
+        [year]
+    ).fetchall()
+    metodos_map = {(r['month'], r['unit'], r['odoo_code']): r['pct_cash'] for r in metodos_rows}
+
+    # ── PASO 5 & 6: APLICAR AJUSTE DE DIVISA REAL Y AGRUPAR POR PARTIDA/MES ──
     by_partida = {}
     for r in rows_curr:
         partida = r['partida']
         month = r['month']
+        row_unit = r['unit']
         amount_literal = r['amount']
-
-        # Obtener configuración del mes
-        tasas = tasas_by_month.get(month)
-        metodos_map = metodos_by_month.get(month, {})
-
-        if tasas and r['odoo_code']:
-            pct_cash = metodos_map.get((r['unit'], r['odoo_code']))
-            diferencial = tasas['diferencial']
-            amount_ajustado = aplicar_factor_divisa(amount_literal, pct_cash, diferencial)
-        else:
-            # Sin tasas o sin odoo_code, usar literal
-            amount_ajustado = amount_literal
-
+        
+        # Obtener odoo_code representativo
+        odoo_code = partida_to_code.get(partida)
+        pct_cash = 100.0
+        
+        if odoo_code:
+            pct_cash = metodos_map.get((month, row_unit, odoo_code))
+            if pct_cash is None:
+                # FALLBACK EXPLÍCITO: Si no hay configuración para la cuenta/unidad, asumir 100% Cash (factor = 1)
+                pct_cash = 100.0
+                
+        diferencial = tasas_by_month[month]['diferencial']
+        amount_ajustado = aplicar_factor_divisa(amount_literal, pct_cash, diferencial)
+        
+        # Agrupación segura (Paso 6)
         by_partida.setdefault(partida, {})[month] = by_partida.get(partida, {}).get(month, 0) + amount_ajustado
 
     # Año anterior (sin ajuste - usar literal)
@@ -1821,7 +2509,7 @@ def eerr_divisa_real():
             WHERE year=? {uc} GROUP BY partida''',
         [year_prev]
     ).fetchall()
-    by_prev = {r['partida']: r['amount'] for r in rows_prev}
+    by_prev_raw = {r['partida']: r['amount'] for r in rows_prev}
 
     # Presupuesto (sin ajuste)
     rows_budget = db.execute(
@@ -1836,57 +2524,196 @@ def eerr_divisa_real():
     # Clasificación
     ing_p, cos_p, gas_p = get_clasificacion(db)
 
-    # Obtener grupos de presentación
-    groups, grouped_partidas = get_grouped_partidas(db, 'eerr')
+    # Obtener grupos de presentación de mapping_groups_v2
+    groups_v2, _ = get_grouped_partidas_v2(db, 'eerr')
 
-    # Totales de ingresos y gastos por mes
+    import unicodedata
+    def norm(s):
+        if not s: return ''
+        s = ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
+        return s.lower().strip()
+
+    def resolve_leaf_value(partida_name, month, data_dict):
+        if partida_name in groups_v2:
+            return sum(data_dict.get(p, {}).get(month, 0) for p in groups_v2[partida_name])
+        val = data_dict.get(partida_name, {}).get(month, 0)
+        if val == 0:
+            pn_norm = norm(partida_name)
+            for k, v in data_dict.items():
+                if norm(k) == pn_norm:
+                    return v.get(month, 0)
+        return val
+
+    def resolve_leaf_value_prev(partida_name, data_dict):
+        if partida_name in groups_v2:
+            return sum(data_dict.get(p, 0) for p in groups_v2[partida_name])
+        val = data_dict.get(partida_name, 0)
+        if val == 0:
+            pn_norm = norm(partida_name)
+            for k, v in data_dict.items():
+                if norm(k) == pn_norm:
+                    return v
+        return val
+
+    # ── PASO 7: AGREGACIÓN JERÁRQUICA V2 DE SUBTOTALES ──
+    db_overrides = db.execute('SELECT partida_name, target_subtotal FROM eerr_nodes').fetchall()
+    effective = build_effective_structure(EERR_STRUCTURE, db_overrides=db_overrides)
+    structure_with_levels = [(node['partida_name'], node['is_header'], node['level']) for node in effective]
+
+    subtotales_por_mes = {}
+    for m in MONTHS:
+        subtotales_por_mes[m] = {}
+        for name, is_header, level in structure_with_levels:
+            if not is_header:
+                subtotales_por_mes[m][name] = resolve_leaf_value(name, m, by_partida)
+
+        for i, (name, is_header, level) in enumerate(structure_with_levels):
+            if is_header:
+                total = 0
+                j = i + 1
+                while j < len(structure_with_levels):
+                    c_name, c_is_header, c_level = structure_with_levels[j]
+                    if c_level <= level:
+                        break
+                    if not c_is_header:
+                        # Excluir cuentas que se duplicarían
+                        if name == 'Subtotal Gastos de Administración' and c_name in [
+                            'Gasto por impuesto a las pensiones',
+                            'Gastos de IGTF',
+                            'Gastos de comisiones bancarias'
+                        ]:
+                            pass
+                        elif name == 'Subtotal Gastos de Mercadeo' and c_name in [
+                            'Gastos de impresiones de material gráfico',
+                            'Gastos de patrocinio y donación'
+                        ]:
+                            pass
+                        else:
+                            total += subtotales_por_mes[m].get(c_name, 0)
+                    j += 1
+                subtotales_por_mes[m][name] = total
+
+    # Definición de partidas operativas para Total Ingresos
+    op_ing_partidas = ing_p - {
+        'Ingresos por alquileres',
+        'Ingresos por intereses',
+        'Ingresos por comisiones',
+        'Ingresos por servicios administrativos',
+        'Sobrante en ventas',
+        'Sobrante de inventarios',
+        'Ganancia en venta de activos',
+        'Ganancia por tasa cambiaria',
+        'Ganancia por diferencias en pagos'
+    }
+
+    valores_calculados_por_mes = {}
     ingresos_ejec_mes = {}
     gastos_ejec_mes = {}
     ingresos_ppto_mes = {}
     gastos_ppto_mes = {}
 
-    ingresos_prev = sum(by_prev.get(p, 0) for p in ing_p)
-    gastos_prev = sum(by_prev.get(p, 0) for p in gas_p)
-
     for m in MONTHS:
-        ingresos_ejec_mes[m] = sum(by_partida.get(p, {}).get(m, 0) for p in ing_p)
-        gastos_ejec_mes[m] = sum(by_partida.get(p, {}).get(m, 0) for p in gas_p)
-        ingresos_ppto_mes[m] = sum(by_budget.get(p, {}).get(m, 0) for p in ing_p)
+        ingresos_operativos = sum(by_partida.get(p, {}).get(m, 0) for p in op_ing_partidas)
+        otros_ing = subtotales_por_mes[m].get('Otros Ingresos no Operacionales', 0)
+        costo_ventas = sum(by_partida.get(p, {}).get(m, 0) for p in cos_p)
+        utilidad_bruta = ingresos_operativos - costo_ventas
+
+        gastos_operacionales = 0
+        for nombre in ['Subtotal Gastos de Administración',
+                       'Subtotal Gastos de Recursos Humanos',
+                       'Subtotal Gastos de Comercialización y Logistica',
+                       'Subtotal Gastos de Mercadeo',
+                       'Subtotal Gastos de TI+I']:
+            gastos_operacionales += subtotales_por_mes[m].get(nombre, 0)
+
+        comisiones = 0
+        for nombre in ['Gastos de comisiones empleados',
+                       'Gastos de comisiones empleados del taller',
+                       'Gastos de comisiones por venta de personal externo']:
+            comisiones += subtotales_por_mes[m].get(nombre, 0)
+
+        utilidad_despues_comisiones = utilidad_bruta - gastos_operacionales
+        utilidad_antes_comisiones = utilidad_despues_comisiones + comisiones
+
+        otros_gastos = subtotales_por_mes[m].get('Otros Gastos no Operacionales', 0)
+        gastos_impuestos = subtotales_por_mes[m].get('Gastos de impuestos, tasas y contribuciones', 0)
+        gastos_intereses = subtotales_por_mes[m].get('Gastos de intereses sobre préstamos', 0)
+        depreciaciones = subtotales_por_mes[m].get('Depreciaciones, deterioro y Amortización', 0)
+
+        ebit = utilidad_bruta - gastos_operacionales + gastos_intereses + gastos_impuestos
+        ebitda = ebit + depreciaciones
+
+        utilidad_neta = utilidad_despues_comisiones - otros_gastos + otros_ing
+        islr = subtotales_por_mes[m].get('ISLR', 0)
+        utilidad_neta_despues_islr = utilidad_neta - islr
+
+        totales_mes = {
+            'Total Ingresos Operativos': ingresos_operativos,
+            'Otros Ingresos no Operacionales': otros_ing,
+            'Total Ingresos': ingresos_operativos,
+            'Total Costo de Ventas': costo_ventas,
+            'Utilidad Bruta': utilidad_bruta,
+            'Total Gastos Operacionales': gastos_operacionales,
+            'Utilidad antes de Comisiones por Ventas': utilidad_antes_comisiones,
+            'Utilidad después de Comisiones por Ventas': utilidad_despues_comisiones,
+            'Otros Gastos no Operacionales': otros_gastos,
+            'Total Gastos Operacionales y No Operacionales': gastos_operacionales + otros_gastos,
+            'Utilidad antes de Intereses e Impuestos (EBIT)': ebit,
+            'Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)': ebitda,
+            'Utilidad Neta': utilidad_neta,
+            'ISLR': islr,
+            'Utilidad Neta despues de ISLR': utilidad_neta_despues_islr,
+            'Utilidad Bruta por Venta de Mercancia y Taller': (
+                subtotales_por_mes[m].get('Subtotal Ingresos por Venta de Mercancia', 0)
+                + subtotales_por_mes[m].get('Subtotal Ingresos por Taller', 0)
+                - subtotales_por_mes[m].get('Subtotal Costo de Ventas por Mercancia', 0)
+            ),
+            'Utilidad Bruta por Servicios': (
+                subtotales_por_mes[m].get('Subtotal Ingresos por Servicios', 0)
+                - subtotales_por_mes[m].get('Subtotal Costo de Ventas por Servicios', 0)
+            ),
+            'Utilidad Bruta por Eventos': (
+                subtotales_por_mes[m].get('Subtotal Ingresos por Eventos', 0)
+                - subtotales_por_mes[m].get('Subtotal Costo de Ventas por Eventos', 0)
+            )
+        }
+
+        valores_calculados_por_mes[m] = {**subtotales_por_mes[m], **totales_mes}
+
+        ingresos_ejec_mes[m] = ingresos_operativos
+        gastos_ejec_mes[m] = gastos_operacionales
+        ingresos_ppto_mes[m] = sum(by_budget.get(p, {}).get(m, 0) for p in op_ing_partidas)
         gastos_ppto_mes[m] = sum(by_budget.get(p, {}).get(m, 0) for p in gas_p)
+
+    ingresos_prev = sum(by_prev_raw.get(p, 0) for p in op_ing_partidas)
+    gastos_prev = sum(by_prev_raw.get(p, 0) for p in gas_p)
 
     def safe_pct(num, den):
         return round(num / den * 100, 1) if den != 0 else 0
 
     def safe_var(val, base):
-        if base == 0:
-            return None
+        if base == 0: return None
         return round((val - base) / abs(base) * 100, 1)
 
-    # ── CONSTRUIR FILAS SEGÚN EERR_STRUCTURE ──
     rows = []
-    for item in EERR_STRUCTURE:
-        partida_name = item[0]
-        is_header = item[1]
-        parent = item[2] if len(item) > 2 else None
-        bold = item[3] if len(item) > 3 else False
-        bg_color = item[4] if len(item) > 4 else None
+    for node in effective:
+        partida_name = node['partida_name']
+        is_header = node['is_header']
+        parent = None
+        bold = node['bold']
+        bg_color = node['bg_color']
+        es_nota = node['es_nota']
+        parent_name = node['parent_name']
+        indent = node['indent']
 
-        # Verificar si esta partida es un grupo
-        if partida_name in groups:
-            # Es un grupo: sumar todas las partidas del grupo
-            matching = groups[partida_name]
+        if is_header:
+            prev_val = valores_calculados_por_mes.get('DIC', {}).get(partida_name, 0)
         else:
-            # Buscar partida individual (excluir las que están en grupos)
-            matching = [p for p in (ing_p | cos_p | gas_p)
-                        if p.lower() == partida_name.lower()
-                        and p not in grouped_partidas]
+            prev_val = resolve_leaf_value_prev(partida_name, by_prev_raw)
 
-        # Año anterior
-        prev_val = sum(by_prev.get(p, 0) for p in matching)
         prev_pct_vtas = safe_pct(prev_val, ingresos_prev)
         prev_pct_gastos = safe_pct(prev_val, gastos_prev)
 
-        # Por cada mes
         meses_data = []
         acum_ejec = 0
         acum_ppto = 0
@@ -1896,10 +2723,15 @@ def eerr_divisa_real():
         acum_gas_ppto = 0
         val_ejec_mes_anterior = None
 
-        for i, m in enumerate(MONTHS):
+        for m in MONTHS:
             month_type = MONTH_TYPES[m]
-            val_ejec = sum(by_partida.get(p, {}).get(m, 0) for p in matching)
-            val_ppto = sum(by_budget.get(p, {}).get(m, 0) for p in matching)
+
+            if is_header:
+                val_ejec = valores_calculados_por_mes[m].get(partida_name, 0)
+                val_ppto = 0
+            else:
+                val_ejec = resolve_leaf_value(partida_name, m, by_partida)
+                val_ppto = resolve_leaf_value(partida_name, m, by_budget)
 
             acum_ejec += val_ejec
             acum_ppto += val_ppto
@@ -2287,7 +3119,7 @@ def export_excel():
         q += f' AND month IN ({",".join("?"*len(sel))})'; params.extend(sel)
 
     rows = db.execute(q + ' ORDER BY unit, month, partida', params).fetchall()
-    exp  = ExcelExporter([dict(r) for r in rows], year, [unit] if unit else UNITS, MONTHS)
+    exp  = ExcelExporter([dict(r) for r in rows], year, [unit] if unit else UNITS, sel if 'sel' in locals() else MONTHS)
     path = exp.generate()
     suf  = (f'_{unit}' if unit else '_CONSOLIDADO') + (f'_{mf}-{mt}' if mf and mt else '')
     return send_file(path, as_attachment=True, download_name=f'EERR_ULTRAX_{year}{suf}.xlsx')
@@ -2588,6 +3420,87 @@ def get_grouped_partidas(db, report_type='eerr'):
         grouped_partidas.add(partida)
 
     return groups, grouped_partidas
+
+def get_grouped_partidas_v2(db, report_type='eerr'):
+    """
+    Retorna grupos basados en mapping_groups_v2 (Matriz Maestra).
+    """
+    rows = db.execute(
+        '''SELECT mg.group_name, m.partida
+           FROM mapping_groups_v2 mg
+           JOIN mapping m ON mg.odoo_code = m.odoo_code
+           WHERE mg.report_type = ?
+           ORDER BY mg.display_order''',
+        [report_type]
+    ).fetchall()
+
+    groups = {}
+    grouped_partidas = set()
+    for r in rows:
+        gname = r['group_name']
+        partida = r['partida']
+        groups.setdefault(gname, []).append(partida)
+        grouped_partidas.add(partida)
+    return groups, grouped_partidas
+
+def calcular_subtotales_jerarquicos_v2(eerr_structure, by_partida, month, ing_p, cos_p, gas_p, groups):
+    """
+    Calcula subtotales basándose EXCLUSIVAMENTE en mapping_groups_v2.
+    """
+    subtotales = {}
+    for i, item in enumerate(eerr_structure):
+        partida_name = item[0]
+        is_header = item[1]
+        if not is_header: continue
+
+        total = 0
+        # Buscar en la matriz maestra
+        matching_partidas = groups.get(partida_name, [])
+        for p in matching_partidas:
+            total += by_partida.get(p, {}).get(month, 0)
+        
+        subtotales[partida_name] = total
+    return subtotales
+
+@app.route('/api/eerr/completo_v2', methods=['GET'])
+def eerr_completo_v2():
+    """
+    Versión 2 del EERR: Basada íntegramente en la Matriz Maestra (mapping_groups_v2).
+    """
+    year = request.args.get('year', str(datetime.now().year))
+    unit = request.args.get('unit', '')
+
+    # Obtenemos los datos desde el adaptador común para asegurar que no haya descuadres
+    data = eerr_completo_v2_ui_adapter(year, unit)
+
+    # Reformateamos los datos al contrato simplificado esperado por V2
+    rows = []
+    for r in data['rows']:
+        meses_data = []
+        acum_ejec = 0
+        for m_data in r['meses']:
+            val_ejec = m_data['ejecutado']['valor']
+            acum_ejec += val_ejec
+            meses_data.append({
+                'month': m_data['month'],
+                'ejecutado': {'valor': val_ejec}
+            })
+        rows.append({
+            'partida': r['partida'],
+            'is_header': r['is_header'],
+            'bold': r['bold'],
+            'bg_color': r['bg_color'],
+            'es_nota': r.get('es_nota', False),
+            'meses': meses_data,
+            'acum_ejec': round(acum_ejec, 2)
+        })
+
+    return jsonify({
+        'year': year,
+        'unit': unit,
+        'rows': rows
+    })
+
 
 
 @app.route('/api/mapping_groups', methods=['GET'])
