@@ -18,7 +18,7 @@ def classify_account(codigo: str) -> tuple:
     - 1.02.07.XX.500|.002 → (-1, None) [Amort Acum - reducen activo]
     - 2.x → (-1, None) [Pasivo]
     - 3.x → (-1, None) [Patrimonio]
-    - 4.01.01.02.x | 4.01.01.03.x → (-1, 'mercancia') [Devoluciones/descuentos]
+    - 4.01.01.02.x | 4.01.01.03.x → (1, 'mercancia') [Devoluciones/descuentos]
     - 4.01.01.x → (1, 'mercancia')
     - 4.01.02.x → (1, 'servicios')
     - 4.01.03.x → (1, 'eventos')
@@ -39,7 +39,7 @@ def classify_account(codigo: str) -> tuple:
 
     # Devoluciones y descuentos sobre ventas (reducen ingresos)
     if codigo.startswith('4.01.01.02.') or codigo.startswith('4.01.01.03.'):
-        return (-1, 'mercancia')
+        return (1, 'mercancia')
 
     # Ingresos operativos por tipo
     if codigo.startswith('4.01.01.'):
@@ -316,17 +316,12 @@ def init_db():
             created_at      TEXT NOT NULL DEFAULT (datetime('now','localtime')),
             UNIQUE(year, month, unit, odoo_code)
         );
-        CREATE TABLE IF NOT EXISTS mapping_groups (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_name TEXT NOT NULL,
-            odoo_code TEXT NOT NULL,
-            report_type TEXT NOT NULL CHECK(report_type IN ('eerr', 'esf')),
-            display_order INTEGER DEFAULT 0,
-            created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-            FOREIGN KEY (odoo_code) REFERENCES mapping(odoo_code) ON DELETE CASCADE
+
+        CREATE TABLE IF NOT EXISTS dashboard_config (
+            username TEXT PRIMARY KEY,
+            config_json TEXT NOT NULL,
+            updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
         );
-        CREATE INDEX IF NOT EXISTS idx_groups_code ON mapping_groups(odoo_code);
-        CREATE INDEX IF NOT EXISTS idx_groups_report ON mapping_groups(report_type, group_name);
     ''')
 
     # ── Migración de BDs existentes ──────────────────────────────────────────
@@ -439,20 +434,7 @@ def migrate_db():
         )''')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_budget ON budget(year, month, unit)')
 
-    # Nueva tabla mapping_groups
-    if 'mapping_groups' not in tables:
-        conn.execute('''CREATE TABLE mapping_groups (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_name TEXT NOT NULL,
-            odoo_code TEXT NOT NULL,
-            report_type TEXT NOT NULL CHECK(report_type IN ('eerr', 'esf')),
-            display_order INTEGER DEFAULT 0,
-            created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-            FOREIGN KEY (odoo_code) REFERENCES mapping(odoo_code) ON DELETE CASCADE
-        )''')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_groups_code ON mapping_groups(odoo_code)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_groups_report ON mapping_groups(report_type, group_name)')
-        print("[OK] Tabla mapping_groups creada")
+
 
     # Actualizar income_type en registros existentes del mapping inicial
     if INITIAL_MAPPING:
@@ -519,17 +501,4 @@ def reset_mapping():
     }
 
 
-def seed_initial_groups():
-    """Inserta grupos iniciales si la tabla está vacía."""
-    conn = sqlite3.connect(DB_PATH)
-    count = conn.execute('SELECT COUNT(*) FROM mapping_groups').fetchone()[0]
 
-    if count == 0 and INITIAL_GROUPS:
-        conn.executemany(
-            'INSERT INTO mapping_groups (group_name, odoo_code, report_type, display_order) VALUES (?,?,?,?)',
-            INITIAL_GROUPS
-        )
-        conn.commit()
-        print(f"[OK] {len(INITIAL_GROUPS)} grupos iniciales insertados")
-
-    conn.close()

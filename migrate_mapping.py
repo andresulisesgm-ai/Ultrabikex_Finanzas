@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Script de migración del plan de cuentas.
@@ -17,7 +17,7 @@ import os
 # Añadir el directorio actual al path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from db import INITIAL_MAPPING, reset_mapping, migrate_db, seed_initial_groups, INITIAL_GROUPS
+from db import INITIAL_MAPPING, reset_mapping, migrate_db, INITIAL_GROUPS
 import sqlite3
 
 
@@ -149,14 +149,7 @@ def execute_migration():
         print(f"[ERROR] Error en reset_mapping(): {e}")
         return False
 
-    # Paso 5: Insertar grupos iniciales
-    print("\n[STEP] Paso 3/3: Insertando grupos iniciales...")
-    try:
-        seed_initial_groups()
-        print("[OK] Grupos iniciales insertados")
-    except Exception as e:
-        print(f"[ERROR] Error en seed_initial_groups(): {e}")
-        return False
+
 
     # Verificación final
     print("\n[STEP] Verificación final...")
@@ -164,8 +157,8 @@ def execute_migration():
     conn = sqlite3.connect(DB_PATH)
 
     mapping_count = conn.execute('SELECT COUNT(*) FROM mapping').fetchone()[0]
-    groups_count = conn.execute('SELECT COUNT(DISTINCT group_name) FROM mapping_groups').fetchone()[0]
-    assignments_count = conn.execute('SELECT COUNT(*) FROM mapping_groups').fetchone()[0]
+    groups_count = conn.execute('SELECT COUNT(DISTINCT group_name) FROM mapping_groups_v2').fetchone()[0]
+    assignments_count = conn.execute('SELECT COUNT(*) FROM mapping_groups_v2').fetchone()[0]
 
     print(f"   - Cuentas en mapping: {mapping_count}")
     print(f"   - Grupos definidos: {groups_count}")

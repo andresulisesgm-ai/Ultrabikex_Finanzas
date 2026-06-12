@@ -16,177 +16,179 @@ MONTH_TO_QUARTER = {
 
 # ── EERR Structure ──────────────────────────────────────────────────────
 # Nueva EERR_STRUCTURE extraída de EJEMPLO EERR.xlsx (hoja EERR LOS NA)
-# Formato: (partida_name, is_header, parent, bold, bg_color)
+# Formato: (partida_name, is_header, parent, bold, bg_color, level, es_nota)
 # Colores: FF6AD9E8 (azul claro), FF66FF66 (verde), FFFFFF00 (amarillo)
 
 EERR_STRUCTURE = [
-    ('ESTADO DE RESULTADOS', True, None, True, None, 0),
-    ('PARTIDAS', True, None, True, None, 0),
-    ('Total Ingresos', True, None, True, 'FF6AD9E8', 0),
-    ('Subtotal Ingresos por Venta de Mercancia', True, None, True, None, 1),
-    ('Ingresos por venta de mercancias', False, None, False, None, 3),
-    ('Devoluciones sobre ventas', False, None, False, None, 3),
-    ('Descuentos sobre ventas', False, None, False, None, 3),
-    ('Subtotal Ingresos por Servicios', True, None, True, None, 1),
-    ('Ingresos por servicios del café', False, None, False, None, 3),
-    ('Ingresos por zona FIT', False, None, False, None, 3),
-    ('Ingresos por fletes', False, None, False, None, 3),
-    ('Subtotal Ingresos por Eventos', True, None, True, None, 1),
-    ('Ingresos por eventos', False, None, False, None, 3),
-    ('Subtotal Ingresos por Taller', True, None, True, None, 1),
-    ('Ingresos por taller', False, None, False, None, 3),
-    ('Total Costo de Ventas', True, None, True, None, 0),
-    ('Subtotal Costo de Ventas por Mercancia', True, None, True, None, 1),
-    ('Costos de venta por mercancia', False, None, False, None, 3),
-    ('Subtotal Costo de Ventas por Servicios', True, None, True, None, 1),
-    ('Costo de venta por servicio del café', False, None, False, None, 3),
-    ('Subtotal Costo de Ventas por Eventos', True, None, True, None, 1),
-    ('Costo de ventas por eventos', False, None, False, None, 3),
-    ('Utilidad Bruta por Venta de Mercancia y Taller', True, None, True, 'FF66FF66', 0),
-    ('Utilidad Bruta por Servicios', True, None, True, 'FF66FF66', 0),
-    ('Utilidad Bruta por Eventos', True, None, True, 'FF66FF66', 0),
-    ('Utilidad Bruta', True, None, True, 'FF66FF66', 0),
-    ('Total Gastos Operacionales', True, None, True, None, 0),
-    ('Subtotal Gastos de Administración', True, None, True, None, 1),
-    ('Gastos de servicios públicos (Agua, luz, Aseo Urbano)', False, None, False, None, 3),
-    ('Gastos de servicios de telefonía e internet', False, None, False, None, 3),
-    ('Gastos de alquiler del local', False, None, False, None, 3),
-    ('Gastos de Condominio', False, None, False, None, 3),
-    ('Gastos de asistencia outsorcing', False, None, False, None, 3),
-    ('Gastos de alquiler de bienes muebles', False, None, False, None, 3),
-    ('Gastos de artículos de oficina', False, None, False, None, 3),
-    ('Gastos de artículos de limpieza e higiene', False, None, False, None, 3),
-    ('Gastos de alimentos y bebidas', False, None, False, None, 3),
-    ('Gastos de envíos y encomiendas administrativas', False, None, False, None, 3),
-    ('Gastos de honorarios profesionales', False, None, False, None, 3),
-    ('Gastos de estacionamiento', False, None, False, None, 3),
-    ('Gastos de gestoría', False, None, False, None, 3),
-    ('Gastos legales', False, None, False, None, 3),
-    ('Gastos de taxi, transporte y/o delivery', False, None, False, None, 3),
-    ('Gastos de suministros para taller', False, None, False, None, 3),
-    ('Gastos de suministros del café', False, None, False, None, 3),
-    ('Gastos por fiestas, festejos y/o reuniones', False, None, False, None, 3),
-    ('Gastos de vigilancia', False, None, False, None, 3),
-    ('Gastos de retenciones no descontadas', False, None, False, None, 3),
-    ('Mantenimiento y reparaciones', False, None, False, None, 3),
-    ('Viáticos administrativos', False, None, False, None, 3),
-    ('Gastos de seguro', False, None, False, None, 3),
-    ('Gastos de impuestos, tasas y contribuciones', False, None, False, None, 3),
-    ('Depreciaciones, deterioro y Amortización', False, None, False, None, 3),
-    ('Gasto por impuesto a las pensiones', False, None, False, None, 3),
-    ('Gastos de IGTF', False, None, False, None, 3),
-    ('Gastos de comisiones bancarias', False, None, False, None, 3),
-    ('Gastos Bancarios', False, None, False, None, 3),
-    ('Gastos de intereses sobre préstamos', False, None, False, None, 3),
-    ('Subtotal Gastos de Recursos Humanos', True, None, True, None, 1),
-    ('Gastos de sueldos y salarios empleados y directivos', True, None, False, None, 2),
-    ('Gastos de sueldos y salarios empleados', False, None, False, None, 3),
-    ('Gastos de sueldos y salarios directivos', False, None, False, None, 3),
-    ('Gastos de horas extras, feriados y bono nocturno', False, None, False, None, 3),
-    ('Gastos de Bono de alimentación empleados', False, None, False, None, 3),
-    ('Gastos de Bono de alimentación directivos', False, None, False, None, 3),
-    ('Gastos de complementos empleados y directivos', True, None, False, None, 2),
-    ('Gastos de complemento de sueldos y salarios empleados', False, None, False, None, 3),
-    ('Gastos de complemento de sueldos y salarios directivos', False, None, False, None, 3),
-    ('Gastos de personal externo', True, None, False, None, 2),
-    ('Gastos de servicios de personal externo', False, None, False, None, 3),
-    ('Gastos de pasivos laborales vacaciones', True, None, False, None, 2),
-    ('Gastos de vacaciones empleados', False, None, False, None, 3),
-    ('Gastos de vacaciones directivos', False, None, False, None, 3),
-    ('Gastos de complemento de vacaciones empleados', False, None, False, None, 3),
-    ('Gastos de complemento de vacaciones directivos', False, None, False, None, 3),
-    ('Gastos de pasivos laborales utilidades', True, None, False, None, 2),
-    ('Gastos de bono vacacional empleados', False, None, False, None, 3),
-    ('Gastos de bono vacacional directivos', False, None, False, None, 3),
-    ('Gastos de complemento bono vacacional empleados', False, None, False, None, 3),
-    ('Gastos de complemento bono vacacional directivos', False, None, False, None, 3),
-    ('Gastos de utilidades empleados', False, None, False, None, 3),
-    ('Gastos de utilidades directivos', False, None, False, None, 3),
-    ('Gastos de complemento de utilidades empleados', False, None, False, None, 3),
-    ('Gastos de complemento de utilidades directivos', False, None, False, None, 3),
-    ('Gastos de pasivos laborales prestaciones e intereses', True, None, False, None, 2),
-    ('Gastos de prestaciones sociales empleados', False, None, False, None, 3),
-    ('Gastos de prestaciones sociales directivos', False, None, False, None, 3),
-    ('Gastos de complemento de prestaciones sociales empleados', False, None, False, None, 3),
-    ('Gastos de complemento de prestaciones sociales directivos', False, None, False, None, 3),
-    ('Gastos de intereses sobres prestaciones sociales empleados', False, None, False, None, 3),
-    ('Gastos de intereses sobres prestaciones sociales directivos', False, None, False, None, 3),
-    ('Gastos de complemento de intereses sobre prestaciones sociales empleados', False, None, False, None, 3),
-    ('Gastos de complemento de intereses sobre prestaciones sociales directivos', False, None, False, None, 3),
-    ('Gastos de pasivos laborales aportes', True, None, False, None, 2),
-    ('Gastos de aporte patronal IVSS', False, None, False, None, 3),
-    ('Gastos de aporte patronal SPF', False, None, False, None, 3),
-    ('Gastos de aporte patronal FAOV', False, None, False, None, 3),
-    ('Gastos de aporte patronal INCES', False, None, False, None, 3),
-    ('Gastos de bono de guardería', False, None, False, None, 3),
-    ('Gastos de pasivos laborales HCM', True, None, False, None, 2),
-    ('Gastos de póliza HCM', False, None, False, None, 3),
-    ('Gastos de salud y seguridad laboral', False, None, False, None, 3),
-    ('Gastos de salud y seguridad laboral dotación', False, None, False, None, 3),
-    ('Gastos de uniformes y dotación al personal', False, None, False, None, 3),
-    ('Gastos de salud y seguridad laboral fiestas y agasajos', True, None, False, None, 2),
-    ('Gastos de fiestas y agasajos al personal', False, None, False, None, 3),
-    ('Otros gastos de personal', True, None, False, None, 2),
-    ('Gastos de otros bonos empleados', False, None, False, None, 3),
-    ('Gastos de transporte del personal', False, None, False, None, 3),
-    ('Gastos de donaciones y obsequios al personal', False, None, False, None, 3),
-    ('Gastos de capacitación al personal', False, None, False, None, 3),
-    ('Subtotal Gastos de Comercialización y Logistica', True, None, True, None, 1),
-    ('Gastos de viáticos comerciales', False, None, False, None, 3),
-    ('Gastos de comisiones empleados', False, None, False, None, 3),
-    ('Gastos de comisiones empleados del taller', False, None, False, None, 3),
-    ('Gastos de comisiones por venta de personal externo', False, None, False, None, 3),
-    ('Gastos de fletes y envios no asociados al costo', False, None, False, None, 3),
-    ('Otros gastos no asociados al costo', False, None, False, None, 3),
-    ('Gastos por combustible', False, None, False, None, 3),
-    ('Gastos de representación', False, None, False, None, 3),
-    ('Gastos por garantia', False, None, False, None, 3),
-    ('Gastos por suscripciones', False, None, False, None, 3),
-    ('Gastos de Stand y/o ferias comerciales', False, None, False, None, 3),
-    ('Subtotal Gastos de Mercadeo', True, None, True, None, 1),
-    ('Gastos de redes sociales', False, None, False, None, 3),
-    ('Gastos de medios publicitarios', False, None, False, None, 3),
-    ('Gastos de impresiones de material gráfico', False, None, False, None, 3),
-    ('Otros gastos de publicidad y promoción', False, None, False, None, 3),
-    ('Gastos de patrocinio y donación', False, None, False, None, 3),
-    ('Gastos de patrocinio, donación y/o obsequios en efectivo', False, None, False, None, 3),
-    ('Gastos de patrocinio, donación y/o obsequios en productos', False, None, False, None, 3),
-    ('Gastos de viáticos por eventos', False, None, False, None, 3),
-    ('Gastos de materiales y servicios por eventos', False, None, False, None, 3),
-    ('Gastos de alimentos y bebidas por eventos', False, None, False, None, 3),
-    ('Gastos de personal por eventos', False, None, False, None, 3),
-    ('Gastos de patrocinio, donación y/o obseq por eventos', False, None, False, None, 3),
-    ('Subtotal Gastos de TI+I', True, None, True, None, 1),
-    ('Gastos de página web', False, None, False, None, 3),
-    ('Gastos de desarrollo', False, None, False, None, 3),
-    ('Utilidad antes de Comisiones por Ventas', True, None, True, 'FF66FF66', 0),
-    ('Gastos de comisiones por ventas', False, None, False, None, 3),
-    ('Gastos de comisiones por ventas taller', False, None, False, None, 3),
-    ('Utilidad después de Comisiones por Ventas', True, None, True, 'FF66FF66', 0),
-    ('Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)', True, None, True, 'FF66FF66', 0),
-    ('Utilidad antes de Intereses e Impuestos (EBIT)', True, None, True, 'FF66FF66', 0),
-    ('Otros Gastos no Operacionales', True, None, True, None, 0),
-    ('Faltante en Ventas', False, None, False, None, 3),
-    ('Pérdida en venta de activos', False, None, False, None, 3),
-    ('Pérdida en siniestro de activos', False, None, False, None, 3),
-    ('Pérdida en tasa cambiaria', False, None, False, None, 3),
-    ('Pérdida por diferencia en pagos', False, None, False, None, 3),
-    ('Multas', False, None, False, None, 3),
-    ('Faltante y deterioro de inventarios', False, None, False, None, 3),
-    ('Total Gastos Operacionales y No Operacionales', True, None, True, 'FFFFFF00', 0),
-    ('Otros Ingresos no Operacionales', True, None, True, None, 0),
-    ('Ingresos por alquileres', False, None, False, None, 3),
-    ('Ingresos por intereses', False, None, False, None, 3),
-    ('Ingresos por comisiones', False, None, False, None, 3),
-    ('Ingresos por servicios administrativos', False, None, False, None, 3),
-    ('Sobrante en ventas', False, None, False, None, 3),
-    ('Sobrante de inventarios', False, None, False, None, 3),
-    ('Ganancia en venta de activos', False, None, False, None, 3),
-    ('Ganancia por tasa cambiaria', False, None, False, None, 3),
-    ('Ganancia por diferencias en pagos', False, None, False, None, 3),
-    ('Utilidad Neta', True, None, True, 'FF66FF66', 0),
-    ('ISLR', True, None, True, None, 0),
-    ('Utilidad Neta despues de ISLR', True, None, True, 'FF66FF66', 0),
+    ('ESTADO DE RESULTADOS', True, None, True, None, 0, False, None, 0),
+    ('PARTIDAS', True, None, True, None, 0, False, None, 0),
+    ('Total Ingresos', True, None, True, 'FF6AD9E8', 0, False, None, 0),
+    ('Subtotal Ingresos por Venta de Mercancia', True, None, True, None, 1, False, None, 1),
+    ('Ingresos por venta de mercancias', False, None, False, None, 3, True, 'Subtotal Ingresos por Venta de Mercancia', 3),
+    ('Devoluciones sobre ventas', False, None, False, None, 3, False, None, 2),
+    ('Descuentos sobre ventas', False, None, False, None, 3, False, None, 2),
+    ('Subtotal Ingresos por Servicios', True, None, True, None, 1, False, None, 1),
+    ('Ingresos por servicios del café', False, None, False, None, 3, False, None, 2),
+    ('Ingresos por zona FIT', False, None, False, None, 3, False, None, 2),
+    ('Ingresos por fletes', False, None, False, None, 3, False, None, 2),
+    ('Ingresos por otros servicios', False, None, False, None, 3, False, None, 2),
+    ('Subtotal Ingresos por Eventos', True, None, True, None, 1, False, None, 1),
+    ('Ingresos por eventos', False, None, False, None, 3, False, None, 2),
+    ('Subtotal Ingresos por Taller', True, None, True, None, 1, False, None, 1),
+    ('Ingresos por taller', False, None, False, None, 3, False, None, 2),
+    ('Total Costo de Ventas', True, None, True, None, 0, False, None, 0),
+    ('Subtotal Costo de Ventas por Mercancia', True, None, True, None, 1, False, None, 1),
+    ('Costos de venta por mercancia', False, None, False, None, 3, True, 'Subtotal Costo de Ventas por Mercancia', 3),
+    ('Subtotal Costo de Ventas por Servicios', True, None, True, None, 1, False, None, 1),
+    ('Costo de venta por servicio del café', False, None, False, None, 3, False, None, 2),
+    ('Subtotal Costo de Ventas por Eventos', True, None, True, None, 1, False, None, 1),
+    ('Costo de ventas por eventos', False, None, False, None, 3, False, None, 2),
+    ('Utilidad Bruta por Venta de Mercancia y Taller', True, None, True, 'FF66FF66', 0, False, None, 0),
+    ('Utilidad Bruta por Servicios', True, None, True, 'FF66FF66', 0, False, None, 0),
+    ('Utilidad Bruta por Eventos', True, None, True, 'FF66FF66', 0, False, None, 0),
+    ('Utilidad Bruta', True, None, True, 'FF66FF66', 0, False, None, 0),
+    ('Total Gastos Operacionales', True, None, True, None, 0, False, None, 0),
+    ('Subtotal Gastos de Administración', True, None, True, None, 1, False, None, 1),
+    ('Gastos de servicios públicos (Agua, luz, Aseo Urbano)', False, None, False, None, 3, False, None, 2),
+    ('Gastos de servicios de telefonía e internet', False, None, False, None, 3, False, None, 2),
+    ('Gastos de alquiler del local', False, None, False, None, 3, False, None, 2),
+    ('Gastos de Condominio', False, None, False, None, 3, False, None, 2),
+    ('Gastos de asistencia outsorcing', False, None, False, None, 3, True, 'Subtotal Gastos de Administración', 3),
+    ('Gastos de alquiler de bienes muebles', False, None, False, None, 3, False, None, 2),
+    ('Gastos de artículos de oficina', False, None, False, None, 3, False, None, 2),
+    ('Gastos de artículos de limpieza e higiene', False, None, False, None, 3, False, None, 2),
+    ('Gastos de alimentos y bebidas', False, None, False, None, 3, False, None, 2),
+    ('Gastos de envíos y encomiendas administrativas', False, None, False, None, 3, False, None, 2),
+    ('Gastos de honorarios profesionales', False, None, False, None, 3, False, None, 2),
+    ('Gastos de estacionamiento', False, None, False, None, 3, False, None, 2),
+    ('Gastos de gestoría', False, None, False, None, 3, False, None, 2),
+    ('Gastos legales', False, None, False, None, 3, False, None, 2),
+    ('Gastos de taxi, transporte y/o delivery', False, None, False, None, 3, False, None, 2),
+    ('Gastos de suministros para taller', False, None, False, None, 3, False, None, 2),
+    ('Gastos de suministros del café', False, None, False, None, 3, False, None, 2),
+    ('Gastos por fiestas, festejos y/o reuniones', False, None, False, None, 3, False, None, 2),
+    ('Gastos de vigilancia', False, None, False, None, 3, False, None, 2),
+    ('Gastos de retenciones no descontadas', False, None, False, None, 3, False, None, 2),
+    ('Mantenimiento y reparaciones', False, None, False, None, 3, False, None, 2),
+    ('Viáticos administrativos', False, None, False, None, 3, False, None, 2),
+    ('Gastos de seguro', False, None, False, None, 3, False, None, 2),
+    ('Gastos de impuestos, tasas y contribuciones', False, None, False, None, 3, False, None, 2),
+    ('Depreciaciones, deterioro y Amortización', False, None, False, None, 3, False, None, 2),
+    ('Gasto por impuesto a las pensiones', False, None, False, None, 3, True, 'Gastos de impuestos, tasas y contribuciones', 3),
+    ('Gastos de IGTF', False, None, False, None, 3, True, 'Gastos Bancarios', 3),
+    ('Gastos de comisiones bancarias', False, None, False, None, 3, True, 'Gastos Bancarios', 3),
+    ('Gastos Bancarios', False, None, False, None, 3, False, None, 2),
+    ('Gastos de intereses sobre préstamos', False, None, False, None, 3, False, None, 2),
+    ('Subtotal Gastos de Recursos Humanos', True, None, True, None, 1, False, None, 1),
+    ('Gastos de sueldos y salarios empleados y directivos', True, None, False, None, 2, False, None, 2),
+    ('Gastos de sueldos y salarios empleados', False, None, False, None, 3, True, 'Gastos de sueldos y salarios empleados y directivos', 3),
+    ('Gastos de sueldos y salarios directivos', False, None, False, None, 3, True, 'Gastos de sueldos y salarios empleados y directivos', 3),
+    ('Gastos de horas extras, feriados y bono nocturno', False, None, False, None, 3, True, 'Gastos de sueldos y salarios empleados y directivos', 3),
+    ('Gastos de Bono de alimentación empleados', False, None, False, None, 3, True, 'Gastos de sueldos y salarios empleados y directivos', 3),
+    ('Gastos de Bono de alimentación directivos', False, None, False, None, 3, True, 'Gastos de sueldos y salarios empleados y directivos', 3),
+    ('Gastos de complementos empleados y directivos', True, None, False, None, 2, False, None, 2),
+    ('Gastos de complemento de sueldos y salarios empleados', False, None, False, None, 3, True, 'Gastos de complementos empleados y directivos', 3),
+    ('Gastos de complemento de sueldos y salarios directivos', False, None, False, None, 3, True, 'Gastos de complementos empleados y directivos', 3),
+    ('Gastos de personal externo', True, None, False, None, 2, False, None, 2),
+    ('Gastos de servicios de personal externo', False, None, False, None, 3, True, 'Gastos de personal externo', 3),
+    ('Gastos de pasivos laborales vacaciones', True, None, False, None, 2, False, None, 2),
+    ('Gastos de vacaciones empleados', False, None, False, None, 3, True, 'Gastos de pasivos laborales vacaciones', 3),
+    ('Gastos de vacaciones directivos', False, None, False, None, 3, True, 'Gastos de pasivos laborales vacaciones', 3),
+    ('Gastos de complemento de vacaciones empleados', False, None, False, None, 3, True, 'Gastos de pasivos laborales vacaciones', 3),
+    ('Gastos de complemento de vacaciones directivos', False, None, False, None, 3, True, 'Gastos de pasivos laborales vacaciones', 3),
+    ('Gastos de pasivos laborales utilidades', True, None, False, None, 2, False, None, 2),
+    ('Gastos de bono vacacional empleados', False, None, False, None, 3, True, 'Gastos de pasivos laborales utilidades', 3),
+    ('Gastos de bono vacacional directivos', False, None, False, None, 3, True, 'Gastos de pasivos laborales utilidades', 3),
+    ('Gastos de complemento bono vacacional empleados', False, None, False, None, 3, True, 'Gastos de pasivos laborales utilidades', 3),
+    ('Gastos de complemento bono vacacional directivos', False, None, False, None, 3, True, 'Gastos de pasivos laborales utilidades', 3),
+    ('Gastos de utilidades empleados', False, None, False, None, 3, True, 'Gastos de pasivos laborales utilidades', 3),
+    ('Gastos de utilidades directivos', False, None, False, None, 3, True, 'Gastos de pasivos laborales utilidades', 3),
+    ('Gastos de complemento de utilidades empleados', False, None, False, None, 3, True, 'Gastos de pasivos laborales utilidades', 3),
+    ('Gastos de complemento de utilidades directivos', False, None, False, None, 3, True, 'Gastos de pasivos laborales utilidades', 3),
+    ('Gastos de pasivos laborales prestaciones e intereses', True, None, False, None, 2, False, None, 2),
+    ('Gastos de prestaciones sociales empleados', False, None, False, None, 3, True, 'Gastos de pasivos laborales prestaciones e intereses', 3),
+    ('Gastos de prestaciones sociales directivos', False, None, False, None, 3, True, 'Gastos de pasivos laborales prestaciones e intereses', 3),
+    ('Gastos de complemento de prestaciones sociales empleados', False, None, False, None, 3, True, 'Gastos de pasivos laborales prestaciones e intereses', 3),
+    ('Gastos de complemento de prestaciones sociales directivos', False, None, False, None, 3, True, 'Gastos de pasivos laborales prestaciones e intereses', 3),
+    ('Gastos de intereses sobres prestaciones sociales empleados', False, None, False, None, 3, True, 'Gastos de pasivos laborales prestaciones e intereses', 3),
+    ('Gastos de intereses sobres prestaciones sociales directivos', False, None, False, None, 3, True, 'Gastos de pasivos laborales prestaciones e intereses', 3),
+    ('Gastos de complemento de intereses sobre prestaciones sociales empleados', False, None, False, None, 3, True, 'Gastos de pasivos laborales prestaciones e intereses', 3),
+    ('Gastos de complemento de intereses sobre prestaciones sociales directivos', False, None, False, None, 3, True, 'Gastos de pasivos laborales prestaciones e intereses', 3),
+    ('Gastos de pasivos laborales aportes', True, None, False, None, 2, False, None, 2),
+    ('Gastos de aporte patronal IVSS', False, None, False, None, 3, True, 'Gastos de pasivos laborales aportes', 3),
+    ('Gastos de aporte patronal SPF', False, None, False, None, 3, True, 'Gastos de pasivos laborales aportes', 3),
+    ('Gastos de aporte patronal FAOV', False, None, False, None, 3, True, 'Gastos de pasivos laborales aportes', 3),
+    ('Gastos de aporte patronal INCES', False, None, False, None, 3, True, 'Gastos de pasivos laborales aportes', 3),
+    ('Gastos de pasivos laborales bono de guardería', True, None, False, None, 2, False, None, 2),
+    ('Gastos de bono de guardería', False, None, False, None, 3, True, 'Gastos de pasivos laborales bono de guardería', 3),
+    ('Gastos de pasivos laborales HCM', True, None, False, None, 2, False, None, 2),
+    ('Gastos de póliza HCM', False, None, False, None, 3, True, 'Gastos de pasivos laborales HCM', 3),
+    ('Gastos de salud y seguridad laboral', False, None, False, None, 3, False, None, 2),
+    ('Gastos de salud y seguridad laboral dotación', False, None, False, None, 3, False, None, 2),
+    ('Gastos de uniformes y dotación al personal', False, None, False, None, 3, True, 'Gastos de salud y seguridad laboral dotación', 3),
+    ('Gastos de salud y seguridad laboral fiestas y agasajos', True, None, False, None, 2, False, None, 2),
+    ('Gastos de fiestas y agasajos al personal', False, None, False, None, 3, True, 'Gastos de salud y seguridad laboral fiestas y agasajos', 3),
+    ('Otros gastos de personal', True, None, False, None, 2, False, None, 2),
+    ('Gastos de otros bonos empleados', False, None, False, None, 3, True, 'Otros gastos de personal', 3),
+    ('Gastos de transporte del personal', False, None, False, None, 3, True, 'Otros gastos de personal', 3),
+    ('Gastos de donaciones y obsequios al personal', False, None, False, None, 3, True, 'Otros gastos de personal', 3),
+    ('Gastos de capacitación al personal', False, None, False, None, 3, True, 'Otros gastos de personal', 3),
+    ('Subtotal Gastos de Comercialización y Logistica', True, None, True, None, 1, False, None, 1),
+    ('Gastos de viáticos comerciales', False, None, False, None, 3, False, None, 2),
+    ('Gastos de comisiones empleados', False, None, False, None, 3, True, 'Subtotal Gastos de Comercialización y Logistica', 3),
+    ('Gastos de comisiones empleados del taller', False, None, False, None, 3, True, 'Subtotal Gastos de Comercialización y Logistica', 3),
+    ('Gastos de comisiones por venta de personal externo', False, None, False, None, 3, True, 'Subtotal Gastos de Comercialización y Logistica', 3),
+    ('Gastos de fletes y envios no asociados al costo', False, None, False, None, 3, False, None, 2),
+    ('Otros gastos no asociados al costo', False, None, False, None, 3, False, None, 2),
+    ('Gastos por combustible', False, None, False, None, 3, False, None, 2),
+    ('Gastos de representación', False, None, False, None, 3, False, None, 2),
+    ('Gastos por garantia', False, None, False, None, 3, False, None, 2),
+    ('Gastos por suscripciones', False, None, False, None, 3, False, None, 2),
+    ('Gastos de Stand y/o ferias comerciales', False, None, False, None, 3, False, None, 2),
+    ('Subtotal Gastos de Mercadeo', True, None, True, None, 1, False, None, 1),
+    ('Gastos de redes sociales', False, None, False, None, 3, False, None, 2),
+    ('Gastos de medios publicitarios', False, None, False, None, 3, False, None, 2),
+    ('Gastos de impresiones de material gráfico', False, None, False, None, 3, True, 'Otros gastos de publicidad y promoción', 3),
+    ('Otros gastos de publicidad y promoción', False, None, False, None, 3, False, None, 2),
+    ('Gastos de patrocinio y donación', False, None, False, None, 3, False, None, 2),
+    ('Gastos de patrocinio, donación y/o obsequios en efectivo', False, None, False, None, 3, True, 'Gastos de patrocinio y donación', 3),
+    ('Gastos de patrocinio, donación y/o obsequios en productos', False, None, False, None, 3, True, 'Gastos de patrocinio y donación', 3),
+    ('Gastos de viáticos por eventos', False, None, False, None, 3, False, None, 2),
+    ('Gastos de materiales y servicios por eventos', False, None, False, None, 3, False, None, 2),
+    ('Gastos de alimentos y bebidas por eventos', False, None, False, None, 3, False, None, 2),
+    ('Gastos de personal por eventos', False, None, False, None, 3, False, None, 2),
+    ('Gastos de patrocinio, donación y/o obseq por eventos', False, None, False, None, 3, False, None, 2),
+    ('Subtotal Gastos de TI+I', True, None, True, None, 1, False, None, 1),
+    ('Gastos de página web', False, None, False, None, 3, False, None, 2),
+    ('Gastos de desarrollo', False, None, False, None, 3, False, None, 2),
+    ('Utilidad antes de Comisiones por Ventas', True, None, True, 'FF66FF66', 0, False, None, 0),
+    ('Gastos de comisiones por ventas', False, None, False, None, 3, False, None, 2),
+    ('Gastos de comisiones por ventas taller', False, None, False, None, 3, False, None, 2),
+    ('Utilidad después de Comisiones por Ventas', True, None, True, 'FF66FF66', 0, False, None, 0),
+    ('Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)', True, None, True, 'FF66FF66', 0, False, None, 0),
+    ('Utilidad antes de Intereses e Impuestos (EBIT)', True, None, True, 'FF66FF66', 0, False, None, 0),
+    ('Otros Gastos no Operacionales', True, None, True, None, 0, False, None, 0),
+    ('Faltante en Ventas', False, None, False, None, 3, False, None, 2),
+    ('Pérdida en venta de activos', False, None, False, None, 3, False, None, 2),
+    ('Pérdida en siniestro de activos', False, None, False, None, 3, False, None, 2),
+    ('Pérdida en tasa cambiaria', False, None, False, None, 3, False, None, 2),
+    ('Pérdida por diferencia en pagos', False, None, False, None, 3, False, None, 2),
+    ('Multas', False, None, False, None, 3, False, None, 2),
+    ('Faltante y deterioro de inventarios', False, None, False, None, 3, False, None, 2),
+    ('Total Gastos Operacionales y No Operacionales', True, None, True, 'FFFFFF00', 0, False, None, 0),
+    ('Otros Ingresos no Operacionales', True, None, True, None, 0, False, None, 1),
+    ('Ingresos por alquileres', False, None, False, None, 3, False, None, 2),
+    ('Ingresos por intereses', False, None, False, None, 3, False, None, 2),
+    ('Ingresos por comisiones', False, None, False, None, 3, False, None, 2),
+    ('Ingresos por servicios administrativos', False, None, False, None, 3, False, None, 2),
+    ('Sobrante en ventas', False, None, False, None, 3, False, None, 2),
+    ('Sobrante de inventarios', False, None, False, None, 3, False, None, 2),
+    ('Ganancia en venta de activos', False, None, False, None, 3, False, None, 2),
+    ('Ganancia por tasa cambiaria', False, None, False, None, 3, False, None, 2),
+    ('Ganancia por diferencias en pagos', False, None, False, None, 3, False, None, 2),
+    ('Utilidad Neta', True, None, True, 'FF66FF66', 0, False, None, 0),
+    ('ISLR', True, None, True, None, 0, False, None, 0),
+    ('Utilidad Neta despues de ISLR', True, None, True, 'FF66FF66', 0, False, None, 0),
 ]
 
 # ── ESF Structure ─────────────────────────────────────────────────────────────
@@ -641,3 +643,180 @@ class ESFExporter:
         path = os.path.join(tempfile.gettempdir(), f'ESF_ULTRAX_{self.year}.xlsx')
         wb.save(path)
         return path
+
+def build_effective_structure(static_structure=None, db_overrides=None):
+    """
+    Combina la estructura estática por defecto (EERR_STRUCTURE) con los overrides
+    de la base de datos (eerr_nodes). En Fase 1 db_overrides es vacío.
+    """
+    if static_structure is None:
+        static_structure = EERR_STRUCTURE
+    if db_overrides is None:
+        db_overrides = []
+
+    effective = []
+    # Límites operacionales en la lista estática
+    start_idx = -1
+    end_idx = -1
+    for idx, entry in enumerate(static_structure):
+        if entry[0] == 'Subtotal Gastos de Administración':
+            start_idx = idx
+        if entry[0] == 'Gastos de desarrollo':
+            end_idx = idx
+
+    for idx, item in enumerate(static_structure):
+        name = item[0]
+        is_hdr = item[1]
+        parent = item[2]
+        bold = item[3]
+        bg_color = item[4]
+        level = item[5] if len(item) > 5 else (0 if is_hdr else 3)
+        es_nota = item[6] if len(item) > 6 else False
+        parent_name = item[7] if len(item) > 7 else None
+        indent = item[8] if len(item) > 8 else (3 if es_nota else (1 if is_hdr else 2))
+
+        # Determinar movible
+        # 4.1 Bloqueados por exclusión hardcodeada:
+        blocked_leaves = {
+            'Gasto por impuesto a las pensiones',
+            'Gastos de IGTF',
+            'Gastos de comisiones bancarias',
+            'Gastos de impresiones de material gráfico',
+            'Gastos de patrocinio y donación'
+        }
+        
+        # 4.2 Subtotales con membresía fija (bloqueados para el HEADER):
+        blocked_headers = {
+            'Subtotal Gastos de Administración',
+            'Subtotal Gastos de Recursos Humanos',
+            'Subtotal Gastos de Comercialización y Logistica',
+            'Subtotal Gastos de Mercadeo',
+            'Subtotal Gastos de TI+I'
+        }
+
+        movible = 'bloqueado'
+        if start_idx != -1 and end_idx != -1 and start_idx <= idx <= end_idx:
+            # Está en la zona operativa de gastos
+            if is_hdr:
+                if name in blocked_headers:
+                    movible = 'bloqueado'
+                else:
+                    movible = 'libre' # Otros headers intermedios
+            else:
+                if name in blocked_leaves:
+                    movible = 'bloqueado'
+                else:
+                    movible = 'libre'
+
+        node_dict = {
+            'partida_name': name,
+            'is_header': is_hdr,
+            'level': level,
+            'bold': bold,
+            'bg_color': bg_color,
+            'es_nota': es_nota,
+            'parent_name': parent_name,
+            'indent': indent,
+            'movible': movible
+        }
+        effective.append(node_dict)
+
+    # Aplicar reubicación por overrides
+    if db_overrides:
+        import logging
+        logger = logging.getLogger('eerr_v2_overrides')
+        
+        all_leaves = [n for n in effective if not n['is_header']]
+        leaf_names = [n['partida_name'] for n in all_leaves]
+        
+        blocked_leaves = {
+            'Gasto por impuesto a las pensiones',
+            'Gastos de IGTF',
+            'Gastos de comisiones bancarias',
+            'Gastos de impresiones de material gráfico',
+            'Gastos de patrocinio y donación'
+        }
+        
+        target_subtotals = {
+            'Subtotal Gastos de Administración',
+            'Subtotal Gastos de Recursos Humanos',
+            'Subtotal Gastos de Comercialización y Logistica',
+            'Subtotal Gastos de Mercadeo',
+            'Subtotal Gastos de TI+I'
+        }
+        
+        for override in db_overrides:
+            if isinstance(override, dict):
+                p_name = override.get('partida_name')
+                target = override.get('target_subtotal')
+            elif hasattr(override, 'keys'):
+                p_name = override['partida_name']
+                target = override['target_subtotal']
+            else:
+                p_name = override[0]
+                target = override[1]
+                
+            if not p_name or not target:
+                continue
+                
+            # Validaciones obligatorias
+            if target not in target_subtotals:
+                logger.warning(f"Rechazado override: Subtotal destino '{target}' inválido.")
+                continue
+                
+            if p_name not in leaf_names:
+                logger.warning(f"Rechazado override: Partida '{p_name}' no existe como hoja en EERR.")
+                continue
+                
+            if leaf_names.count(p_name) > 1:
+                logger.warning(f"Rechazado override: Partida '{p_name}' está duplicada y no se puede mover.")
+                continue
+                
+            if p_name in blocked_leaves:
+                logger.warning(f"Rechazado override: Partida '{p_name}' está bloqueada (no movible).")
+                continue
+                
+            # Localizar el nodo hoja
+            node_idx = -1
+            for idx, n in enumerate(effective):
+                if n['partida_name'] == p_name and not n['is_header']:
+                    node_idx = idx
+                    break
+                    
+            if node_idx == -1:
+                continue
+                
+            node_to_move = effective.pop(node_idx)
+            
+            # Localizar el subtotal destino
+            target_idx = -1
+            for idx, n in enumerate(effective):
+                if n['partida_name'] == target and n['is_header']:
+                    target_idx = idx
+                    break
+                    
+            if target_idx == -1:
+                logger.warning(f"Rechazado override: Subtotal '{target}' no se encontró en la estructura.")
+                effective.insert(node_idx, node_to_move) # Restaurar
+                continue
+                
+            # Encontrar el final de los hijos actuales del subtotal destino
+            insert_idx = target_idx + 1
+            target_level = effective[target_idx]['level']
+            
+            while insert_idx < len(effective):
+                n = effective[insert_idx]
+                if n['level'] <= target_level:
+                    break
+                insert_idx += 1
+                
+            # Actualizar parent, level e indentación
+            node_to_move['parent_name'] = target
+            node_to_move['level'] = 3
+            node_to_move['indent'] = 2
+            node_to_move['es_nota'] = False
+            
+            # Insertar en la nueva posición
+            effective.insert(insert_idx, node_to_move)
+
+    return effective
