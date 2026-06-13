@@ -1398,6 +1398,10 @@ def eerr_completo_v2_ui_adapter(year, unit):
                             'Gastos de comisiones bancarias'
                         ]:
                             pass
+                        elif name == 'Subtotal Gastos de Recursos Humanos' and c_name in [
+                            'Gastos de uniformes y dotación al personal'
+                        ]:
+                            pass
                         elif name == 'Subtotal Gastos de Mercadeo' and c_name in [
                             'Gastos de impresiones de material gráfico',
                             'Gastos de patrocinio y donación'
@@ -1679,6 +1683,10 @@ def validate_eerr_v2_integrity(year, unit, adapter_output, db):
                         'Gasto por impuesto a las pensiones',
                         'Gastos de IGTF',
                         'Gastos de comisiones bancarias'
+                    ]:
+                        pass
+                    elif name == 'Subtotal Gastos de Recursos Humanos' and c_name in [
+                        'Gastos de uniformes y dotación al personal'
                     ]:
                         pass
                     elif name == 'Subtotal Gastos de Mercadeo' and c_name in [
@@ -2070,7 +2078,7 @@ def get_tasas():
 def save_tasas():
     """
     Guarda o actualiza tasas para un período.
-    Body: {year, month, tasa_bcv_inicio, tasa_bcv_fin, tasa_paralela_inicio, tasa_paralela_fin, factor_recargo?}
+    Body: {year, month, tasa_bcv_inicio, tasa_bcv_fin, tasa_paralela_inicio, tasa_paralela_fin}
     Calcula promedios y factor_diferencial automáticamente.
     """
     data = request.get_json()
@@ -2080,7 +2088,6 @@ def save_tasas():
     bcv_fin    = data.get('tasa_bcv_fin')
     par_ini    = data.get('tasa_paralela_inicio')
     par_fin    = data.get('tasa_paralela_fin')
-    recargo    = data.get('factor_recargo', 1.35)
 
     if not all([year, month, bcv_ini is not None, bcv_fin is not None, par_ini is not None, par_fin is not None]):
         return jsonify({'error': 'Faltan parámetros requeridos'}), 400
@@ -2097,8 +2104,8 @@ def save_tasas():
     db.execute('''
         INSERT INTO tasas_periodo (year, month, tasa_bcv_inicio, tasa_bcv_fin, tasa_bcv_promedio,
                                    tasa_paralela_inicio, tasa_paralela_fin, tasa_paralela_promedio,
-                                   factor_diferencial, factor_recargo)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                   factor_diferencial)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(year, month) DO UPDATE SET
             tasa_bcv_inicio = excluded.tasa_bcv_inicio,
             tasa_bcv_fin = excluded.tasa_bcv_fin,
@@ -2106,9 +2113,8 @@ def save_tasas():
             tasa_paralela_inicio = excluded.tasa_paralela_inicio,
             tasa_paralela_fin = excluded.tasa_paralela_fin,
             tasa_paralela_promedio = excluded.tasa_paralela_promedio,
-            factor_diferencial = excluded.factor_diferencial,
-            factor_recargo = excluded.factor_recargo
-    ''', (year, month, bcv_ini, bcv_fin, bcv_prom, par_ini, par_fin, par_prom, diferencial, recargo))
+            factor_diferencial = excluded.factor_diferencial
+    ''', (year, month, bcv_ini, bcv_fin, bcv_prom, par_ini, par_fin, par_prom, diferencial))
     db.commit()
 
     return jsonify({
@@ -2117,8 +2123,7 @@ def save_tasas():
         'month': month,
         'tasa_bcv_promedio': round(bcv_prom, 4),
         'tasa_paralela_promedio': round(par_prom, 4),
-        'factor_diferencial': round(diferencial, 4),
-        'factor_recargo': recargo
+        'factor_diferencial': round(diferencial, 4)
     })
 
 
@@ -2268,7 +2273,7 @@ def dashboard_divisa_real():
 
     # Obtener tasas del período
     tasas_row = db.execute(
-        'SELECT tasa_bcv_promedio, tasa_paralela_promedio, factor_recargo FROM tasas_periodo WHERE year=? AND month=?',
+        'SELECT tasa_bcv_promedio, tasa_paralela_promedio FROM tasas_periodo WHERE year=? AND month=?',
         (year, month)
     ).fetchone()
 
@@ -2277,7 +2282,6 @@ def dashboard_divisa_real():
 
     bcv = tasas_row['tasa_bcv_promedio']
     paralela = tasas_row['tasa_paralela_promedio']
-    recargo = tasas_row['factor_recargo']
 
     # Validación de tasas
     if bcv is None or bcv <= 0:
@@ -2380,8 +2384,7 @@ def dashboard_divisa_real():
         'tasas': {
             'bcv': bcv,
             'paralela': paralela,
-            'diferencial': diferencial,
-            'recargo': recargo
+            'diferencial': diferencial
         },
         'literal_bcv': {
             'ingresos': round(ing_lit, 2),

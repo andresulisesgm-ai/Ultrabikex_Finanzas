@@ -263,3 +263,39 @@
 2026-06-12 15:22:30,543 - WARNING - Descuadre contra Excel Baseline en [Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)]: Esperado=15382.66, Obtenido=3530.00 (Diff=11852.66)
 2026-06-12 15:22:30,543 - WARNING - Descuadre contra Excel Baseline en [Utilidad Neta]: Esperado=-3513.65, Obtenido=3710.00 (Diff=7223.65)
 2026-06-12 15:22:30,543 - WARNING - Cuenta transaccional activa sin mapear en mapping_groups_v2: Partida='Gastos de uniformes y dotación al personal', OdooCode='6.01.02.03.002'
+2026-06-12 15:22:52,232 - WARNING - --- DETECTADAS DISCREPANCIAS DE INTEGRIDAD (EERR V2) - Unidad=Rodeo, Año=2026 ---
+2026-06-12 15:22:52,232 - WARNING - Descuadre contra Excel Baseline en [Total Ingresos]: Esperado=47933.03, Obtenido=13800.00 (Diff=34133.03)
+2026-06-12 15:22:52,232 - WARNING - Descuadre contra Excel Baseline en [Total Costo de Ventas]: Esperado=20670.85, Obtenido=9050.00 (Diff=11620.85)
+2026-06-12 15:22:52,232 - WARNING - Descuadre contra Excel Baseline en [Utilidad Bruta]: Esperado=27262.18, Obtenido=4750.00 (Diff=22512.18)
+2026-06-12 15:22:52,232 - WARNING - Descuadre contra Excel Baseline en [Gastos Bancarios]: Esperado=1415.25, Obtenido=30.00 (Diff=1385.25)
+2026-06-12 15:22:52,232 - WARNING - Descuadre contra Excel Baseline en [Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)]: Esperado=15382.66, Obtenido=3530.00 (Diff=11852.66)
+2026-06-12 15:22:52,232 - WARNING - Descuadre contra Excel Baseline en [Utilidad Neta]: Esperado=-3513.65, Obtenido=3710.00 (Diff=7223.65)
+2026-06-12 15:22:52,232 - WARNING - Cuenta transaccional activa sin mapear en mapping_groups_v2: Partida='Gastos de uniformes y dotación al personal', OdooCode='6.01.02.03.002'
+2026-06-12 15:22:59,229 - WARNING - --- DETECTADAS DISCREPANCIAS DE INTEGRIDAD (EERR V2) - Unidad=Rodeo, Año=2026 ---
+2026-06-12 15:22:59,229 - WARNING - Descuadre contra Excel Baseline en [Total Ingresos]: Esperado=47933.03, Obtenido=13800.00 (Diff=34133.03)
+2026-06-12 15:22:59,229 - WARNING - Descuadre contra Excel Baseline en [Total Costo de Ventas]: Esperado=20670.85, Obtenido=9050.00 (Diff=11620.85)
+2026-06-12 15:22:59,229 - WARNING - Descuadre contra Excel Baseline en [Utilidad Bruta]: Esperado=27262.18, Obtenido=4750.00 (Diff=22512.18)
+2026-06-12 15:22:59,229 - WARNING - Descuadre contra Excel Baseline en [Gastos Bancarios]: Esperado=1415.25, Obtenido=30.00 (Diff=1385.25)
+2026-06-12 15:22:59,229 - WARNING - Descuadre contra Excel Baseline en [Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)]: Esperado=15382.66, Obtenido=3530.00 (Diff=11852.66)
+2026-06-12 15:22:59,229 - WARNING - Descuadre contra Excel Baseline en [Utilidad Neta]: Esperado=-3513.65, Obtenido=3710.00 (Diff=7223.65)
+2026-06-12 15:22:59,229 - WARNING - Cuenta transaccional activa sin mapear en mapping_groups_v2: Partida='Gastos de uniformes y dotación al personal', OdooCode='6.01.02.03.002'
+2026-06-12 15:32:55,562 - WARNING - --- DETECTADAS DISCREPANCIAS DE INTEGRIDAD (EERR V2) - Unidad=Rodeo, Año=2026 ---
+2026-06-12 15:32:55,562 - WARNING - Cuenta transaccional activa sin mapear en mapping_groups_v2: Partida='Gastos de uniformes y dotación al personal', OdooCode='6.01.02.03.002'
+2026-06-12 15:50:47,916 - WARNING - --- DETECTADAS DISCREPANCIAS DE INTEGRIDAD (EERR V2) - Unidad=, Año=2026 ---
+2026-06-12 15:50:47,916 - WARNING - Cuenta transaccional activa sin mapear en mapping_groups_v2: Partida='Gastos de uniformes y dotación al personal', OdooCode='6.01.02.03.002'
+2026-06-12 15:50:49,359 - WARNING - --- DETECTADAS DISCREPANCIAS DE INTEGRIDAD (EERR V2) - Unidad=, Año=2026 ---
+2026-06-12 15:50:49,359 - WARNING - Cuenta transaccional activa sin mapear en mapping_groups_v2: Partida='Gastos de uniformes y dotación al personal', OdooCode='6.01.02.03.002'
+2026-06-12 15:51:14,620 - WARNING - --- DETECTADAS DISCREPANCIAS DE INTEGRIDAD (EERR V2) - Unidad=, Año=2026 ---
+2026-06-12 15:51:14,620 - WARNING - Cuenta transaccional activa sin mapear en mapping_groups_v2: Partida='Gastos de uniformes y dotación al personal', OdooCode='6.01.02.03.002'
+2026-06-12 15:51:16,584 - WARNING - --- DETECTADAS DISCREPANCIAS DE INTEGRIDAD (EERR V2) - Unidad=, Año=2026 ---
+2026-06-12 15:51:16,584 - WARNING - Cuenta transaccional activa sin mapear en mapping_groups_v2: Partida='Gastos de uniformes y dotación al personal', OdooCode='6.01.02.03.002'
+2026-06-12 20:49:19,969 - WARNING - --- DETECTADAS DISCREPANCIAS DE INTEGRIDAD (EERR V2) - Unidad=Rodeo, Año=2026 ---
+2026-06-12 20:49:19,969 - WARNING - Cuenta transaccional activa sin mapear en mapping_groups_v2: Partida='Gastos de uniformes y dotación al personal', OdooCode='6.01.02.03.002'
+2026-06-12 20:51:33,675 - INFO - Integridad validada exitosamente para Unidad=Rodeo, Año=2026. Sin descuadres.
+2026-06-12 20:52:12,156 - WARNING - --- DETECTADAS DISCREPANCIAS DE INTEGRIDAD (EERR V2) - Unidad=Rodeo, Año=2026 ---
+2026-06-12 20:52:12,156 - WARNING - Descuadre contra Excel Baseline en [Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)]: Esperado=3530.00, Obtenido=3520.00 (Diff=10.00)
+2026-06-12 20:52:12,156 - WARNING - Descuadre contra Excel Baseline en [Utilidad Neta]: Esperado=3710.00, Obtenido=3700.00 (Diff=10.00)
+2026-06-12 20:52:19,146 - INFO - Integridad validada exitosamente para Unidad=Rodeo, Año=2026. Sin descuadres.
+2026-06-12 20:55:32,375 - INFO - Integridad validada exitosamente para Unidad=, Año=2026. Sin descuadres.
+2026-06-12 20:55:47,926 - INFO - Integridad validada exitosamente para Unidad=, Año=2026. Sin descuadres.
+2026-06-12 21:05:56,252 - INFO - Integridad validada exitosamente para Unidad=Rodeo, Año=2026. Sin descuadres.
