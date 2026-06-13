@@ -751,6 +751,8 @@ input[type=file]{display:none;}
         </div>
       </div>
 
+      <input type="text" id="metodos-buscador" placeholder="Buscar por código o nombre de cuenta..." oninput="filtrarMetodos()" style="width:100%;padding:6px 10px;font-size:11px;border-radius:6px;background:var(--sf2);margin-bottom:10px">
+
       <div id="metodos-loading" style="padding:20px;text-align:center;color:var(--mu)">Cargando cuentas...</div>
       <div id="metodos-container" style="display:none">
         <div class="tw" style="max-height:500px">
@@ -2396,6 +2398,16 @@ async function cargarMetodosPago(){
   G('metodos-tbody').innerHTML=html;
   G('metodos-loading').style.display='none';
   G('metodos-container').style.display='block';
+}
+
+function filtrarMetodos(){
+  const q = G('metodos-buscador').value.trim().toLowerCase();
+  const rows = document.querySelectorAll('#metodos-tbody tr');
+  for(const row of rows){
+    const codigo = row.cells[0]?.textContent.toLowerCase() || '';
+    const nombre = row.cells[1]?.textContent.toLowerCase() || '';
+    row.style.display = (codigo.includes(q) || nombre.includes(q)) ? '' : 'none';
+  }
 }
 
 async function guardarMetodos(){
