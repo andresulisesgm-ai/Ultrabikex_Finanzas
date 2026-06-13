@@ -871,7 +871,7 @@ input[type=file]{display:none;}
     <div class="fg"><label>Código Odoo</label><input type="text" id="m-code" placeholder="6.01.01.01.020"></div>
     <div class="fg"><label>Nombre en Odoo</label><input type="text" id="m-name"></div>
     <div class="fg"><label>Partida en Eff Ultrax</label><input type="text" id="m-partida"></div>
-    <div class="fg"><label>Tipo</label><select id="m-sign"><option value="-1">Gasto / Costo</option><option value="1">Ingreso</option></select></div>
+    <input type="hidden" id="m-sign" value="-1">
     <div class="fg" id="m-group-container" style="display:none">
       <label>Reubicar en Subtotal EERR</label>
       <select id="m-group" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px">
@@ -2915,7 +2915,7 @@ function renderTreeNode(node, selectedValue) {
       </div>
     `;
   } else {
-    const isExpanded = node.nivel === 1 || hasSelectedDescendant(node, selectedValue);
+    const isExpanded = hasSelectedDescendant(node, selectedValue);
     const arrow = isExpanded ? '▼' : '▶';
     const childrenHtml = node.children.map(child => renderTreeNode(child, selectedValue)).join('');
     
