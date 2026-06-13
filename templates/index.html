@@ -378,6 +378,66 @@ input[type=file]{display:none;}
   .card,.bgt-wrap,.tw{break-inside:auto;box-shadow:none!important;max-height:none!important;overflow:visible!important;}
   tr,.bgt-row,.eerrd-row,.esf-row{break-inside:avoid;}
 }
+
+/* ── EERR TREE PANEL ── */
+#eerr-tree-container .tree-item.parent-node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  margin: 2px 0;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  color: var(--tx2);
+  transition: background 0.15s;
+}
+#eerr-tree-container .tree-group.level-1 > .parent-node {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--tx);
+}
+#eerr-tree-container .tree-group.level-2 > .parent-node {
+  font-weight: 600;
+  font-size: 12px;
+}
+#eerr-tree-container .tree-item.parent-node:hover {
+  background: var(--sf3);
+}
+#eerr-tree-container .tree-item.leaf-node {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  margin: 2px 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+#eerr-tree-container .tree-item.leaf-node:hover {
+  background: var(--blue-l);
+  color: var(--blue);
+}
+#eerr-tree-container .tree-item.leaf-node.selected {
+  background: var(--blue-l) !important;
+  color: var(--blue) !important;
+  font-weight: 600;
+}
+#eerr-tree-container .tree-item.leaf-node.selected .node-label {
+  color: var(--blue) !important;
+}
+#eerr-tree-container .arrow-icon {
+  font-size: 8px;
+  width: 12px;
+  display: inline-block;
+  color: var(--mu);
+}
+#eerr-tree-container .check-mark {
+  color: var(--green);
+  font-weight: bold;
+  font-size: 12px;
+}
 </style>
 </head>
 <body>
@@ -828,11 +888,26 @@ input[type=file]{display:none;}
     </div>
     <div class="fg">
       <label>Grupo EERR</label>
-      <select id="m-grupo-eerr" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px">
-        <option value="">— Sin clasificar —</option>
-      </select>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="text" id="m-grupo-eerr-text" readonly value="— Sin clasificar —" style="flex:1; cursor:default; background:var(--sf3); border:1px solid var(--bd); color:var(--tx); border-radius:6px; padding:6px 10px; font-size:12px; outline:none;">
+        <input type="hidden" id="m-grupo-eerr" value="">
+        <button type="button" class="btnm" onclick="openTreePanel()" style="white-space:nowrap; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer; height:30px; display:flex; align-items:center; justify-content:center;">Seleccionar grupo →</button>
+      </div>
     </div>
     <div class="mfoot"><button class="btnc" onclick="closeModal()">Cancelar</button><button class="btnm" onclick="saveMap()">Guardar</button></div>
+  </div>
+</div>
+
+<!-- OVERLAY PANEL PARA ÁRBOL DE GRUPOS EERR -->
+<div class="ov" id="eerr-tree-overlay" style="z-index: 300;">
+  <div class="modal" style="width: 480px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column; padding: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--bd); padding-bottom: 10px;">
+      <h3 style="margin: 0; font-size: 14px; font-weight: 700;">Seleccionar Grupo EERR</h3>
+      <button type="button" class="btnc" onclick="closeTreePanel()" style="padding: 4px 8px; font-size: 11px; font-weight: 600;">✕ Cerrar</button>
+    </div>
+    <div id="eerr-tree-container" style="flex: 1; overflow-y: auto; margin-bottom: 15px; padding-right: 5px;">
+      <div style="text-align: center; padding: 20px; color: var(--mu);">Cargando árbol de grupos...</div>
+    </div>
   </div>
 </div>
 
@@ -2737,6 +2812,178 @@ async function fetchOverrides() {
   const r = await fetch('/api/eerr_nodes/overrides');
   OVERRIDES_DATA = await r.json();
 }
+
+// Tree UI for EERR Groups
+let EERR_GRUPOS_CACHE = null;
+
+async function loadEerrGroupsIfNeeded() {
+  if (EERR_GRUPOS_CACHE) return EERR_GRUPOS_CACHE;
+  try {
+    const res = await fetch('/api/eerr/grupos');
+    EERR_GRUPOS_CACHE = await res.json();
+    return EERR_GRUPOS_CACHE;
+  } catch (err) {
+    console.error("Error loading EERR groups:", err);
+    return [];
+  }
+}
+
+function cleanLabel(label, nivel) {
+  if (!label) return '';
+  let clean = label;
+  if (nivel === 2 && clean.startsWith("  → ")) {
+    clean = clean.substring(4);
+  } else if (nivel === 3 && clean.startsWith("    → ")) {
+    clean = clean.substring(6);
+  }
+  return clean.trim();
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+}
+
+function buildTree(flatList) {
+  const roots = [];
+  const stack = [];
+  
+  for (let i = 0; i < flatList.length; i++) {
+    const item = flatList[i];
+    const node = {
+      nombre: item.nombre,
+      nivel: item.nivel,
+      label: item.label,
+      children: [],
+      isLeaf: true
+    };
+    
+    if (i < flatList.length - 1 && flatList[i+1].nivel > item.nivel) {
+      node.isLeaf = false;
+    }
+    
+    while (stack.length > 0 && stack[stack.length - 1].nivel >= node.nivel) {
+      stack.pop();
+    }
+    
+    if (stack.length === 0) {
+      roots.push(node);
+    } else {
+      stack[stack.length - 1].children.push(node);
+    }
+    
+    if (!node.isLeaf) {
+      stack.push(node);
+    }
+  }
+  return roots;
+}
+
+function hasSelectedDescendant(node, selectedValue) {
+  if (!selectedValue) return false;
+  if (node.children && node.children.length > 0) {
+    for (const child of node.children) {
+      if (child.isLeaf && child.nombre === selectedValue) {
+        return true;
+      }
+      if (hasSelectedDescendant(child, selectedValue)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function renderTreeNode(node, selectedValue) {
+  const isSelected = selectedValue && node.nombre === selectedValue;
+  
+  if (node.isLeaf) {
+    return `
+      <div class="tree-item leaf-node ${isSelected ? 'selected' : ''}" 
+           data-name="${escapeHtml(node.nombre)}" 
+           onclick="selectLeafNode('${escapeHtml(node.nombre)}')"
+           style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; margin: 2px 0; border-radius: 6px; cursor: pointer; transition: all 0.15s;">
+        <span class="node-label" style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--tx2);">
+          <span style="font-size: 8px; color: var(--mu2); margin-right: 4px;">●</span>
+          ${escapeHtml(cleanLabel(node.label, node.nivel))}
+        </span>
+        <span class="check-mark" style="color: var(--green); font-weight: bold; font-size: 12px; visibility: ${isSelected ? 'visible' : 'hidden'};">✓</span>
+      </div>
+    `;
+  } else {
+    const isExpanded = node.nivel === 1 || hasSelectedDescendant(node, selectedValue);
+    const arrow = isExpanded ? '▼' : '▶';
+    const childrenHtml = node.children.map(child => renderTreeNode(child, selectedValue)).join('');
+    
+    return `
+      <div class="tree-group level-${node.nivel}" style="margin: 4px 0;">
+        <div class="tree-item parent-node" 
+             onclick="toggleParentNode(this)"
+             style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; margin: 2px 0; border-radius: 6px; cursor: pointer; user-select: none;">
+          <span class="arrow-icon" style="font-size: 8px; width: 12px; display: inline-block; color: var(--mu);">${arrow}</span>
+          <span style="font-size: ${node.nivel === 1 ? '13px' : '12px'}; font-weight: ${node.nivel === 1 ? '700' : '600'}; color: ${node.nivel === 1 ? 'var(--tx)' : 'var(--tx2)'};">${escapeHtml(cleanLabel(node.label, node.nivel))}</span>
+        </div>
+        <div class="tree-children" style="padding-left: 16px; display: ${isExpanded ? 'block' : 'none'};">
+          ${childrenHtml}
+        </div>
+      </div>
+    `;
+  }
+}
+
+function toggleParentNode(el) {
+  const childrenDiv = el.nextElementSibling;
+  const arrowSpan = el.querySelector('.arrow-icon');
+  if (childrenDiv.style.display === 'none') {
+    childrenDiv.style.display = 'block';
+    arrowSpan.textContent = '▼';
+  } else {
+    childrenDiv.style.display = 'none';
+    arrowSpan.textContent = '▶';
+  }
+}
+
+async function openTreePanel() {
+  const groups = await loadEerrGroupsIfNeeded();
+  const currentValue = G('m-grupo-eerr').value;
+  const treeRoots = buildTree(groups);
+  const container = G('eerr-tree-container');
+  
+  const unclassifiedHtml = `
+    <div class="tree-item leaf-node ${!currentValue ? 'selected' : ''}" 
+         data-name="" 
+         onclick="selectLeafNode('')"
+         style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; margin-bottom: 8px; border-bottom: 1px solid var(--bd); border-radius: 6px; cursor: pointer; transition: all 0.15s;">
+      <span class="node-label" style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--mu); font-weight: 500;">
+        <span style="font-size: 8px; color: var(--mu2); margin-right: 4px;">○</span>
+        — Sin clasificar —
+      </span>
+      <span class="check-mark" style="color: var(--green); font-weight: bold; font-size: 12px; visibility: ${!currentValue ? 'visible' : 'hidden'};">✓</span>
+    </div>
+  `;
+  
+  container.innerHTML = unclassifiedHtml + treeRoots.map(root => renderTreeNode(root, currentValue)).join('');
+  G('eerr-tree-overlay').classList.add('show');
+}
+
+function closeTreePanel() {
+  G('eerr-tree-overlay').classList.remove('show');
+}
+
+async function selectLeafNode(nombre) {
+  const groups = await loadEerrGroupsIfNeeded();
+  const match = groups.find(g => g.nombre === nombre);
+  
+  G('m-grupo-eerr').value = nombre;
+  G('m-grupo-eerr-text').value = match ? cleanLabel(match.label, match.nivel) : '— Sin clasificar —';
+  
+  closeTreePanel();
+}
+
 async function openModal(){
   G('m-code').value='';
   G('m-name').value='';
@@ -2744,16 +2991,12 @@ async function openModal(){
   G('m-sign').value='-1';
   G('m-group-container').style.display = 'none';
   G('m-group-blocked-msg').style.display = 'none';
-  try {
-    const resGrupos = await fetch('/api/eerr/grupos');
-    const grupos = await resGrupos.json();
-    const selectGrupo = G('m-grupo-eerr');
-    selectGrupo.innerHTML = '<option value="">— Sin clasificar —</option>' + 
-      grupos.map(g => `<option value="${g.nombre}">${g.label}</option>`).join('');
-    selectGrupo.value = '';
-  } catch (err) {
-    console.error("Error loading EERR groups:", err);
-  }
+  
+  G('m-grupo-eerr').value = '';
+  G('m-grupo-eerr-text').value = '— Sin clasificar —';
+  
+  loadEerrGroupsIfNeeded();
+  
   G('modal').classList.add('show');
 }
 async function editMap(code){
@@ -2766,17 +3009,22 @@ async function editMap(code){
     G('m-sign').value=m.sign;
     
     try {
-      const resGrupos = await fetch('/api/eerr/grupos');
-      const grupos = await resGrupos.json();
-      const selectGrupo = G('m-grupo-eerr');
-      selectGrupo.innerHTML = '<option value="">— Sin clasificar —</option>' + 
-        grupos.map(g => `<option value="${g.nombre}">${g.label}</option>`).join('');
-      
       const resCurrent = await fetch(`/api/mapping/grupo?code=${code}`);
       const current = await resCurrent.json();
-      selectGrupo.value = current.group_name || '';
+      const currentVal = current.group_name || '';
+      
+      G('m-grupo-eerr').value = currentVal;
+      if (currentVal) {
+        const groups = await loadEerrGroupsIfNeeded();
+        const match = groups.find(g => g.nombre === currentVal);
+        G('m-grupo-eerr-text').value = match ? cleanLabel(match.label, match.nivel) : currentVal;
+      } else {
+        G('m-grupo-eerr-text').value = '— Sin clasificar —';
+      }
     } catch (err) {
-      console.error("Error loading EERR groups:", err);
+      console.error("Error loading current mapping EERR group:", err);
+      G('m-grupo-eerr').value = '';
+      G('m-grupo-eerr-text').value = '— Sin clasificar —';
     }
     
     await fetchOverrides();
