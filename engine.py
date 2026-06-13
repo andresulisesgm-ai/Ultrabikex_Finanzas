@@ -952,3 +952,177 @@ ESF_STRUCTURE_V2 = [
     ('Total Patrimonio', True, None, True, None, 1, False, 'PATRIMONIO', 1),
 ]
 
+
+def esf_engine(year, unit):
+    import sqlite3
+    import os
+    
+    DB_PATH = os.path.join(os.path.dirname(__file__), 'data', 'ultrax.db')
+    
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # 1. Obtener grupos de presentación de mapping_groups_v2 para ESF
+    rows_groups = cursor.execute(
+        '''SELECT mg.group_name, m.partida
+           FROM mapping_groups_v2 mg
+           JOIN mapping m ON mg.odoo_code = m.odoo_code
+           WHERE mg.report_type = 'esf'
+           ORDER BY mg.display_order'''
+    ).fetchall()
+    
+    groups_v2 = {}
+    for r in rows_groups:
+        groups_v2.setdefault(r['group_name'], []).append(r['partida'])
+        
+    # 2. Leer datos de esf_data
+    if unit:
+        rows_esf = cursor.execute(
+            '''SELECT quarter, partida, SUM(amount) amount
+               FROM esf_data
+               WHERE year = ? AND unit = ?
+               GROUP BY quarter, partida''',
+            (year, unit)
+        ).fetchall()
+    else:
+        rows_esf = cursor.execute(
+            '''SELECT quarter, partida, SUM(amount) amount
+               FROM esf_data
+               WHERE year = ?
+               GROUP BY quarter, partida''',
+            (year,)
+        ).fetchall()
+        
+    db_data = {}
+    for r in rows_esf:
+        db_data[(r['quarter'], r['partida'])] = r['amount']
+        
+    conn.close()
+    
+    # 3. Importación perezosa de la Utilidad Neta desde EERR V2
+    utilidad_q = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}
+    try:
+        from app import eerr_completo_v2_ui_adapter
+        eerr_data = eerr_completo_v2_ui_adapter(year, unit)
+        net_income_row = None
+        for r in eerr_data.get('rows', []):
+            if r.get('partida') == 'Utilidad Neta despues de ISLR':
+                net_income_row = r
+                break
+        if net_income_row:
+            q_months = {
+                1: ['ENE', 'FEB', 'MAR'],
+                2: ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN'],
+                3: ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEPT'],
+                4: ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEPT', 'OCT', 'NOV', 'DIC']
+            }
+            for q, months in q_months.items():
+                q_sum = 0.0
+                for m_data in net_income_row.get('meses', []):
+                    if m_data.get('month') in months:
+                        q_sum += m_data.get('ejecutado', {}).get('valor', 0.0)
+                utilidad_q[q] = q_sum
+    except Exception as e:
+        # Fallback silencioso en caso de error
+        pass
+        
+    # 4. Calcular los saldos trimestrales para cada partida
+    quarters_data = {q: {} for q in [1, 2, 3, 4]}
+    
+    for q in [1, 2, 3, 4]:
+        # Inicializar todos los nodos en 0
+        for item in ESF_STRUCTURE_V2:
+            quarters_data[q][item[0]] = 0.0
+            
+        # Asignar Resultados del ejercicio
+        quarters_data[q]['Resultados del ejercicio'] = utilidad_q[q]
+        
+        # Asignar valores a hojas (is_header == False) excluyendo calculados
+        for item in ESF_STRUCTURE_V2:
+            name, is_header = item[0], item[1]
+            if not is_header and name not in ('Resultados acumulados', 'Resultados del ejercicio'):
+                partidas = groups_v2.get(name, [])
+                quarters_data[q][name] = sum(db_data.get((q, p), 0.0) for p in partidas)
+                
+        # Calcular headers de nivel 2 (suman sus hijos de nivel 3)
+        for item in ESF_STRUCTURE_V2:
+            name, is_header, level = item[0], item[1], item[5]
+            if is_header and level == 2:
+                # Suman todos los nivel 3 que tienen a este node como parent_name
+                level_3_children = [x[0] for x in ESF_STRUCTURE_V2 if x[5] == 3 and x[7] == name]
+                quarters_data[q][name] = sum(quarters_data[q].get(c, 0.0) for c in level_3_children)
+                
+        # Calcular subtotales de nivel 1
+        # Total Activos Corrientes
+        level_2_activos_corr = [x[0] for x in ESF_STRUCTURE_V2 if x[5] == 2 and x[7] == 'ACTIVOS CORRIENTES']
+        quarters_data[q]['Total Activos Corrientes'] = sum(quarters_data[q].get(c, 0.0) for c in level_2_activos_corr)
+        quarters_data[q]['ACTIVOS CORRIENTES'] = quarters_data[q]['Total Activos Corrientes']
+        
+        # Total Activos No Corrientes
+        level_2_activos_nocorr = [x[0] for x in ESF_STRUCTURE_V2 if x[5] == 2 and x[7] == 'ACTIVOS NO CORRIENTES']
+        quarters_data[q]['Total Activos No Corrientes'] = sum(quarters_data[q].get(c, 0.0) for c in level_2_activos_nocorr)
+        quarters_data[q]['ACTIVOS NO CORRIENTES'] = quarters_data[q]['Total Activos No Corrientes']
+        
+        # Total Pasivos Corrientes
+        level_2_pasivos_corr = [x[0] for x in ESF_STRUCTURE_V2 if x[5] == 2 and x[7] == 'PASIVOS CORRIENTES']
+        quarters_data[q]['Total Pasivos Corrientes'] = sum(quarters_data[q].get(c, 0.0) for c in level_2_pasivos_corr)
+        quarters_data[q]['PASIVOS CORRIENTES'] = quarters_data[q]['Total Pasivos Corrientes']
+        
+        # Total Pasivos No Corrientes
+        level_2_pasivos_nocorr = [x[0] for x in ESF_STRUCTURE_V2 if x[5] == 2 and x[7] == 'PASIVOS NO CORRIENTES']
+        quarters_data[q]['Total Pasivos No Corrientes'] = sum(quarters_data[q].get(c, 0.0) for c in level_2_pasivos_nocorr)
+        quarters_data[q]['PASIVOS NO CORRIENTES'] = quarters_data[q]['Total Pasivos No Corrientes']
+        
+        # Calcular level 0 Totales
+        quarters_data[q]['TOTAL ACTIVOS'] = quarters_data[q]['Total Activos Corrientes'] + quarters_data[q]['Total Activos No Corrientes']
+        quarters_data[q]['TOTAL PASIVOS'] = quarters_data[q]['Total Pasivos Corrientes'] + quarters_data[q]['Total Pasivos No Corrientes']
+        
+        # Regla Especial 2: Resultados acumulados = TOTAL ACTIVOS - TOTAL PASIVOS - (Capital social + Reservas legales y estatutarias + Superavit por revaluacion + Resultados del ejercicio)
+        cap_social = quarters_data[q].get('Capital social', 0.0)
+        reservas = quarters_data[q].get('Reservas legales y estatutarias', 0.0)
+        superavit = quarters_data[q].get('Superavit por revaluacion', 0.0)
+        res_ejer = quarters_data[q].get('Resultados del ejercicio', 0.0)
+        
+        res_acum = quarters_data[q]['TOTAL ACTIVOS'] - quarters_data[q]['TOTAL PASIVOS'] - cap_social - reservas - superavit - res_ejer
+        quarters_data[q]['Resultados acumulados'] = res_acum
+        
+        # Total Patrimonio = Capital social + Reservas + Superavit + Resultados acumulados + Resultados del ejercicio
+        level_2_patrimonio = [x[0] for x in ESF_STRUCTURE_V2 if x[5] == 2 and x[7] == 'PATRIMONIO']
+        quarters_data[q]['Total Patrimonio'] = sum(quarters_data[q].get(c, 0.0) for c in level_2_patrimonio)
+        quarters_data[q]['PATRIMONIO'] = quarters_data[q]['Total Patrimonio']
+        
+        # TOTAL PASIVOS Y PATRIMONIO = TOTAL PASIVOS + Total Patrimonio
+        quarters_data[q]['TOTAL PASIVOS Y PATRIMONIO'] = quarters_data[q]['TOTAL PASIVOS'] + quarters_data[q]['Total Patrimonio']
+        
+    # 5. Formatear salida estructurada
+    rows = []
+    for item in ESF_STRUCTURE_V2:
+        name = item[0]
+        is_header = item[1]
+        bold = item[3]
+        bg_color = item[4]
+        level = item[5]
+        parent_name = item[7]
+        indent = item[8]
+        
+        quarters_val = {q: round(quarters_data[q].get(name, 0.0), 2) for q in [1, 2, 3, 4]}
+        
+        rows.append({
+            'partida': name,
+            'is_header': is_header,
+            'bold': bold,
+            'bg_color': bg_color,
+            'level': level,
+            'parent_name': parent_name,
+            'indent': indent,
+            'quarters': quarters_val
+        })
+        
+    return {
+        'year': year,
+        'unit': unit,
+        'rows': rows
+    }
+
+
