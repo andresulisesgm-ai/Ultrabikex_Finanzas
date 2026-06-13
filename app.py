@@ -439,7 +439,7 @@ def dashboard():
         'Subtotal Gastos de Recursos Humanos': 'Rec. Humanos',
         'Subtotal Gastos de Comercialización y Logistica': 'Comercialización',
         'Subtotal Gastos de Mercadeo': 'Mercadeo',
-        'Subtotal Gastos de TI+I': 'TI+I',
+        'Gastos de TI+I': 'TI+I',
         'Otros Gastos no Operacionales': 'No Operacionales'
     }
     
@@ -1230,7 +1230,7 @@ def calcular_totales_especiales(subtotales, by_partida, month, ing_p, cos_p, gas
                    'Subtotal Gastos de Recursos Humanos',
                    'Subtotal Gastos de Comercialización y Logistica',
                    'Subtotal Gastos de Mercadeo',
-                   'Subtotal Gastos de TI+I']:
+                   'Gastos de TI+I']:
         gastos_operacionales += subtotales.get(nombre, 0)
     totales['Total Gastos Operacionales'] = gastos_operacionales
 
@@ -1442,7 +1442,7 @@ def eerr_completo_v2_ui_adapter(year, unit):
                        'Subtotal Gastos de Recursos Humanos',
                        'Subtotal Gastos de Comercialización y Logistica',
                        'Subtotal Gastos de Mercadeo',
-                       'Subtotal Gastos de TI+I']:
+                       'Gastos de TI+I']:
             gastos_operacionales += subtotales_por_mes[m].get(nombre, 0)
 
         comisiones = 0
@@ -1713,7 +1713,7 @@ def validate_eerr_v2_integrity(year, unit, adapter_output, db):
                     'Subtotal Gastos de Recursos Humanos',
                     'Subtotal Gastos de Comercialización y Logistica',
                     'Subtotal Gastos de Mercadeo',
-                    'Subtotal Gastos de TI+I',
+                    'Gastos de TI+I',
                     'Gastos de sueldos y salarios empleados y directivos',
                     'Gastos de complementos empleados y directivos',
                     'Gastos de personal externo',
@@ -2630,7 +2630,7 @@ def eerr_divisa_real():
                        'Subtotal Gastos de Recursos Humanos',
                        'Subtotal Gastos de Comercialización y Logistica',
                        'Subtotal Gastos de Mercadeo',
-                       'Subtotal Gastos de TI+I']:
+                       'Gastos de TI+I']:
             gastos_operacionales += subtotales_por_mes[m].get(nombre, 0)
 
         comisiones = 0

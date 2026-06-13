@@ -158,7 +158,7 @@ EERR_STRUCTURE = [
     ('Gastos de alimentos y bebidas por eventos', False, None, False, None, 3, False, None, 2),
     ('Gastos de personal por eventos', False, None, False, None, 3, False, None, 2),
     ('Gastos de patrocinio, donación y/o obseq por eventos', False, None, False, None, 3, False, None, 2),
-    ('Subtotal Gastos de TI+I', True, None, True, None, 1, False, None, 1),
+    ('Gastos de TI+I', True, None, True, None, 1, False, None, 1),
     ('Gastos de página web', False, None, False, None, 3, False, None, 2),
     ('Gastos de desarrollo', False, None, False, None, 3, False, None, 2),
     ('Utilidad antes de Comisiones por Ventas', True, None, True, 'FF66FF66', 0, False, None, 0),
@@ -691,7 +691,7 @@ def build_effective_structure(static_structure=None, db_overrides=None):
             'Subtotal Gastos de Recursos Humanos',
             'Subtotal Gastos de Comercialización y Logistica',
             'Subtotal Gastos de Mercadeo',
-            'Subtotal Gastos de TI+I'
+            'Gastos de TI+I'
         }
 
         movible = 'bloqueado'
@@ -742,7 +742,7 @@ def build_effective_structure(static_structure=None, db_overrides=None):
             'Subtotal Gastos de Recursos Humanos',
             'Subtotal Gastos de Comercialización y Logistica',
             'Subtotal Gastos de Mercadeo',
-            'Subtotal Gastos de TI+I'
+            'Gastos de TI+I'
         }
         
         for override in db_overrides:

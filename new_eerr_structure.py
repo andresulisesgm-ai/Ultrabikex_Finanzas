@@ -139,7 +139,7 @@ EERR_STRUCTURE = [
     ('Gastos de alimentos y bebidas por eventos', False, None, False, None, 3),
     ('Gastos de personal por eventos', False, None, False, None, 3),
     ('Gastos de patrocinio, donación y/o obseq por eventos', False, None, False, None, 3),
-    ('Subtotal Gastos de TI+I', True, None, True, None, 1),
+    ('Gastos de TI+I', True, None, True, None, 1),
     ('Gastos de página web', False, None, False, None, 3),
     ('Gastos de desarrollo', False, None, False, None, 3),
     ('Utilidad antes de Comisiones por Ventas', True, None, True, 'FF66FF66', 0),
