@@ -2168,6 +2168,20 @@ def esf():
     })
 
 
+@app.route('/api/esf/completo', methods=['GET'])
+def esf_completo():
+    """
+    Estado de Situación Financiera completo con estructura jerárquica expandible de 3 niveles.
+    Parámetros: year, unit (opcional).
+    """
+    year = request.args.get('year', str(datetime.now().year))
+    unit = request.args.get('unit', '')
+    
+    from engine import esf_engine
+    result = esf_engine(year, unit)
+    return jsonify(result)
+
+
 @app.route('/api/indicadores', methods=['GET'])
 def get_indicadores():
     """
