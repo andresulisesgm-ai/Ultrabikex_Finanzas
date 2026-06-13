@@ -2757,59 +2757,64 @@ async function openModal(){
   G('modal').classList.add('show');
 }
 async function editMap(code){
-  if(!isAdmin()){alert('⛔ Acceso denegado: se requiere rol de administrador');return;}
-  const m=MAP.find(x=>x.odoo_code===code);if(!m)return;
-  G('m-code').value=m.odoo_code;
-  G('m-name').value=m.odoo_name;
-  G('m-partida').value=m.partida;
-  G('m-sign').value=m.sign;
-  
   try {
-    const resGrupos = await fetch('/api/eerr/grupos');
-    const grupos = await resGrupos.json();
-    const selectGrupo = G('m-grupo-eerr');
-    selectGrupo.innerHTML = '<option value="">— Sin clasificar —</option>' + 
-      grupos.map(g => `<option value="${g.nombre}">${g.label}</option>`).join('');
+    if(!isAdmin()){alert('⛔ Acceso denegado: se requiere rol de administrador');return;}
+    const m=MAP.find(x=>x.odoo_code===code);if(!m)return;
+    G('m-code').value=m.odoo_code;
+    G('m-name').value=m.odoo_name;
+    G('m-partida').value=m.partida;
+    G('m-sign').value=m.sign;
     
-    const resCurrent = await fetch(`/api/mapping/grupo?code=${code}`);
-    const current = await resCurrent.json();
-    selectGrupo.value = current.group_name || '';
-  } catch (err) {
-    console.error("Error loading EERR groups:", err);
-  }
-  
-  await fetchOverrides();
-  const movable = OVERRIDES_DATA.movable_partidas.find(p => p.partida_name === m.partida);
-  
-  if (movable) {
-    G('m-group-container').style.display = 'block';
-    G('m-group-blocked-msg').style.display = 'none';
-    const optOrig = G('m-group').options[0];
-    optOrig.textContent = `(Original: ${movable.original_subtotal.replace('Subtotal Gastos de ', '')})`;
+    try {
+      const resGrupos = await fetch('/api/eerr/grupos');
+      const grupos = await resGrupos.json();
+      const selectGrupo = G('m-grupo-eerr');
+      selectGrupo.innerHTML = '<option value="">— Sin clasificar —</option>' + 
+        grupos.map(g => `<option value="${g.nombre}">${g.label}</option>`).join('');
+      
+      const resCurrent = await fetch(`/api/mapping/grupo?code=${code}`);
+      const current = await resCurrent.json();
+      selectGrupo.value = current.group_name || '';
+    } catch (err) {
+      console.error("Error loading EERR groups:", err);
+    }
     
-    const hasOverride = OVERRIDES_DATA.overrides.find(o => o.partida_name === m.partida);
-    if (hasOverride) {
-      G('m-group').value = hasOverride.target_subtotal;
+    await fetchOverrides();
+    const movable = OVERRIDES_DATA.movable_partidas.find(p => p.partida_name === m.partida);
+    
+    if (movable) {
+      G('m-group-container').style.display = 'block';
+      G('m-group-blocked-msg').style.display = 'none';
+      const optOrig = G('m-group').options[0];
+      optOrig.textContent = `(Original: ${movable.original_subtotal.replace('Subtotal Gastos de ', '')})`;
+      
+      const hasOverride = OVERRIDES_DATA.overrides.find(o => o.partida_name === m.partida);
+      if (hasOverride) {
+        G('m-group').value = hasOverride.target_subtotal;
+      } else {
+        G('m-group').value = 'original';
+      }
     } else {
-      G('m-group').value = 'original';
+      G('m-group-container').style.display = 'none';
+      G('m-group-blocked-msg').style.display = 'block';
+      const blocked_leaves = [
+        'Gasto por impuesto a las pensiones',
+        'Gastos de IGTF',
+        'Gastos de comisiones bancarias',
+        'Gastos de impresiones de material gráfico',
+        'Gastos de patrocinio y donación'
+      ];
+      if (blocked_leaves.includes(m.partida)) {
+        G('m-group-blocked-msg').innerHTML = 'ℹ️ Esta partida está <strong>bloqueada</strong> por reglas de presentación fija (impuestos, IGTF, comisiones).';
+      } else {
+        G('m-group-blocked-msg').innerHTML = 'ℹ️ Esta partida no califica para reubicación (es un ingreso, costo de ventas o cuenta no operacional).';
+      }
     }
-  } else {
-    G('m-group-container').style.display = 'none';
-    G('m-group-blocked-msg').style.display = 'block';
-    const blocked_leaves = [
-      'Gasto por impuesto a las pensiones',
-      'Gastos de IGTF',
-      'Gastos de comisiones bancarias',
-      'Gastos de impresiones de material gráfico',
-      'Gastos de patrocinio y donación'
-    ];
-    if (blocked_leaves.includes(m.partida)) {
-      G('m-group-blocked-msg').innerHTML = 'ℹ️ Esta partida está <strong>bloqueada</strong> por reglas de presentación fija (impuestos, IGTF, comisiones).';
-    } else {
-      G('m-group-blocked-msg').innerHTML = 'ℹ️ Esta partida no califica para reubicación (es un ingreso, costo de ventas o cuenta no operacional).';
-    }
+    G('modal').classList.add('show');
+  } catch (globalErr) {
+    console.error("CRITICAL ERROR IN editMap:", globalErr);
+    alert("Error en editMap: " + globalErr.message + "\nStack: " + globalErr.stack);
   }
-  G('modal').classList.add('show');
 }
 function closeModal(){G('modal').classList.remove('show');}
 async function saveMap(){

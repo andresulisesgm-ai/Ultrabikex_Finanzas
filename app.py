@@ -397,6 +397,53 @@ def get_mapping_sin_clasificar():
         'accounts': unclassified
     })
 
+@app.route('/api/eerr_nodes/overrides', methods=['GET'])
+def get_eerr_nodes_overrides():
+    from engine import EERR_STRUCTURE, build_effective_structure
+    db = get_db()
+    rows = db.execute('SELECT partida_name, target_subtotal FROM eerr_nodes').fetchall()
+    overrides_list = [dict(r) for r in rows]
+    
+    effective = build_effective_structure(EERR_STRUCTURE, db_overrides=[])
+    movable_partidas = []
+    for node in effective:
+        if node['movible'] == 'libre' and not node['is_header']:
+            movable_partidas.append({
+                'partida_name': node['partida_name'],
+                'original_subtotal': node['parent_name']
+            })
+            
+    return jsonify({
+        'movable_partidas': movable_partidas,
+        'overrides': overrides_list
+    })
+
+@app.route('/api/eerr_nodes/overrides', methods=['POST'])
+@admin_required
+def save_eerr_nodes_overrides():
+    d = request.json
+    partida_name = d.get('partida_name')
+    target_subtotal = d.get('target_subtotal')
+    if not partida_name or not target_subtotal:
+        return jsonify({'error': 'Faltan parámetros'}), 400
+    db = get_db()
+    if target_subtotal == 'original':
+        db.execute('DELETE FROM eerr_nodes WHERE partida_name = ?', (partida_name,))
+    else:
+        exist = db.execute('SELECT 1 FROM eerr_nodes WHERE partida_name = ?', (partida_name,)).fetchone()
+        if exist:
+            db.execute(
+                'UPDATE eerr_nodes SET target_subtotal = ? WHERE partida_name = ?',
+                (target_subtotal, partida_name)
+            )
+        else:
+            db.execute(
+                'INSERT INTO eerr_nodes (partida_name, target_subtotal, nombre, nivel, tipo) VALUES (?, ?, ?, 0, "hoja")',
+                (partida_name, target_subtotal, partida_name)
+            )
+    db.commit()
+    return jsonify({'ok': True})
+
 @app.route('/api/mapping/<code>', methods=['DELETE'])
 @admin_required
 def delete_mapping(code):
