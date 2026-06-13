@@ -305,10 +305,97 @@ def add_mapping():
             'INSERT INTO mapping_log (action, odoo_code, odoo_name, partida, sign, income_type) VALUES (?,?,?,?,?,?)',
             ('INSERT', d['odoo_code'], d['odoo_name'], d['partida'], d.get('sign', 1), d.get('income_type'))
         )
+        # Update or Insert mapping_groups_v2 if group_name is provided
+        group_name = d.get('group_name')
+        if group_name:
+            exist = db.execute('SELECT 1 FROM mapping_groups_v2 WHERE odoo_code = ?', (d['odoo_code'],)).fetchone()
+            if exist:
+                db.execute(
+                    'UPDATE mapping_groups_v2 SET group_name = ? WHERE odoo_code = ?',
+                    (group_name, d['odoo_code'])
+                )
+            else:
+                db.execute(
+                    'INSERT INTO mapping_groups_v2 (group_name, odoo_code, report_type, display_order) VALUES (?, ?, ?, ?)',
+                    (group_name, d['odoo_code'], 'eerr', 100)
+                )
         db.commit()
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/eerr/grupos', methods=['GET'])
+def get_eerr_grupos():
+    from engine import EERR_STRUCTURE
+    grupos = []
+    for item in EERR_STRUCTURE:
+        name = item[0]
+        level = item[5] if len(item) > 5 else (0 if item[1] else 3)
+        if level in (1, 2, 3):
+            clean = name
+            if level == 1:
+                if clean.startswith("Subtotal "):
+                    clean = clean[len("Subtotal "):]
+                label = clean
+            elif level == 2:
+                if clean.startswith("Gastos de "):
+                    clean = clean[len("Gastos de "):]
+                elif clean.startswith("Ingresos por "):
+                    clean = clean[len("Ingresos por "):]
+                elif clean.startswith("Costos de "):
+                    clean = clean[len("Costos de "):]
+                clean = clean[0].upper() + clean[1:] if clean else clean
+                label = "  → " + clean
+            elif level == 3:
+                if clean.startswith("Gastos de "):
+                    clean = clean[len("Gastos de "):]
+                elif clean.startswith("Ingresos por "):
+                    clean = clean[len("Ingresos por "):]
+                elif clean.startswith("Costos de "):
+                    clean = clean[len("Costos de "):]
+                clean = clean[0].upper() + clean[1:] if clean else clean
+                label = "    → " + clean
+            else:
+                label = clean
+            grupos.append({
+                "nombre": name,
+                "nivel": level,
+                "label": label
+            })
+    return jsonify(grupos)
+
+@app.route('/api/mapping/grupo', methods=['GET'])
+def get_mapping_grupo():
+    code = request.args.get('code', '')
+    if not code:
+        return jsonify({'group_name': None})
+    db = get_db()
+    row = db.execute('SELECT group_name FROM mapping_groups_v2 WHERE odoo_code = ?', (code,)).fetchone()
+    return jsonify({'group_name': row['group_name'] if row else None})
+
+@app.route('/api/mapping/sin-clasificar', methods=['GET'])
+def get_mapping_sin_clasificar():
+    from engine import EERR_STRUCTURE
+    eerr_leaves = set(item[0].lower().strip() for item in EERR_STRUCTURE if not item[1])
+    db = get_db()
+    rows = db.execute('''
+        SELECT m.odoo_code, m.odoo_name, m.partida, m.sign, m.income_type
+        FROM mapping m
+        LEFT JOIN mapping_groups_v2 mg ON m.odoo_code = mg.odoo_code
+        WHERE (m.odoo_code LIKE '4%' OR m.odoo_code LIKE '5%' OR m.odoo_code LIKE '6%')
+          AND mg.odoo_code IS NULL
+    ''').fetchall()
+    
+    unclassified = []
+    for r in rows:
+        partida = r['partida'].lower().strip()
+        if partida in eerr_leaves:
+            unclassified.append(dict(r))
+            
+    return jsonify({
+        'count': len(unclassified),
+        'accounts': unclassified
+    })
 
 @app.route('/api/mapping/<code>', methods=['DELETE'])
 @admin_required
