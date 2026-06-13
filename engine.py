@@ -895,9 +895,6 @@ ESF_STRUCTURE_V2 = [
     ('Total Activos No Corrientes', True, None, True, None, 1, False, 'ACTIVOS NO CORRIENTES', 1),
     
     # PASIVOS
-    ('TOTAL PASIVOS', True, None, True, None, 0, False, None, 0),
-    ('TOTAL PASIVOS Y PATRIMONIO', True, None, True, None, 0, False, None, 0),
-    
     ('PASIVOS CORRIENTES', True, None, True, None, 1, False, None, 1),
     ('Cuentas por Pagar', True, None, True, None, 2, False, 'PASIVOS CORRIENTES', 2),
     ('A proveedores', False, None, False, None, 3, False, 'Cuentas por Pagar', 3),
@@ -941,6 +938,7 @@ ESF_STRUCTURE_V2 = [
     ('Prestamos por pagar LP', False, None, False, None, 3, False, 'Otras cuentas por pagar L.P.', 3),
     ('Provisiones LP', False, None, False, None, 3, False, 'Otras cuentas por pagar L.P.', 3),
     ('Total Pasivos No Corrientes', True, None, True, None, 1, False, 'PASIVOS NO CORRIENTES', 1),
+    ('TOTAL PASIVOS', True, None, True, None, 0, False, None, 0),
     
     # PATRIMONIO
     ('PATRIMONIO', True, None, True, None, 1, False, None, 1),
@@ -950,6 +948,7 @@ ESF_STRUCTURE_V2 = [
     ('Resultados acumulados', False, None, False, None, 2, False, 'PATRIMONIO', 2),
     ('Resultados del ejercicio', False, None, False, None, 2, False, 'PATRIMONIO', 2),
     ('Total Patrimonio', True, None, True, None, 1, False, 'PATRIMONIO', 1),
+    ('TOTAL PASIVOS Y PATRIMONIO', True, None, True, None, 0, False, None, 0),
 ]
 
 

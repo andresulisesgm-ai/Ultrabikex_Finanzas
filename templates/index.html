@@ -3645,7 +3645,7 @@ function renderESF() {
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
     if (r.parent_name) {
-      for (let j = 0; j < rows.length; j++) {
+      for (let j = i - 1; j >= 0; j--) {
         if (rows[j].partida === r.parent_name) {
           parentIndices[i] = j;
           isParent[j] = true;
