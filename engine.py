@@ -839,9 +839,9 @@ ESF_STRUCTURE_V2 = [
     
     ('Cuentas por Cobrar', True, None, True, None, 2, False, 'ACTIVOS CORRIENTES', 2),
     ('Cuentas por cobrar clientes', False, None, False, None, 3, False, 'Cuentas por Cobrar', 3),
-    ('Cuentas por cobrar empresas relacionadas', False, None, False, None, 3, False, 'Cuentas por Cobrar', 3),
-    ('Cuentas por cobrar empresas externas del grupo', False, None, False, None, 3, False, 'Cuentas por Cobrar', 3),
-    ('Cuentas por cobrar socios', False, None, False, None, 3, False, 'Cuentas por Cobrar', 3),
+    ('A empresas relacionadas del grupo (CxC)', False, None, False, None, 3, False, 'Cuentas por Cobrar', 3),
+    ('A empresas externas del grupo (CxC)', False, None, False, None, 3, False, 'Cuentas por Cobrar', 3),
+    ('A socios (CxC)', False, None, False, None, 3, False, 'Cuentas por Cobrar', 3),
     ('Cuentas por cobrar empleados', False, None, False, None, 3, False, 'Cuentas por Cobrar', 3),
     
     ('Otras Cuentas por Cobrar', True, None, True, None, 2, False, 'ACTIVOS CORRIENTES', 2),
@@ -849,10 +849,10 @@ ESF_STRUCTURE_V2 = [
     ('Cuentas por cobrar por sociedades', False, None, False, None, 3, False, 'Otras Cuentas por Cobrar', 3),
     
     ('Préstamos por Cobrar', True, None, True, None, 2, False, 'ACTIVOS CORRIENTES', 2),
-    ('Prestamos por cobrar empresas relacionadas', False, None, False, None, 3, False, 'Préstamos por Cobrar', 3),
-    ('Prestamos por cobrar empresas externas del grupo', False, None, False, None, 3, False, 'Préstamos por Cobrar', 3),
-    ('Prestamos por cobrar socios', False, None, False, None, 3, False, 'Préstamos por Cobrar', 3),
-    ('Prestamos por cobrar empleados', False, None, False, None, 3, False, 'Préstamos por Cobrar', 3),
+    ('A empresas relacionadas del grupo (PxC)', False, None, False, None, 3, False, 'Préstamos por Cobrar', 3),
+    ('A empresas externas del grupo (PxC)', False, None, False, None, 3, False, 'Préstamos por Cobrar', 3),
+    ('A socios (PxC)', False, None, False, None, 3, False, 'Préstamos por Cobrar', 3),
+    ('A empleados (PxC)', False, None, False, None, 3, False, 'Préstamos por Cobrar', 3),
     ('Otros prestamos por cobrar', False, None, False, None, 3, False, 'Préstamos por Cobrar', 3),
     
     ('Anticipos', True, None, True, None, 2, False, 'ACTIVOS CORRIENTES', 2),
@@ -901,9 +901,9 @@ ESF_STRUCTURE_V2 = [
     ('PASIVOS CORRIENTES', True, None, True, None, 1, False, None, 1),
     ('Cuentas por Pagar', True, None, True, None, 2, False, 'PASIVOS CORRIENTES', 2),
     ('A proveedores', False, None, False, None, 3, False, 'Cuentas por Pagar', 3),
-    ('A empresas relacionadas del grupo', False, None, False, None, 3, False, 'Cuentas por Pagar', 3),
-    ('A empresas externas del grupo', False, None, False, None, 3, False, 'Cuentas por Pagar', 3),
-    ('A socios', False, None, False, None, 3, False, 'Cuentas por Pagar', 3),
+    ('A empresas relacionadas del grupo (CxP)', False, None, False, None, 3, False, 'Cuentas por Pagar', 3),
+    ('A empresas externas del grupo (CxP)', False, None, False, None, 3, False, 'Cuentas por Pagar', 3),
+    ('A socios (CxP)', False, None, False, None, 3, False, 'Cuentas por Pagar', 3),
     ('Cuentas por pagar TDC y TDC', False, None, False, None, 3, False, 'Cuentas por Pagar', 3),
     ('A proveedores en consignación', False, None, False, None, 3, False, 'Cuentas por Pagar', 3),
     
@@ -918,10 +918,10 @@ ESF_STRUCTURE_V2 = [
     ('Dividendos por pagar', False, None, False, None, 3, False, 'Otras cuentas por pagar', 3),
     
     ('Préstamos por Pagar', True, None, True, None, 2, False, 'PASIVOS CORRIENTES', 2),
-    ('A empresas relacionadas del grupo', False, None, False, None, 3, False, 'Préstamos por Pagar', 3),
-    ('A empresas externas del grupo', False, None, False, None, 3, False, 'Préstamos por Pagar', 3),
-    ('A socios', False, None, False, None, 3, False, 'Préstamos por Pagar', 3),
-    ('A empleados', False, None, False, None, 3, False, 'Préstamos por Pagar', 3),
+    ('A empresas relacionadas del grupo (PxP)', False, None, False, None, 3, False, 'Préstamos por Pagar', 3),
+    ('A empresas externas del grupo (PxP)', False, None, False, None, 3, False, 'Préstamos por Pagar', 3),
+    ('A socios (PxP)', False, None, False, None, 3, False, 'Préstamos por Pagar', 3),
+    ('A empleados (PxP)', False, None, False, None, 3, False, 'Préstamos por Pagar', 3),
     ('Prestamos bancarios por pagar', False, None, False, None, 3, False, 'Préstamos por Pagar', 3),
     ('Otros prestamos por pagar', False, None, False, None, 3, False, 'Préstamos por Pagar', 3),
     
