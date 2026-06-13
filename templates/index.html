@@ -3626,7 +3626,7 @@ function renderESF() {
     const vals = quarters.map(q => qVal(q, rowObj));
     const nums = vals.map(v => {
       const colored = v < 0 ? 'color:var(--red)' : '';
-      return `<div class="esf-num" style="${colored}">${v === 0 ? '—' : fmtS(v)}</div>`;
+      return `<div class="esf-num" style="${colored}">${v === 0 ? '—' : fmt(v)}</div>`;
     }).join('');
     let varHtml = '';
     if (qAll) {
