@@ -820,3 +820,135 @@ def build_effective_structure(static_structure=None, db_overrides=None):
             effective.insert(insert_idx, node_to_move)
 
     return effective
+
+# ── ESF Structure V2 ─────────────────────────────────────────────────────────
+# Formato: (nombre, is_header, parent, bold, bg_color, level, es_nota, parent_name, indent)
+ESF_STRUCTURE_V2 = [
+    # ACTIVOS
+    ('TOTAL ACTIVOS', True, None, True, None, 0, False, None, 0),
+    ('ACTIVOS CORRIENTES', True, None, True, None, 1, False, None, 1),
+    ('Efectivo y Equivalentes', True, None, True, None, 2, False, 'ACTIVOS CORRIENTES', 2),
+    ('Caja en Bs', False, None, False, None, 3, False, 'Efectivo y Equivalentes', 3),
+    ('Caja en $', False, None, False, None, 3, False, 'Efectivo y Equivalentes', 3),
+    ('Fondo en Bs', False, None, False, None, 3, False, 'Efectivo y Equivalentes', 3),
+    ('Fondo en $', False, None, False, None, 3, False, 'Efectivo y Equivalentes', 3),
+    ('Bancos en Bs', False, None, False, None, 3, False, 'Efectivo y Equivalentes', 3),
+    ('Bancos en $', False, None, False, None, 3, False, 'Efectivo y Equivalentes', 3),
+    ('Bancos en transito en Bs', False, None, False, None, 3, False, 'Efectivo y Equivalentes', 3),
+    ('Bancos en transito en $', False, None, False, None, 3, False, 'Efectivo y Equivalentes', 3),
+    
+    ('Cuentas por Cobrar', True, None, True, None, 2, False, 'ACTIVOS CORRIENTES', 2),
+    ('Cuentas por cobrar clientes', False, None, False, None, 3, False, 'Cuentas por Cobrar', 3),
+    ('Cuentas por cobrar empresas relacionadas', False, None, False, None, 3, False, 'Cuentas por Cobrar', 3),
+    ('Cuentas por cobrar empresas externas del grupo', False, None, False, None, 3, False, 'Cuentas por Cobrar', 3),
+    ('Cuentas por cobrar socios', False, None, False, None, 3, False, 'Cuentas por Cobrar', 3),
+    ('Cuentas por cobrar empleados', False, None, False, None, 3, False, 'Cuentas por Cobrar', 3),
+    
+    ('Otras Cuentas por Cobrar', True, None, True, None, 2, False, 'ACTIVOS CORRIENTES', 2),
+    ('Otras cuentas por cobrar', False, None, False, None, 3, False, 'Otras Cuentas por Cobrar', 3),
+    ('Cuentas por cobrar por sociedades', False, None, False, None, 3, False, 'Otras Cuentas por Cobrar', 3),
+    
+    ('Préstamos por Cobrar', True, None, True, None, 2, False, 'ACTIVOS CORRIENTES', 2),
+    ('Prestamos por cobrar empresas relacionadas', False, None, False, None, 3, False, 'Préstamos por Cobrar', 3),
+    ('Prestamos por cobrar empresas externas del grupo', False, None, False, None, 3, False, 'Préstamos por Cobrar', 3),
+    ('Prestamos por cobrar socios', False, None, False, None, 3, False, 'Préstamos por Cobrar', 3),
+    ('Prestamos por cobrar empleados', False, None, False, None, 3, False, 'Préstamos por Cobrar', 3),
+    ('Otros prestamos por cobrar', False, None, False, None, 3, False, 'Préstamos por Cobrar', 3),
+    
+    ('Anticipos', True, None, True, None, 2, False, 'ACTIVOS CORRIENTES', 2),
+    ('Anticipos a proveedores', False, None, False, None, 3, False, 'Anticipos', 3),
+    ('Anticipos a socios', False, None, False, None, 3, False, 'Anticipos', 3),
+    ('Anticipos a empleados', False, None, False, None, 3, False, 'Anticipos', 3),
+    
+    ('Inventarios', True, None, True, None, 2, False, 'ACTIVOS CORRIENTES', 2),
+    ('Inventario de mercancias', False, None, False, None, 3, False, 'Inventarios', 3),
+    ('Inventario de suministros', False, None, False, None, 3, False, 'Inventarios', 3),
+    ('Inventario en transito', False, None, False, None, 3, False, 'Inventarios', 3),
+    ('Inventarios de Consignacion', False, None, False, None, 3, False, 'Inventarios', 3),
+    
+    ('Prepagados', True, None, True, None, 2, False, 'ACTIVOS CORRIENTES', 2),
+    ('Impuestos pagados por anticipado', False, None, False, None, 3, False, 'Prepagados', 3),
+    ('Gastos pagados por anticipado', False, None, False, None, 3, False, 'Prepagados', 3),
+    
+    ('Total Activos Corrientes', True, None, True, None, 1, False, 'ACTIVOS CORRIENTES', 1),
+    
+    ('ACTIVOS NO CORRIENTES', True, None, True, None, 1, False, None, 1),
+    ('Otros activos no corrientes', True, None, True, None, 2, False, 'ACTIVOS NO CORRIENTES', 2),
+    ('Cuentas por cobrar clientes L.P.', False, None, False, None, 3, False, 'Otros activos no corrientes', 3),
+    ('Otras cuentas por cobrar L.P.', False, None, False, None, 3, False, 'Otros activos no corrientes', 3),
+    ('Prestamos por cobrar L.P.', False, None, False, None, 3, False, 'Otros activos no corrientes', 3),
+    ('Anticipos LP', False, None, False, None, 3, False, 'Otros activos no corrientes', 3),
+    ('Propiedades de inversión', True, None, True, None, 2, False, 'ACTIVOS NO CORRIENTES', 2),
+    ('Inversion en acciones', False, None, False, None, 3, False, 'Propiedades de inversión', 3),
+    ('Propiedades, Plantas y Equipos', True, None, True, None, 2, False, 'ACTIVOS NO CORRIENTES', 2),
+    ('Terrenos', False, None, False, None, 3, False, 'Propiedades, Plantas y Equipos', 3),
+    ('Mobiliario y equipos', False, None, False, None, 3, False, 'Propiedades, Plantas y Equipos', 3),
+    ('Maquinaria y equipos', False, None, False, None, 3, False, 'Propiedades, Plantas y Equipos', 3),
+    ('Vehiculos', False, None, False, None, 3, False, 'Propiedades, Plantas y Equipos', 3),
+    ('Edificios y construcciones', False, None, False, None, 3, False, 'Propiedades, Plantas y Equipos', 3),
+    ('Materiales de eventos', False, None, False, None, 3, False, 'Propiedades, Plantas y Equipos', 3),
+    ('Herramientas', False, None, False, None, 3, False, 'Propiedades, Plantas y Equipos', 3),
+    ('Utensilios y equipos de cocina', False, None, False, None, 3, False, 'Propiedades, Plantas y Equipos', 3),
+    ('Equipamiento deportivo', False, None, False, None, 3, False, 'Propiedades, Plantas y Equipos', 3),
+    ('Mejoras a bienes arrendados', False, None, False, None, 3, False, 'Propiedades, Plantas y Equipos', 3),
+    ('Software Odoo y Crm', False, None, False, None, 3, False, 'Propiedades, Plantas y Equipos', 3),
+    ('Total Activos No Corrientes', True, None, True, None, 1, False, 'ACTIVOS NO CORRIENTES', 1),
+    
+    # PASIVOS
+    ('TOTAL PASIVOS', True, None, True, None, 0, False, None, 0),
+    ('TOTAL PASIVOS Y PATRIMONIO', True, None, True, None, 0, False, None, 0),
+    
+    ('PASIVOS CORRIENTES', True, None, True, None, 1, False, None, 1),
+    ('Cuentas por Pagar', True, None, True, None, 2, False, 'PASIVOS CORRIENTES', 2),
+    ('A proveedores', False, None, False, None, 3, False, 'Cuentas por Pagar', 3),
+    ('A empresas relacionadas del grupo', False, None, False, None, 3, False, 'Cuentas por Pagar', 3),
+    ('A empresas externas del grupo', False, None, False, None, 3, False, 'Cuentas por Pagar', 3),
+    ('A socios', False, None, False, None, 3, False, 'Cuentas por Pagar', 3),
+    ('Cuentas por pagar TDC y TDC', False, None, False, None, 3, False, 'Cuentas por Pagar', 3),
+    ('A proveedores en consignación', False, None, False, None, 3, False, 'Cuentas por Pagar', 3),
+    
+    ('Otras cuentas por pagar', True, None, True, None, 2, False, 'PASIVOS CORRIENTES', 2),
+    ('Otras cuentas por pagar', False, None, False, None, 3, False, 'Otras cuentas por pagar', 3),
+    ('Descuentos a empleados por pagar', False, None, False, None, 3, False, 'Otras cuentas por pagar', 3),
+    ('Sueldos y Salarios por pagar', False, None, False, None, 3, False, 'Otras cuentas por pagar', 3),
+    ('Retenciones laborales a pagar', False, None, False, None, 3, False, 'Otras cuentas por pagar', 3),
+    ('Aportes patronales por pagar', False, None, False, None, 3, False, 'Otras cuentas por pagar', 3),
+    ('Intereses por pagar', False, None, False, None, 3, False, 'Otras cuentas por pagar', 3),
+    ('Impuestos por pagar', False, None, False, None, 3, False, 'Otras cuentas por pagar', 3),
+    ('Dividendos por pagar', False, None, False, None, 3, False, 'Otras cuentas por pagar', 3),
+    
+    ('Préstamos por Pagar', True, None, True, None, 2, False, 'PASIVOS CORRIENTES', 2),
+    ('A empresas relacionadas del grupo', False, None, False, None, 3, False, 'Préstamos por Pagar', 3),
+    ('A empresas externas del grupo', False, None, False, None, 3, False, 'Préstamos por Pagar', 3),
+    ('A socios', False, None, False, None, 3, False, 'Préstamos por Pagar', 3),
+    ('A empleados', False, None, False, None, 3, False, 'Préstamos por Pagar', 3),
+    ('Prestamos bancarios por pagar', False, None, False, None, 3, False, 'Préstamos por Pagar', 3),
+    ('Otros prestamos por pagar', False, None, False, None, 3, False, 'Préstamos por Pagar', 3),
+    
+    ('Anticipos', True, None, True, None, 2, False, 'PASIVOS CORRIENTES', 2),
+    ('De clientes', False, None, False, None, 3, False, 'Anticipos', 3),
+    ('De socios', False, None, False, None, 3, False, 'Anticipos', 3),
+    ('No reportados', False, None, False, None, 3, False, 'Anticipos', 3),
+    
+    ('Provisiones', True, None, True, None, 2, False, 'PASIVOS CORRIENTES', 2),
+    ('Provisiones para empleados', False, None, False, None, 3, False, 'Provisiones', 3),
+    
+    ('Total Pasivos Corrientes', True, None, True, None, 1, False, 'PASIVOS CORRIENTES', 1),
+    
+    ('PASIVOS NO CORRIENTES', True, None, True, None, 1, False, None, 1),
+    ('Otras cuentas por pagar L.P.', True, None, True, None, 2, False, 'PASIVOS NO CORRIENTES', 2),
+    ('Intereses por pagar LP', False, None, False, None, 3, False, 'Otras cuentas por pagar L.P.', 3),
+    ('Prestamos por pagar LP', False, None, False, None, 3, False, 'Otras cuentas por pagar L.P.', 3),
+    ('Provisiones LP', False, None, False, None, 3, False, 'Otras cuentas por pagar L.P.', 3),
+    ('Total Pasivos No Corrientes', True, None, True, None, 1, False, 'PASIVOS NO CORRIENTES', 1),
+    
+    # PATRIMONIO
+    ('PATRIMONIO', True, None, True, None, 1, False, None, 1),
+    ('Capital social', False, None, False, None, 2, False, 'PATRIMONIO', 2),
+    ('Reservas legales y estatutarias', False, None, False, None, 2, False, 'PATRIMONIO', 2),
+    ('Superavit por revaluacion', False, None, False, None, 2, False, 'PATRIMONIO', 2),
+    ('Resultados acumulados', False, None, False, None, 2, False, 'PATRIMONIO', 2),
+    ('Resultados del ejercicio', False, None, False, None, 2, False, 'PATRIMONIO', 2),
+    ('Total Patrimonio', True, None, True, None, 1, False, 'PATRIMONIO', 1),
+]
+
