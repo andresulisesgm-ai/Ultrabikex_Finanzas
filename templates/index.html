@@ -2604,12 +2604,22 @@ async function loadERRDivisa(){
     const padLeft = (row.indent * 12 + 8) + 'px';
 
     const isAlwaysExpanded = row.partida === "Total Ingresos" || row.partida === "Total Gastos Operacionales";
+    let saved = null;
+    try {
+      saved = localStorage.getItem('eerr_expanded_' + row.partida);
+    } catch (e) {
+      console.error('Error reading from localStorage:', e);
+    }
+    const initiallyExpanded = isAlwaysExpanded || saved === '1';
+
     let toggleHtml = '';
     if (hasChildren && !isAlwaysExpanded) {
-      toggleHtml = `<span class="eerr-toggle" onclick="toggleEERRRow(event, 'divisa-${i}')" style="cursor:pointer;margin-right:6px;display:inline-block;width:12px;font-family:monospace;color:var(--primary);font-weight:bold">▶</span>`;
+      const toggleChar = initiallyExpanded ? '▼' : '▶';
+      toggleHtml = `<span class="eerr-toggle" onclick="toggleEERRRow(event, 'divisa-${i}')" style="cursor:pointer;margin-right:6px;display:inline-block;width:12px;font-family:monospace;color:var(--primary);font-weight:bold">${toggleChar}</span>`;
     }
 
-    let r = `<tr data-row-id="divisa-${i}" data-parent-id="${parentIdx !== null ? 'divisa-' + parentIdx : ''}" data-indent="${row.indent}" data-expanded="${isAlwaysExpanded ? 'true' : 'false'}" style="${rStyle}">`;
+    const escapedPartida = row.partida.replace(/"/g, '&quot;');
+    let r = `<tr data-row-id="divisa-${i}" data-parent-id="${parentIdx !== null ? 'divisa-' + parentIdx : ''}" data-indent="${row.indent}" data-expanded="${initiallyExpanded ? 'true' : 'false'}" data-partida="${escapedPartida}" style="${rStyle}">`;
     r += `<td style="${lStyle};position:sticky;left:0;${cellBg};z-index:6;min-width:220px;width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:2px solid var(--bd);padding-left:${padLeft};${boldStyle}">${toggleHtml}${row.partida}</td>`;
 
     r += `<td style="${cStyle};${boldStyle}">${fmtZ(row.year_prev.valor)}</td>`;
@@ -2671,6 +2681,7 @@ async function loadERRDivisa(){
     </table>
     </div>
   `;
+  updateEERRRowVisibility();
 
   // Ocultar "Utilidad Distribuible" (ya no aplica con estructura completa)
   G('utilidad-distribuible').style.display='none';
@@ -2953,12 +2964,22 @@ async function loadEERR(){
     const padLeft = (row.indent * 12 + 8) + 'px';
 
     const isAlwaysExpanded = row.partida === "Total Ingresos" || row.partida === "Total Gastos Operacionales";
+    let saved = null;
+    try {
+      saved = localStorage.getItem('eerr_expanded_' + row.partida);
+    } catch (e) {
+      console.error('Error reading from localStorage:', e);
+    }
+    const initiallyExpanded = isAlwaysExpanded || saved === '1';
+
     let toggleHtml = '';
     if (hasChildren && !isAlwaysExpanded) {
-      toggleHtml = `<span class="eerr-toggle" onclick="toggleEERRRow(event, ${i})" style="cursor:pointer;margin-right:6px;display:inline-block;width:12px;font-family:monospace;color:var(--primary);font-weight:bold">▶</span>`;
+      const toggleChar = initiallyExpanded ? '▼' : '▶';
+      toggleHtml = `<span class="eerr-toggle" onclick="toggleEERRRow(event, ${i})" style="cursor:pointer;margin-right:6px;display:inline-block;width:12px;font-family:monospace;color:var(--primary);font-weight:bold">${toggleChar}</span>`;
     }
 
-    let r = `<tr data-row-id="${i}" data-parent-id="${parentIdx !== null ? parentIdx : ''}" data-indent="${row.indent}" data-expanded="${isAlwaysExpanded ? 'true' : 'false'}" style="${rStyle}">`;
+    const escapedPartida = row.partida.replace(/"/g, '&quot;');
+    let r = `<tr data-row-id="${i}" data-parent-id="${parentIdx !== null ? parentIdx : ''}" data-indent="${row.indent}" data-expanded="${initiallyExpanded ? 'true' : 'false'}" data-partida="${escapedPartida}" style="${rStyle}">`;
     r += `<td style="${lStyle};position:sticky;left:0;${cellBg};z-index:6;min-width:220px;width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:2px solid var(--bd);padding-left:${padLeft};${boldStyle}">${toggleHtml}${row.partida}</td>`;
 
     r += `<td style="${cStyle};${boldStyle}">${fmtZ(row.year_prev.valor)}</td>`;
@@ -3018,6 +3039,7 @@ async function loadEERR(){
       </thead>
       <tbody>${rows}</tbody>
     </table></div>`;
+  updateEERRRowVisibility();
 }
 
 // ── COMPARATIVAS ──────────────────────────────────────────────────────────
@@ -3583,7 +3605,7 @@ function updateEERRRowVisibility() {
   });
   
   function isRowVisible(id, indent, parentId) {
-    if (indent <= 1) {
+    if (indent === 0) {
       return true;
     }
     if (parentId === null || parentId === undefined || parentId === '') {
@@ -3617,8 +3639,19 @@ function toggleEERRRow(event, rowId) {
   if (!toggleBtn) return;
   
   const isExpanded = rowEl.getAttribute('data-expanded') === 'true';
-  rowEl.setAttribute('data-expanded', isExpanded ? 'false' : 'true');
-  toggleBtn.textContent = isExpanded ? '▶' : '▼';
+  const newExpanded = !isExpanded;
+  
+  rowEl.setAttribute('data-expanded', newExpanded ? 'true' : 'false');
+  toggleBtn.textContent = newExpanded ? '▼' : '▶';
+  
+  const partida = rowEl.getAttribute('data-partida');
+  if (partida) {
+    try {
+      localStorage.setItem('eerr_expanded_' + partida, newExpanded ? '1' : '0');
+    } catch (e) {
+      console.error('Error saving expanded state to localStorage:', e);
+    }
+  }
   
   updateEERRRowVisibility();
 }
