@@ -2586,6 +2586,10 @@ def eerr_divisa_real():
                             'Gastos de comisiones bancarias'
                         ]:
                             pass
+                        elif name == 'Subtotal Gastos de Recursos Humanos' and c_name in [
+                            'Gastos de uniformes y dotación al personal'
+                        ]:
+                            pass
                         elif name == 'Subtotal Gastos de Mercadeo' and c_name in [
                             'Gastos de impresiones de material gráfico',
                             'Gastos de patrocinio y donación'
