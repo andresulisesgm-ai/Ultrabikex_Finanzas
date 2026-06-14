@@ -3075,38 +3075,77 @@ async function loadDash(){
     }
 
     // Renderizar widgets Divisa Real
-    if (DD._modo_divisa && DD._tasas) {
-      const paralela = DD._tasas.paralela;
-      const ingrUSD = paralela ? tI / paralela : null;
-      const unUSD = paralela ? un / paralela : null;
-      const dIngrEl = G('divisa-ingr-val');
-      const dUnEl = G('divisa-un-val');
-      const dTasaIngr = G('divisa-ingr-tasa');
-      const dTasaUn = G('divisa-un-tasa');
-      if (dIngrEl) dIngrEl.textContent = ingrUSD != null ? '$' + ingrUSD.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
-      if (dUnEl) dUnEl.textContent = unUSD != null ? '$' + unUSD.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
-      if (dTasaIngr) dTasaIngr.textContent = paralela ? paralela.toFixed(2) : '—';
-      if (dTasaUn) dTasaUn.textContent = paralela ? paralela.toFixed(2) : '—';
+    const divisaIngrActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-divisa-ingr' && w.visible);
+    const divisaUnActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-divisa-un' && w.visible);
+    const divisaCompActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-divisa-comp' && w.visible);
 
-      const dcompCanvas = G('ch-dcomp');
-      if (dcompCanvas && window.DASHBOARD_CONFIG.find(w => w.id === 'wc-divisa-comp' && w.visible)) {
-        const ctsel = document.getElementById('ct-ch-dcomp');
-        const ctype = ctsel ? ctsel.value : 'bar';
-        const realType = ctype === 'bar-stack' ? 'bar' : ctype;
-        const stacked = ctype === 'bar-stack';
-        if (CH['ch-dcomp']) CH['ch-dcomp'].destroy();
-        CH['ch-dcomp'] = new Chart(dcompCanvas, {
-          type: realType,
-          data: {
-            labels: ['Ingresos','Costos','Gastos','Util. Neta'],
-            datasets: [
-              { label: 'Bs', data: [tI, tC, tG, un], backgroundColor: '#2563eb' },
-              { label: 'USD Real', data: paralela ? [tI/paralela, tC/paralela, tG/paralela, un/paralela] : [null,null,null,null], backgroundColor: '#059669' }
-            ]
-          },
-          options: { responsive:true, scales: stacked ? {x:{stacked:true},y:{stacked:true}} : {} }
+    if (divisaIngrActivo || divisaUnActivo || divisaCompActivo) {
+      fetch(`/api/divisa_real/resumen?year=${year}${selectedMonth ? '&month='+selectedMonth : ''}&unit=${unit==='TODAS'?'':unit}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(resumen => {
+          const dIngrEl = G('divisa-ingr-val');
+          const dUnEl = G('divisa-un-val');
+          const dTasaIngr = G('divisa-ingr-tasa');
+          const dTasaUn = G('divisa-un-tasa');
+
+          if (!resumen) {
+            if (dIngrEl) dIngrEl.textContent = '—';
+            if (dUnEl) dUnEl.textContent = '—';
+            if (dTasaIngr) dTasaIngr.textContent = '—';
+            if (dTasaUn) dTasaUn.textContent = '—';
+            return;
+          }
+
+          const paralela = resumen.tasa_paralela_promedio;
+          const ingUSD = (paralela && resumen.divisa_real.ingresos) ? resumen.divisa_real.ingresos / paralela : null;
+          const unUSD = (paralela && resumen.divisa_real.utilidad_neta) ? resumen.divisa_real.utilidad_neta / paralela : null;
+
+          if (dIngrEl) dIngrEl.textContent = ingUSD != null ? '$' + ingUSD.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+          if (dUnEl) dUnEl.textContent = unUSD != null ? '$' + unUSD.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+          if (dTasaIngr) dTasaIngr.textContent = paralela ? paralela.toFixed(2) : '—';
+          if (dTasaUn) dTasaUn.textContent = paralela ? paralela.toFixed(2) : '—';
+
+          const dcompCanvas = G('ch-dcomp');
+          if (dcompCanvas && divisaCompActivo) {
+            const ctsel = document.getElementById('ct-ch-dcomp');
+            const ctype = ctsel ? ctsel.value : 'bar';
+            const realType = ctype === 'bar-stack' ? 'bar' : ctype;
+            const stacked = ctype === 'bar-stack';
+            if (CH['ch-dcomp']) CH['ch-dcomp'].destroy();
+            
+            const bsData = [
+              resumen.literal_bcv.ingresos,
+              resumen.literal_bcv.costos,
+              resumen.literal_bcv.gastos,
+              resumen.literal_bcv.utilidad_neta
+            ];
+            const usdRealData = paralela ? [
+              resumen.divisa_real.ingresos / paralela,
+              resumen.divisa_real.costos / paralela,
+              resumen.divisa_real.gastos / paralela,
+              resumen.divisa_real.utilidad_neta / paralela
+            ] : [null, null, null, null];
+
+            CH['ch-dcomp'] = new Chart(dcompCanvas, {
+              type: realType,
+              data: {
+                labels: ['Ingresos','Costos','Gastos','Util. Neta'],
+                datasets: [
+                  { label: 'Bs', data: bsData, backgroundColor: '#2563eb' },
+                  { label: 'USD Real', data: usdRealData, backgroundColor: '#059669' }
+                ]
+              },
+              options: { responsive:true, scales: stacked ? {x:{stacked:true},y:{stacked:true}} : {} }
+            });
+          }
+        })
+        .catch(err => {
+          console.error("Error cargando divisa real resumen:", err);
+          const dIngrEl = G('divisa-ingr-val');
+          const dUnEl = G('divisa-un-val');
+          if (dIngrEl) dIngrEl.textContent = '—';
+          if (dUnEl) dUnEl.textContent = '—';
         });
-      }
     }
 
     // Renderizar widgets ESF
