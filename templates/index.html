@@ -1634,6 +1634,108 @@ const WIDGET_TEMPLATES = {
         <select class="csel" id="tblmode" onchange="rTable()"><option value="$">Montos</option><option value="%">%</option></select>
         <button class="bcl" data-w="wc-tbl">✕</button></div></div>
     <div class="tw"><table><thead><tr><th>Mes</th><th>Ingresos</th><th>Costos</th><th>Util.Bruta</th><th>Gastos</th><th>Util.Neta</th><th>Mg.Bruto</th><th>Mg.Neto</th><th>%Costo</th><th>%Gasto</th></tr></thead><tbody id="tbody"></tbody></table></div>
+  `,
+  'wc-esf-kpi-activos': `
+    <div class="ch"><div><div class="ct">🏦 Total Activos</div><div class="cs">Último quarter</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-esf-kpi-activos">✕</button></div></div>
+    <div class="esf-kpi-val" id="esf-kpi-activos-val" style="font-size:28px;font-weight:700;color:var(--blue);padding:16px 0 4px">—</div>
+    <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">Activos Corrientes: <span id="esf-kpi-activos-ac">—</span> · No Corrientes: <span id="esf-kpi-activos-anc">—</span></div>
+  `,
+  'wc-esf-kpi-pasivos': `
+    <div class="ch"><div><div class="ct">📋 Total Pasivos</div><div class="cs">Último quarter</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-esf-kpi-pasivos">✕</button></div></div>
+    <div class="esf-kpi-val" id="esf-kpi-pasivos-val" style="font-size:28px;font-weight:700;color:var(--red);padding:16px 0 4px">—</div>
+    <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">Corrientes: <span id="esf-kpi-pasivos-pc">—</span> · No Corrientes: <span id="esf-kpi-pasivos-pnc">—</span></div>
+  `,
+  'wc-esf-kpi-patrimonio': `
+    <div class="ch"><div><div class="ct">💎 Patrimonio</div><div class="cs">Último quarter</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-esf-kpi-patrimonio">✕</button></div></div>
+    <div class="esf-kpi-val" id="esf-kpi-patrimonio-val" style="font-size:28px;font-weight:700;color:var(--green);padding:16px 0 4px">—</div>
+    <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">Pasivos + Patrimonio deben igualar Activos</div>
+  `,
+  'wc-esf-kpi-efectivo': `
+    <div class="ch"><div><div class="ct">💵 Efectivo y Equivalentes</div><div class="cs">Último quarter</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-esf-kpi-efectivo">✕</button></div></div>
+    <div class="esf-kpi-val" id="esf-kpi-efectivo-val" style="font-size:28px;font-weight:700;color:var(--blue);padding:16px 0 4px">—</div>
+    <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">% sobre Activos Corrientes: <span id="esf-kpi-efectivo-pct">—</span></div>
+  `,
+  'wc-esf-kpi-cxc': `
+    <div class="ch"><div><div class="ct">📥 Cuentas por Cobrar</div><div class="cs">Último quarter</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-esf-kpi-cxc">✕</button></div></div>
+    <div class="esf-kpi-val" id="esf-kpi-cxc-val" style="font-size:28px;font-weight:700;color:var(--amber);padding:16px 0 4px">—</div>
+    <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">% sobre Activos Corrientes: <span id="esf-kpi-cxc-pct">—</span></div>
+  `,
+  'wc-esf-kpi-inv': `
+    <div class="ch"><div><div class="ct">📦 Inventarios</div><div class="cs">Último quarter</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-esf-kpi-inv">✕</button></div></div>
+    <div class="esf-kpi-val" id="esf-kpi-inv-val" style="font-size:28px;font-weight:700;color:var(--purple);padding:16px 0 4px">—</div>
+    <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">% sobre Activos Corrientes: <span id="esf-kpi-inv-pct">—</span></div>
+  `,
+  'wc-esf-estructura': `
+    <div class="ch"><div><div class="ct">🏗 Estructura Financiera</div><div class="cs">Activos · Pasivos · Patrimonio</div></div>
+      <div class="cact"><span class="dh">⠿</span>
+        <select class="csel ctsel" id="ct-ch-esf-est" onchange="setChartType('ch-esf-est',this.value)" title="Tipo de gráfico">
+          <option value="doughnut">Dona</option>
+          <option value="pie">Pastel</option>
+          <option value="bar">Barras</option>
+          <option value="polarArea">Área Polar</option>
+        </select>
+        <button class="bcl" data-w="wc-esf-estructura">✕</button></div></div>
+    <canvas id="ch-esf-est" height="200"></canvas>
+  `,
+  'wc-ind-roe': `
+    <div class="ch"><div><div class="ct">📊 ROE</div><div class="cs">Retorno sobre Patrimonio</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-ind-roe">✕</button></div></div>
+    <div class="esf-kpi-val" id="ind-roe-val" style="font-size:28px;font-weight:700;color:var(--green);padding:16px 0 4px">—</div>
+    <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">Utilidad Neta / Patrimonio × 100</div>
+  `,
+  'wc-ind-roa': `
+    <div class="ch"><div><div class="ct">📊 ROA</div><div class="cs">Retorno sobre Activos</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-ind-roa">✕</button></div></div>
+    <div class="esf-kpi-val" id="ind-roa-val" style="font-size:28px;font-weight:700;color:var(--blue);padding:16px 0 4px">—</div>
+    <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">Utilidad Neta / Total Activos × 100</div>
+  `,
+  'wc-ind-rc': `
+    <div class="ch"><div><div class="ct">⚖️ Razón Corriente</div><div class="cs">Activo Cte / Pasivo Cte</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-ind-rc">✕</button></div></div>
+    <div class="esf-kpi-val" id="ind-rc-val" style="font-size:28px;font-weight:700;color:var(--blue);padding:16px 0 4px">—</div>
+    <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">Ref: &gt;1.5 saludable · &gt;2.0 óptimo</div>
+  `,
+  'wc-ind-pa': `
+    <div class="ch"><div><div class="ct">🧪 Prueba Ácida</div><div class="cs">Liquidez sin inventarios</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-ind-pa">✕</button></div></div>
+    <div class="esf-kpi-val" id="ind-pa-val" style="font-size:28px;font-weight:700;color:var(--amber);padding:16px 0 4px">—</div>
+    <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">Ref: &gt;1.0 saludable</div>
+  `,
+  'wc-ind-pd': `
+    <div class="ch"><div><div class="ct">🛡️ Prueba Defensiva</div><div class="cs">Solo efectivo / Pasivo Cte</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-ind-pd">✕</button></div></div>
+    <div class="esf-kpi-val" id="ind-pd-val" style="font-size:28px;font-weight:700;color:var(--purple);padding:16px 0 4px">—</div>
+    <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">Ref: &gt;0.5 saludable</div>
+  `,
+  'wc-ind-end': `
+    <div class="ch"><div><div class="ct">📉 Ratio Endeudamiento</div><div class="cs">Pasivos / Patrimonio</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-ind-end">✕</button></div></div>
+    <div class="esf-kpi-val" id="ind-end-val" style="font-size:28px;font-weight:700;color:var(--red);padding:16px 0 4px">—</div>
+    <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">Ref: &lt;1.0 conservador · &lt;2.0 moderado</div>
+  `,
+  'wc-ind-rotinv': `
+    <div class="ch"><div><div class="ct">🔄 Rotación Inventarios</div><div class="cs">Meses de cobertura</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-ind-rotinv">✕</button></div></div>
+    <div class="esf-kpi-val" id="ind-rotinv-val" style="font-size:28px;font-weight:700;color:var(--blue);padding:16px 0 4px">—</div>
+    <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">Meses que duran los inventarios actuales</div>
+  `,
+  'wc-ind-rotact': `
+    <div class="ch"><div><div class="ct">⚙️ Rotación de Activos</div><div class="cs">Veces por trimestre</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-ind-rotact">✕</button></div></div>
+    <div class="esf-kpi-val" id="ind-rotact-val" style="font-size:28px;font-weight:700;color:var(--green);padding:16px 0 4px">—</div>
+    <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">Ingresos generados por cada $ de activo</div>
+  `,
+  'wc-ind-cobro': `
+    <div class="ch"><div><div class="ct">📅 Período de Cobro</div><div class="cs">Días promedio de cobro</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-ind-cobro">✕</button></div></div>
+    <div class="esf-kpi-val" id="ind-cobro-val" style="font-size:28px;font-weight:700;color:var(--amber);padding:16px 0 4px">—</div>
+    <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">Ref: &lt;30 días óptimo · &lt;60 aceptable</div>
   `
 };
 
