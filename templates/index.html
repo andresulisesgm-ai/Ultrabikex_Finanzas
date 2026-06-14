@@ -1764,6 +1764,10 @@ function gsInitResizeHandler() {
           dom._echart.resize();
         }
       });
+      const tmcon = el.querySelector('#tmcon');
+      if (tmcon && window._lastTMItems) {
+        renderTM(window._lastTMItems, tmcon);
+      }
       gsSaveLayout();
     }, 50);
   });
@@ -2290,7 +2294,9 @@ function buildCharts(isTodas){
   const u=d.por_unidad||[],tmCon=G('tmcon');
   if(isTodas&&u.length){
     G('tm-title').textContent='Participación por Unidad';
-    setTimeout(()=>renderTM(u.map((x,i)=>({l:x.unit,v:x.ingresos,c:PAL[i%PAL.length]})),tmCon),60);
+    const items = u.map((x,i)=>({l:x.unit,v:x.ingresos,c:PAL[i%PAL.length]}));
+    window._lastTMItems = items;
+    setTimeout(()=>renderTM(items,tmCon),60);
     G('rad-title').textContent='Comparativo Multidimensional';G('rad-sub').textContent='6 dimensiones por unidad · clic para ver detalle';
     const mx=Math.max(...u.map(x=>x.ingresos),1);
     mkPref('ch-rad','radar',['Ingresos','Mg.Bruto','Mg.Neto','Ef.Costo','Ef.Gasto','Util.Neta'],
@@ -2302,7 +2308,9 @@ function buildCharts(isTodas){
   } else if(!isTodas){
     const cats=d.cat_gastos||[];
     G('tm-title').textContent='Estructura de Gastos';
-    setTimeout(()=>renderTM(cats.map((c,i)=>({l:c.categoria,v:c.total,c:PAL[i%PAL.length]})),tmCon),60);
+    const items = cats.map((c,i)=>({l:c.categoria,v:c.total,c:PAL[i%PAL.length]}));
+    window._lastTMItems = items;
+    setTimeout(()=>renderTM(items,tmCon),60);
     G('rad-title').textContent='Ingresos vs Util. Neta';G('rad-sub').textContent='Evolución mensual · clic para ver detalle';
     mkPref('ch-rad','line',L,[
       {label:'Ingresos',data:d.months.map(m=>m.ingresos),borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.07)',tension:.4,fill:true,pointRadius:3,pointBackgroundColor:'#2563eb',pointBorderColor:'#fff',pointBorderWidth:2},
