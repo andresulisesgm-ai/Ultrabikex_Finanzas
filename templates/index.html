@@ -2002,7 +2002,7 @@ const CHART_OPTIONS = {
 
 function getCategoriesModal() {
   const cats = [
-    { key:'eerr',      label:'📊 EERR — Resultados',       tipos:['kpi','chart','special','table'] },
+    { key:'eerr',      label:'📊 EERR — Resultados',       tipos:['chart','special','table'] },
     { key:'esf',       label:'🏦 ESF — Balance',            tipos:['esf'] },
     { key:'indicador', label:'📐 Indicadores Financieros',  tipos:['indicador'] },
     { key:'panel',     label:'📈 Panels con Gráfica',       tipos:['panel'] },
@@ -2040,7 +2040,7 @@ function openAddWidgetModal() {
           <span style="font-size:12px;font-weight:700;color:var(--fg)">${cat.label}</span>
           <span class="aw-arr" style="font-size:10px;color:var(--mu2)">▼</span>
         </div>
-        <div style="padding:6px 8px;display:flex;flex-direction:column;gap:4px">
+        <div style="padding:6px 8px;display:none;flex-direction:column;gap:4px">
           ${ws.map(w => `
             <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:6px 4px;border-radius:5px">
               <input type="checkbox" data-widget-id="${w.id}" style="width:14px;height:14px;cursor:pointer;accent-color:var(--blue);flex-shrink:0">
