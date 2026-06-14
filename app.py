@@ -2962,6 +2962,7 @@ def divisa_real_resumen():
     ing_total = cos_total = gas_total = 0.0
     ing_lit_total = cos_lit_total = gas_lit_total = 0.0
     paralela_sum = 0.0
+    bcv_sum = 0.0
 
     for mes in meses_con_tasas:
         tasas = tasas_by_month[mes]
@@ -2971,6 +2972,7 @@ def divisa_real_resumen():
             continue
         diferencial = paralela / bcv
         paralela_sum += paralela
+        bcv_sum += bcv
 
         metodos_rows = db.execute(
             'SELECT unit, odoo_code, pct_cash FROM metodo_pago_cuenta WHERE year=? AND month=?',
@@ -3006,12 +3008,14 @@ def divisa_real_resumen():
 
     n = len(meses_con_tasas)
     tasa_paralela_prom = round(paralela_sum / n, 4) if n else None
+    tasa_bcv_prom = round(bcv_sum / n, 4) if n else None
 
     return jsonify({
         'year': year,
         'unit': unit,
         'meses': meses_con_tasas,
         'tasa_paralela_promedio': tasa_paralela_prom,
+        'tasa_bcv_promedio': tasa_bcv_prom,
         'divisa_real': {
             'ingresos':      round(ing_total, 2),
             'costos':        round(cos_total, 2),
