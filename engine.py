@@ -509,9 +509,141 @@ class ExcelExporter:
 
             ws.freeze_panes = 'B3'
 
+            # Hoja de Notas EERR
+            self._build_notes_sheet(wb, unit, engine_unit)
+
         path = os.path.join(tempfile.gettempdir(), f'EEFF_ULTRAX_{self.year}.xlsx')
         wb.save(path)
         return path
+
+    def _build_notes_sheet(self, wb, unit, engine_unit):
+        import sqlite3, os
+        from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+
+        DB_PATH = os.path.join(os.path.dirname(__file__), 'data', 'ultrax.db')
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+
+        HDR_FILL  = PatternFill('solid', start_color='1F3864')
+        SEC_FILL  = PatternFill('solid', start_color='BDD7EE')
+        WHITE_FILL= PatternFill('solid', start_color='FFFFFF')
+        WHITE_FONT= Font(name='Arial', bold=True, color='FFFFFF', size=10)
+        DARK_FONT = Font(name='Arial', bold=True, color='1F3864', size=10)
+        NORM_FONT = Font(name='Arial', size=9)
+        NUM_FMT   = '#,##0.00;(#,##0.00);"-"'
+        thin      = Side(style='thin', color='BDD7EE')
+        border    = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+        ws = wb.create_sheet(f'N EERR {unit}')
+        ws.sheet_view.showGridLines = False
+
+        # Título
+        ws.merge_cells('A1:F1')
+        t = ws['A1']
+        t.value     = f'NOTAS — ESTADO DE RESULTADOS — {unit.upper()} — {self.year}'
+        t.font      = Font(name='Arial', bold=True, color='FFFFFF', size=12)
+        t.fill      = HDR_FILL
+        t.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[1].height = 24
+
+        # Encabezados
+        headers = ['CÓDIGO ODOO', 'NOMBRE CUENTA', 'PARTIDA', 'MES'] + list(self.months) + ['TOTAL']
+        N = len(self.months)
+        for ci, h in enumerate(headers, 1):
+            cell = ws.cell(row=2, column=ci, value=h)
+            cell.font      = WHITE_FONT
+            cell.fill      = HDR_FILL
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border    = border
+
+        ws.column_dimensions['A'].width = 18
+        ws.column_dimensions['B'].width = 45
+        ws.column_dimensions['C'].width = 40
+        ws.column_dimensions['D'].width = 8
+        for ci in range(5, 5 + N + 1):
+            ws.column_dimensions[get_column_letter(ci)].width = 12
+
+        # Obtener partidas únicas en orden de EERR_STRUCTURE
+        partidas_order = [item[0] for item in EERR_STRUCTURE if not item[1]]
+
+        # Query detalle
+        if engine_unit:
+            rows = conn.execute(
+                '''SELECT odoo_code, odoo_name, partida, month, amount_sign
+                   FROM financials_detail
+                   WHERE year=? AND unit=? AND report_type='eerr'
+                   ORDER BY partida, odoo_code, month''',
+                (self.year, engine_unit)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                '''SELECT odoo_code, odoo_name, partida, month, SUM(amount_sign) as amount_sign
+                   FROM financials_detail
+                   WHERE year=? AND report_type='eerr'
+                   GROUP BY odoo_code, odoo_name, partida, month
+                   ORDER BY partida, odoo_code, month''',
+                (self.year,)
+            ).fetchall()
+
+        # Agrupar por partida → cuenta → mes
+        from collections import defaultdict
+        data = defaultdict(lambda: defaultdict(lambda: {'name': '', 'meses': {}}))
+        for r in rows:
+            data[r['partida']][r['odoo_code']]['name'] = r['odoo_name']
+            data[r['partida']][r['odoo_code']]['meses'][r['month']] = r['amount_sign']
+
+        row_num = 3
+        current_partida = None
+
+        for partida in partidas_order:
+            if partida not in data:
+                continue
+
+            # Fila cabecera de partida
+            ws.row_dimensions[row_num].height = 16
+            a = ws.cell(row=row_num, column=1, value=partida)
+            a.font = DARK_FONT; a.fill = SEC_FILL; a.border = border
+            ws.merge_cells(f'A{row_num}:D{row_num}')
+            for ci in range(5, 5 + N + 1):
+                c = ws.cell(row=row_num, column=ci)
+                c.fill = SEC_FILL; c.border = border
+            row_num += 1
+
+            child_rows = []
+            for code, info in sorted(data[partida].items()):
+                ws.row_dimensions[row_num].height = 15
+                ws.cell(row=row_num, column=1, value=code).border = border
+                ws.cell(row=row_num, column=1).font = NORM_FONT
+                ws.cell(row=row_num, column=2, value=info['name']).border = border
+                ws.cell(row=row_num, column=2).font = NORM_FONT
+                ws.cell(row=row_num, column=3, value=partida).border = border
+                ws.cell(row=row_num, column=3).font = NORM_FONT
+
+                for m_idx, month in enumerate(self.months):
+                    col = 5 + m_idx
+                    val = info['meses'].get(month, None)
+                    c = ws.cell(row=row_num, column=col, value=val)
+                    c.number_format = NUM_FMT
+                    c.font = NORM_FONT
+                    c.border = border
+                    c.alignment = Alignment(horizontal='right')
+
+                # Total fila
+                m_start = get_column_letter(5)
+                m_end   = get_column_letter(4 + N)
+                tot = ws.cell(row=row_num, column=5+N,
+                              value=f'=SUM({m_start}{row_num}:{m_end}{row_num})')
+                tot.number_format = NUM_FMT
+                tot.font = NORM_FONT
+                tot.border = border
+                tot.alignment = Alignment(horizontal='right')
+
+                child_rows.append(row_num)
+                row_num += 1
+
+        ws.freeze_panes = 'A3'
+        conn.close()
 
 
 class ESFExporter:
@@ -660,9 +792,126 @@ class ESFExporter:
 
             ws.freeze_panes = 'B3'
 
+            # Hoja de Notas ESF
+            engine_unit = unit if unit != 'CONSOLIDADO' else ''
+            self._build_notes_sheet(wb, unit, engine_unit)
+
         path = os.path.join(tempfile.gettempdir(), f'ESF_ULTRAX_{self.year}.xlsx')
         wb.save(path)
         return path
+
+    def _build_notes_sheet(self, wb, unit, engine_unit):
+        import sqlite3, os
+        from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+
+        DB_PATH = os.path.join(os.path.dirname(__file__), 'data', 'ultrax.db')
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+
+        HDR_FILL  = PatternFill('solid', start_color='1F3864')
+        SEC_FILL  = PatternFill('solid', start_color='BDD7EE')
+        WHITE_FILL= PatternFill('solid', start_color='FFFFFF')
+        WHITE_FONT= Font(name='Arial', bold=True, color='FFFFFF', size=10)
+        DARK_FONT = Font(name='Arial', bold=True, color='1F3864', size=10)
+        NORM_FONT = Font(name='Arial', size=9)
+        NUM_FMT   = '#,##0.00;(#,##0.00);"-"'
+        thin      = Side(style='thin', color='BDD7EE')
+        border    = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+        ws = wb.create_sheet(f'N ESF {unit}')
+        ws.sheet_view.showGridLines = False
+
+        # Título
+        ws.merge_cells('A1:G1')
+        t = ws['A1']
+        t.value     = f'NOTAS — ESTADO DE SITUACIÓN FINANCIERA — {unit.upper()} — {self.year}'
+        t.font      = Font(name='Arial', bold=True, color='FFFFFF', size=12)
+        t.fill      = HDR_FILL
+        t.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[1].height = 24
+
+        # Encabezados
+        headers = ['CÓDIGO ODOO', 'NOMBRE CUENTA', 'PARTIDA', 'Q1', 'Q2', 'Q3', 'Q4']
+        for ci, h in enumerate(headers, 1):
+            cell = ws.cell(row=2, column=ci, value=h)
+            cell.font      = WHITE_FONT
+            cell.fill      = HDR_FILL
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border    = border
+
+        ws.column_dimensions['A'].width = 18
+        ws.column_dimensions['B'].width = 45
+        ws.column_dimensions['C'].width = 40
+        for ci in range(4, 8):
+            ws.column_dimensions[get_column_letter(ci)].width = 14
+
+        # Orden de partidas desde ESF_STRUCTURE
+        partidas_order = [item[0] for item in ESF_STRUCTURE if not item[1]]
+
+        # Query detalle
+        if engine_unit:
+            rows = conn.execute(
+                '''SELECT odoo_code, odoo_name, partida, quarter, amount_sign
+                   FROM financials_detail
+                   WHERE year=? AND unit=? AND report_type='esf'
+                   ORDER BY partida, odoo_code, quarter''',
+                (self.year, engine_unit)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                '''SELECT odoo_code, odoo_name, partida, quarter, SUM(amount_sign) as amount_sign
+                   FROM financials_detail
+                   WHERE year=? AND report_type='esf'
+                   GROUP BY odoo_code, odoo_name, partida, quarter
+                   ORDER BY partida, odoo_code, quarter''',
+                (self.year,)
+            ).fetchall()
+
+        # Agrupar por partida → cuenta → trimestre
+        from collections import defaultdict
+        data = defaultdict(lambda: defaultdict(lambda: {'name': '', 'quarters': {}}))
+        for r in rows:
+            data[r['partida']][r['odoo_code']]['name'] = r['odoo_name']
+            data[r['partida']][r['odoo_code']]['quarters'][r['quarter']] = r['amount_sign']
+
+        row_num = 3
+        for partida in partidas_order:
+            if partida not in data:
+                continue
+
+            # Fila cabecera de partida
+            ws.row_dimensions[row_num].height = 16
+            a = ws.cell(row=row_num, column=1, value=partida)
+            a.font = DARK_FONT; a.fill = SEC_FILL; a.border = border
+            ws.merge_cells(f'A{row_num}:C{row_num}')
+            for ci in range(4, 8):
+                c = ws.cell(row=row_num, column=ci)
+                c.fill = SEC_FILL; c.border = border
+            row_num += 1
+
+            for code, info in sorted(data[partida].items()):
+                ws.row_dimensions[row_num].height = 15
+                ws.cell(row=row_num, column=1, value=code).border = border
+                ws.cell(row=row_num, column=1).font = NORM_FONT
+                ws.cell(row=row_num, column=2, value=info['name']).border = border
+                ws.cell(row=row_num, column=2).font = NORM_FONT
+                ws.cell(row=row_num, column=3, value=partida).border = border
+                ws.cell(row=row_num, column=3).font = NORM_FONT
+
+                for q in [1, 2, 3, 4]:
+                    col = 3 + q
+                    val = info['quarters'].get(q, None)
+                    c = ws.cell(row=row_num, column=col, value=val)
+                    c.number_format = NUM_FMT
+                    c.font = NORM_FONT
+                    c.border = border
+                    c.alignment = Alignment(horizontal='right')
+
+                row_num += 1
+
+        ws.freeze_panes = 'A3'
+        conn.close()
 
 def build_effective_structure(static_structure=None, db_overrides=None):
     """

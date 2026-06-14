@@ -168,6 +168,20 @@ def upload():
             if m:
                 signed_amount = amount * (m['sign'] if m['sign'] else -1)
 
+                # Guardar detalle cuenta por cuenta para Notas
+                report_type = 'esf' if (is_balance or is_esf) else 'eerr'
+                db.execute(
+                    '''INSERT INTO financials_detail 
+                       (year, month, unit, odoo_code, odoo_name, partida, amount_orig, amount_sign, report_type, quarter)
+                       VALUES (?,?,?,?,?,?,?,?,?,?)
+                       ON CONFLICT(year, month, unit, odoo_code) 
+                       DO UPDATE SET amount_orig=excluded.amount_orig, 
+                                    amount_sign=excluded.amount_sign,
+                                    partida=excluded.partida''',
+                    (year, month, unit, code, parser.names.get(code, ''),
+                     m['partida'], amount, signed_amount, report_type, quarter)
+                )
+
                 if is_balance or is_esf:
                     # Cuentas 1.x / 2.x / 3.x → esf_data (snapshot trimestral)
                     db.execute(
