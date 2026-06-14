@@ -1724,6 +1724,7 @@ function renderDashboardWidgets() {
     });
   });
 
+  setTimeout(() => gsInitResizeHandler(), 100);
   renderKPIs();
   initClose();
   scheduleMasonry();
@@ -1742,6 +1743,34 @@ function gsSaveLayout() {
     id: item.id, x: item.x, y: item.y, w: item.w, h: item.h
   }));
   LS.set('gs-layout', layout);
+}
+
+function gsInitResizeHandler() {
+  if (!_gsGrid) return;
+  _gsGrid.on('resizestop', function(event, el) {
+    const canvases = el.querySelectorAll('canvas');
+    canvases.forEach(canvas => {
+      const chartInstance = Chart.getChart(canvas);
+      if (chartInstance) {
+        chartInstance.resize();
+      }
+    });
+    const echartsIds = ['gauge-mn', 'gauge-pe', 'gauge-ef'];
+    echartsIds.forEach(id => {
+      const dom = el.querySelector('#' + id);
+      if (dom && dom._echart) {
+        dom._echart.resize();
+      }
+    });
+  });
+
+  _gsGrid.on('dragstop', function() {
+    gsSaveLayout();
+  });
+
+  _gsGrid.on('resizestop', function() {
+    gsSaveLayout();
+  });
 }
 
 function renderKPIs() {
