@@ -2122,8 +2122,8 @@ function awmConfirm() {
 
   selected.forEach(w => w.visible = true);
   renderDashboardWidgets();
-  loadDash();
   closeAddWidgetModal();
+  setTimeout(() => loadDash(), 150);
 }
 
 function closeAddWidgetModal() {
