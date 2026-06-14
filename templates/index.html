@@ -135,15 +135,29 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);overf
 .pe-mark{position:absolute;top:-4px;width:2px;height:15px;background:var(--red);border-radius:1px;}
 .pe-lbls{display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--mu2);}
 
-/* ── MASONRY WIDGETS ── */
-#wcon{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:12px;align-items:start;grid-auto-rows:8px;grid-auto-flow:row dense;}
-.ww{grid-column:span 2;}
-@media(max-width:1100px){.ww{grid-column:span 1;}}
-.wcard{background:var(--sf);border:1px solid var(--bd);border-radius:11px;padding:14px;box-shadow:var(--sh);transition:box-shadow .2s,opacity .2s;position:relative;}
-.wcard:hover{box-shadow:var(--sh-md);}
-.wcard.dragging{opacity:.4;transform:scale(.97);}
-.wcard.dragover{border-color:var(--blue);box-shadow:0 0 0 2px rgba(37,99,235,.2);}
-.wcard.whidden{display:none!important;}
+/* ── GRIDSTACK WIDGETS ── */
+#wcon { padding: 0; }
+.grid-stack { background: transparent; }
+.grid-stack-item-content {
+  background: var(--sf);
+  border: 1px solid var(--bd);
+  border-radius: 11px;
+  padding: 14px;
+  overflow: hidden;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.grid-stack-item-content:hover { box-shadow: var(--sh-md); }
+.wcard { background: var(--sf); border: 1px solid var(--bd); border-radius: 11px; padding: 14px; box-shadow: var(--sh); transition: box-shadow .2s, opacity .2s; position: relative; }
+.wcard:hover { box-shadow: var(--sh-md); }
+.wcard.whidden { display: none !important; }
+.gs-edit-mode .grid-stack-item-content { border: 1.5px dashed var(--blue) !important; }
+.gs-widget-controls { display: none; position: absolute; top: 6px; right: 6px; gap: 4px; z-index: 10; }
+.gs-edit-mode .gs-widget-controls { display: flex; }
+.gs-btn { font-size: 9px; padding: 2px 7px; border-radius: 4px; cursor: pointer; border: none; font-weight: 500; }
+.gs-btn-del { background: #FCEBEB; color: #A32D2D; }
+.gs-btn-cfg { background: #E6F1FB; color: #185FA5; }
 .ch{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:11px;gap:7px;}
 .ct{font-size:12px;font-weight:700;color:var(--tx);}
 .cs{font-size:10px;color:var(--mu);margin-top:1px;}
