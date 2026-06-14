@@ -174,8 +174,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);overf
 .csel:focus{outline:none;}
 .bcl{background:none;border:none;cursor:pointer;color:var(--mu2);font-size:15px;line-height:1;padding:2px 4px;border-radius:4px;transition:all .15s;}
 .bcl:hover{color:var(--red);background:var(--red-l);}
-.cv{position:relative;}
+.cv{position:relative;flex:1;min-height:120px;}
 .cv.h180{height:180px;}.cv.h200{height:200px;}.cv.h240{height:240px;}.cv.h280{height:280px;}
+.grid-stack-item-content .cv{height:auto !important;flex:1;}
 
 /* ── TREEMAP ── */
 .tmw{width:100%;height:185px;position:relative;overflow:hidden;border-radius:7px;}
@@ -1748,27 +1749,26 @@ function gsSaveLayout() {
 function gsInitResizeHandler() {
   if (!_gsGrid) return;
   _gsGrid.on('resizestop', function(event, el) {
-    const canvases = el.querySelectorAll('canvas');
-    canvases.forEach(canvas => {
-      const chartInstance = Chart.getChart(canvas);
-      if (chartInstance) {
-        chartInstance.resize();
-      }
-    });
-    const echartsIds = ['gauge-mn', 'gauge-pe', 'gauge-ef'];
-    echartsIds.forEach(id => {
-      const dom = el.querySelector('#' + id);
-      if (dom && dom._echart) {
-        dom._echart.resize();
-      }
-    });
+    setTimeout(() => {
+      const canvases = el.querySelectorAll('canvas');
+      canvases.forEach(canvas => {
+        const chartInstance = Chart.getChart(canvas);
+        if (chartInstance) {
+          chartInstance.resize();
+        }
+      });
+      const echartsIds = ['gauge-mn', 'gauge-pe', 'gauge-ef'];
+      echartsIds.forEach(id => {
+        const dom = el.querySelector('#' + id);
+        if (dom && dom._echart) {
+          dom._echart.resize();
+        }
+      });
+      gsSaveLayout();
+    }, 50);
   });
 
   _gsGrid.on('dragstop', function() {
-    gsSaveLayout();
-  });
-
-  _gsGrid.on('resizestop', function() {
     gsSaveLayout();
   });
 }
