@@ -1044,9 +1044,9 @@ DEFAULT_DASHBOARD_CONFIG = [
     "type": "esf",
     "title": "Estructura Financiera",
     "subtitle": "Activos · Pasivos · Patrimonio",
-    "visible": False,
+    "visible": True,
     "order": 30,
-    "doubleWidth": False,
+    "doubleWidth": True,
     "chartType": "doughnut",
     "dataset": "esf_totals"
   },
