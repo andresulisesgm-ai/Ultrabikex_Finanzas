@@ -2217,6 +2217,44 @@ def compute_indicadores(db, year, unit='', ingresos=0.0, util_neta=0.0):
     }
 
 
+@app.route('/api/esf/totals', methods=['GET'])
+@login_required
+def esf_totals():
+    """
+    Retorna totales ESF del último quarter disponible para uso en dashboard widgets.
+    Parámetros: year, unit (opcional).
+    """
+    year = request.args.get('year', str(datetime.now().year))
+    unit = request.args.get('unit', '')
+    db   = get_db()
+
+    result_quarters, quarters_available = compute_esf(db, year, unit)
+    if not quarters_available:
+        return jsonify({'error': 'Sin datos ESF'}), 404
+
+    last_q = max(quarters_available)
+    totales = result_quarters[last_q]['totales']
+
+    return jsonify({
+        'year': year,
+        'unit': unit,
+        'quarter': last_q,
+        'totales': {
+            'total_activos':        totales.get('TOTAL ACTIVOS', 0),
+            'activos_corrientes':   totales.get('ACTIVOS CORRIENTES', 0),
+            'activos_no_corrientes':totales.get('Total Activos No Corrientes', 0),
+            'total_pasivos':        totales.get('TOTAL PASIVOS', 0),
+            'pasivos_corrientes':   totales.get('TOTAL PASIVOS CORRIENTES', 0),
+            'pasivos_no_corrientes':totales.get('TOTAL PASIVOS NO CORRIENTES', 0),
+            'patrimonio':           totales.get('TOTAL PATRIMONIO', 0),
+            'efectivo':             totales.get('Total Efectivo y Equivalentes', 0),
+            'cuentas_por_cobrar':   totales.get('Total Cuentas por Cobrar (neto)', 0),
+            'inventarios':          totales.get('Total Inventarios', 0),
+            'cuentas_por_pagar':    totales.get('Total Cuentas por Pagar', 0),
+        }
+    })
+
+
 @app.route('/api/esf', methods=['GET'])
 def esf():
     """
