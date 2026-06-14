@@ -854,7 +854,8 @@ DEFAULT_DASHBOARD_CONFIG = [
     "visible": True,
     "order": 12,
     "doubleWidth": False,
-    "dataset": "semaforo"
+    "dataset": "semaforo",
+    "sem_activos": ["mb","mn","rc","rg","un","pe","roe","roa","ratio_c","pa","pd","end","rotinv","rotact","cobro"]
   },
   {
     "id": "wc-gau",
@@ -971,6 +972,237 @@ DEFAULT_DASHBOARD_CONFIG = [
     "order": 23,
     "doubleWidth": True,
     "dataset": "tabla_resumen"
+  },
+  {
+    "id": "wc-esf-kpi-activos",
+    "type": "esf",
+    "title": "Total Activos",
+    "subtitle": "Último quarter disponible",
+    "icon": "🏦",
+    "colorClass": "cb",
+    "visible": False,
+    "order": 24,
+    "dataset": "esf_totals"
+  },
+  {
+    "id": "wc-esf-kpi-pasivos",
+    "type": "esf",
+    "title": "Total Pasivos",
+    "subtitle": "Último quarter disponible",
+    "icon": "📋",
+    "colorClass": "cr",
+    "visible": False,
+    "order": 25,
+    "dataset": "esf_totals"
+  },
+  {
+    "id": "wc-esf-kpi-patrimonio",
+    "type": "esf",
+    "title": "Patrimonio",
+    "subtitle": "Último quarter disponible",
+    "icon": "💎",
+    "colorClass": "cg",
+    "visible": False,
+    "order": 26,
+    "dataset": "esf_totals"
+  },
+  {
+    "id": "wc-esf-kpi-efectivo",
+    "type": "esf",
+    "title": "Efectivo y Equivalentes",
+    "subtitle": "Último quarter disponible",
+    "icon": "💵",
+    "colorClass": "ca",
+    "visible": False,
+    "order": 27,
+    "dataset": "esf_totals"
+  },
+  {
+    "id": "wc-esf-kpi-cxc",
+    "type": "esf",
+    "title": "Cuentas por Cobrar",
+    "subtitle": "Último quarter disponible",
+    "icon": "📥",
+    "colorClass": "cp",
+    "visible": False,
+    "order": 28,
+    "dataset": "esf_totals"
+  },
+  {
+    "id": "wc-esf-kpi-inv",
+    "type": "esf",
+    "title": "Inventarios",
+    "subtitle": "Último quarter disponible",
+    "icon": "📦",
+    "colorClass": "ct",
+    "visible": False,
+    "order": 29,
+    "dataset": "esf_totals"
+  },
+  {
+    "id": "wc-esf-estructura",
+    "type": "esf",
+    "title": "Estructura Financiera",
+    "subtitle": "Activos · Pasivos · Patrimonio",
+    "visible": False,
+    "order": 30,
+    "doubleWidth": False,
+    "chartType": "doughnut",
+    "dataset": "esf_totals"
+  },
+  {
+    "id": "wc-ind-roe",
+    "type": "indicador",
+    "title": "ROE",
+    "subtitle": "Retorno sobre Patrimonio",
+    "icon": "📊",
+    "colorClass": "cg",
+    "visible": False,
+    "order": 31,
+    "dataset": "indicadores_avanzados"
+  },
+  {
+    "id": "wc-ind-roa",
+    "type": "indicador",
+    "title": "ROA",
+    "subtitle": "Retorno sobre Activos",
+    "icon": "📊",
+    "colorClass": "cb",
+    "visible": False,
+    "order": 32,
+    "dataset": "indicadores_avanzados"
+  },
+  {
+    "id": "wc-ind-rc",
+    "type": "indicador",
+    "title": "Razón Corriente",
+    "subtitle": "Activo Cte / Pasivo Cte",
+    "icon": "⚖️",
+    "colorClass": "ca",
+    "visible": False,
+    "order": 33,
+    "dataset": "indicadores_avanzados"
+  },
+  {
+    "id": "wc-ind-pa",
+    "type": "indicador",
+    "title": "Prueba Ácida",
+    "subtitle": "Liquidez sin inventarios",
+    "icon": "🧪",
+    "colorClass": "cp",
+    "visible": False,
+    "order": 34,
+    "dataset": "indicadores_avanzados"
+  },
+  {
+    "id": "wc-ind-pd",
+    "type": "indicador",
+    "title": "Prueba Defensiva",
+    "subtitle": "Solo efectivo / Pasivo Cte",
+    "icon": "🛡️",
+    "colorClass": "ct",
+    "visible": False,
+    "order": 35,
+    "dataset": "indicadores_avanzados"
+  },
+  {
+    "id": "wc-ind-end",
+    "type": "indicador",
+    "title": "Ratio Endeudamiento",
+    "subtitle": "Pasivos / Patrimonio",
+    "icon": "📉",
+    "colorClass": "cr",
+    "visible": False,
+    "order": 36,
+    "dataset": "indicadores_avanzados"
+  },
+  {
+    "id": "wc-ind-rotinv",
+    "type": "indicador",
+    "title": "Rotación Inventarios",
+    "subtitle": "Meses de cobertura",
+    "icon": "🔄",
+    "colorClass": "cb",
+    "visible": False,
+    "order": 37,
+    "dataset": "indicadores_avanzados"
+  },
+  {
+    "id": "wc-ind-rotact",
+    "type": "indicador",
+    "title": "Rotación de Activos",
+    "subtitle": "Veces por trimestre",
+    "icon": "⚙️",
+    "colorClass": "cg",
+    "visible": False,
+    "order": 38,
+    "dataset": "indicadores_avanzados"
+  },
+  {
+    "id": "wc-ind-cobro",
+    "type": "indicador",
+    "title": "Período de Cobro",
+    "subtitle": "Días promedio de cobro",
+    "icon": "📅",
+    "colorClass": "ca",
+    "visible": False,
+    "order": 39,
+    "dataset": "indicadores_avanzados"
+  },
+  {
+    "id": "wc-panel-indicadores",
+    "type": "panel",
+    "title": "Panel de Indicadores",
+    "subtitle": "ROE · ROA · Liquidez · Rotación",
+    "visible": False,
+    "order": 40,
+    "doubleWidth": True,
+    "chartType": "bar",
+    "dataset": "indicadores_avanzados"
+  },
+  {
+    "id": "wc-panel-esf",
+    "type": "panel",
+    "title": "Panel Balance ESF",
+    "subtitle": "Activos · Pasivos · Patrimonio",
+    "visible": False,
+    "order": 41,
+    "doubleWidth": True,
+    "chartType": "bar",
+    "dataset": "esf_totals"
+  },
+  {
+    "id": "wc-divisa-ingr",
+    "type": "divisa",
+    "title": "Ingresos en USD Real",
+    "subtitle": "Ajustado por tasa paralela",
+    "icon": "💵",
+    "colorClass": "cb",
+    "visible": False,
+    "order": 42,
+    "dataset": "divisa_real"
+  },
+  {
+    "id": "wc-divisa-un",
+    "type": "divisa",
+    "title": "Utilidad Neta en USD Real",
+    "subtitle": "Ajustado por tasa paralela",
+    "icon": "💰",
+    "colorClass": "cg",
+    "visible": False,
+    "order": 43,
+    "dataset": "divisa_real"
+  },
+  {
+    "id": "wc-divisa-comp",
+    "type": "divisa",
+    "title": "Comparativa Bs vs USD Real",
+    "subtitle": "Ingresos · Costos · Utilidad",
+    "visible": False,
+    "order": 44,
+    "doubleWidth": True,
+    "chartType": "bar",
+    "dataset": "divisa_real"
   }
 ]
 
