@@ -2289,6 +2289,15 @@ def save_tasas():
     })
 
 
+@app.route('/api/tasas/<int:tasa_id>', methods=['DELETE'])
+@admin_required
+def delete_tasa(tasa_id):
+    db = get_db()
+    db.execute('DELETE FROM tasas_periodo WHERE id = ?', (tasa_id,))
+    db.commit()
+    return jsonify({'ok': True})
+
+
 @app.route('/api/metodo_pago', methods=['GET'])
 def get_metodo_pago():
     """Retorna métodos de pago para year/month dados, agrupados por odoo_code."""

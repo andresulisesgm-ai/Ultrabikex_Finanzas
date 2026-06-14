@@ -804,6 +804,27 @@ input[type=file]{display:none;}
       <button class="btns" style="margin-left:8px" onclick="cargarTasas()">Cargar Tasas Guardadas</button>
     </div>
 
+    <div class="card" style="max-width:700px;margin-bottom:16px">
+      <div class="stitle">Historial de Tasas</div>
+      <div id="tasas-historial-loading" style="padding:12px;color:var(--mu);font-size:12px">Cargando...</div>
+      <div id="tasas-historial-empty" style="display:none;padding:12px;color:var(--mu);font-size:12px">No hay tasas guardadas.</div>
+      <div class="tw" id="tasas-historial-wrap" style="display:none">
+        <table>
+          <thead>
+            <tr>
+              <th>Año</th>
+              <th>Mes</th>
+              <th>BCV Prom.</th>
+              <th>Paralela Prom.</th>
+              <th>Diferencial</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tasas-historial-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="card fullpage">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:11px">
         <div style="font-size:12px;font-weight:700">Métodos de Pago por Cuenta</div>
@@ -1743,7 +1764,7 @@ function showPage(name,el){
   if(name==='eerr')      loadEERR();
   if(name==='eerrdet')   loadEERRDet();
   if(name==='esf')       loadESF();
-  if(name==='config_tasas'){cargarTasas();cargarMetodosPago();}
+  if(name==='config_tasas'){cargarTasas();cargarMetodosPago();cargarHistorialTasas();}
   if(name==='err_divisa') loadERRDivisa();
   if(name==='presupuesto') loadBgt();
 
@@ -2505,7 +2526,10 @@ async function guardarTasas(){
     tasa_paralela_fin:parFin
   })});
   const d=await r.json();
-  if(d.ok){showA('al-tasas-ok',`✅ Tasas guardadas para ${month} ${year}. Promedio BCV: ${d.tasa_bcv_promedio}, Diferencial: ${d.factor_diferencial}`);}
+  if(d.ok){
+    showA('al-tasas-ok',`✅ Tasas guardadas para ${month} ${year}. Promedio BCV: ${d.tasa_bcv_promedio}, Diferencial: ${d.factor_diferencial}`);
+    cargarHistorialTasas();
+  }
   else{showA('al-tasas-er','❌ '+d.error);}
 }
 
@@ -2521,6 +2545,41 @@ async function cargarTasas(){
 
   calcPromedios();
   showA('al-tasas-ok',`✅ Tasas cargadas: ${month} ${year}`);
+}
+
+async function cargarHistorialTasas() {
+  try {
+    const r = await fetch('/api/tasas');
+    const data = await r.json();
+    const tbody = G('tasas-historial-tbody');
+    G('tasas-historial-loading').style.display = 'none';
+    if (!data.length) {
+      G('tasas-historial-empty').style.display = 'block';
+      G('tasas-historial-wrap').style.display = 'none';
+      return;
+    }
+    G('tasas-historial-empty').style.display = 'none';
+    G('tasas-historial-wrap').style.display = 'block';
+    tbody.innerHTML = data.map(t => `
+      <tr>
+        <td>${t.year}</td>
+        <td>${t.month}</td>
+        <td>${t.tasa_bcv_promedio.toFixed(4)}</td>
+        <td>${t.tasa_paralela_promedio.toFixed(4)}</td>
+        <td>${t.factor_diferencial.toFixed(4)}</td>
+        <td><button class="btnd" onclick="eliminarTasa(${t.id})">🗑 Borrar</button></td>
+      </tr>
+    `).join('');
+  } catch {
+    G('tasas-historial-loading').textContent = 'Error al cargar.';
+  }
+}
+
+async function eliminarTasa(id) {
+  if (!confirm('¿Eliminar esta tasa? Esta acción no se puede deshacer.')) return;
+  const r = await fetch(`/api/tasas/${id}`, { method: 'DELETE' });
+  const d = await r.json();
+  if (d.ok) cargarHistorialTasas();
 }
 
 async function cargarMetodosPago(){
