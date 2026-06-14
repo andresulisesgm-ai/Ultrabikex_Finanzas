@@ -455,7 +455,6 @@ input[type=file]{display:none;}
   box-shadow: 0 4px 16px rgba(0,0,0,0.10);
   font-size: 11px;
   display: none;
-  pointer-events: none;
 }
 #traza-panel .tp-title { font-size: 12px; font-weight: 500; color: #2C2C2A; margin-bottom: 2px; }
 #traza-panel .tp-total { font-size: 11px; color: #888; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 0.5px solid #E0DDD6; }
@@ -1716,8 +1715,8 @@ function renderKPIs() {
     const kc = document.createElement('div');
     kc.className = `kc ${w.colorClass} ${isVisible ? '' : 'hidden'}`;
     kc.id = w.id;
-    kc.addEventListener('mouseenter', (e) => showTraza(e, w.id));
-    kc.addEventListener('mouseleave', hideTraza);
+    kc.style.cursor = 'pointer';
+    kc.addEventListener('click', (e) => showTraza(e, w.id));
 
     let extraControls = '';
     if (window.DASHBOARD_EDIT_MODE) {
@@ -4276,10 +4275,10 @@ const TRAZA_LABELS = {
   'ebitda':         'EBITDA'
 };
 
-let _trazaTimer = null;
 let _trazaCache = {};
 
 async function showTraza(e, kcId) {
+  e.stopPropagation();
   const kpiId = kcId.replace('kc-', '');
   const kpi   = TRAZA_MAP[kpiId];
   if (!kpi) return;
@@ -4330,27 +4329,20 @@ function renderTrazaPanel(d) {
   `).join('');
 }
 
-function hideTraza() {
-  _trazaTimer = setTimeout(() => {
-    const panel = G('traza-panel');
-    if (panel) panel.style.display = 'none';
-  }, 200);
-}
-
-function cancelHideTraza() {
-  clearTimeout(_trazaTimer);
-}
-
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('click', (e) => {
   const panel = G('traza-panel');
-  if (panel) {
-    panel.addEventListener('mouseenter', cancelHideTraza);
-    panel.addEventListener('mouseleave', hideTraza);
+  if (panel && panel.style.display === 'block') {
+    if (!panel.contains(e.target)) {
+      panel.style.display = 'none';
+    }
   }
 });
 </script>
 <div id="traza-panel">
-  <div class="tp-title" id="tp-title"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+    <div class="tp-title" id="tp-title"></div>
+    <button onclick="G('traza-panel').style.display='none'" style="background:none;border:none;color:#888;cursor:pointer;font-size:12px;padding:0 2px">✕</button>
+  </div>
   <div class="tp-total" id="tp-total"></div>
   <div id="tp-rows"></div>
 </div>
