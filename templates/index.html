@@ -265,6 +265,8 @@ input[type=file]{display:none;}
 .al-ok{background:var(--green-l);color:var(--green);border:1px solid rgba(5,150,105,.2);}
 .al-er{background:var(--red-l);color:var(--red);border:1px solid rgba(220,38,38,.2);}
 .umbox{background:var(--amber-l);border:1px solid rgba(217,119,6,.2);border-radius:9px;padding:12px;margin-top:10px;display:none;}
+.umbox-eerr { border-left: 4px solid #FFAA00; }
+.umbox-esf  { border-left: 4px solid #6AD9E8; }
 .umbox h4{color:var(--amber);font-size:12px;margin-bottom:7px;font-weight:700;}
 .umi{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(217,119,6,.1);font-size:11px;}
 .umi:last-child{border-bottom:none;}
@@ -730,7 +732,14 @@ input[type=file]{display:none;}
       <button class="btnm" id="btnup-esf" onclick="doUploadESF()" disabled>Procesar e Importar ESF</button>
     </div>
 
-    <div class="umbox" id="umbox"><h4>⚠️ Cuentas sin mapear</h4><div id="umitems"></div></div>
+    <div class="umbox umbox-eerr" id="umbox-eerr" style="display:none">
+      <h4>⚠️ EERR — Cuentas sin mapear</h4>
+      <div id="umitems-eerr"></div>
+    </div>
+    <div class="umbox umbox-esf" id="umbox-esf" style="display:none">
+      <h4>⚠️ ESF — Cuentas sin mapear</h4>
+      <div id="umitems-esf"></div>
+    </div>
   </div>
 
   <!-- HISTORIAL -->
@@ -2404,8 +2413,14 @@ async function doUploadERR(){
       const fin=d.inserted_financials||0;
       showA('al-ok',`✅ ${fin} cuentas de ERR importadas. Sin mapear: ${d.skipped}.${cMsg}`);
       fillYears();
-      if(d.unmapped&&d.unmapped.length){G('umbox').style.display='block';G('umitems').innerHTML=d.unmapped.map(u=>`<div class="umi"><span><strong>${u.code}</strong> — ${u.name}</span><span>${fmt(u.amount)}</span></div>`).join('');}
-      else G('umbox').style.display='none';}
+      if (d.unmapped && d.unmapped.length) {
+        G('umbox-eerr').style.display = 'block';
+        G('umitems-eerr').innerHTML = d.unmapped.map(u =>
+          `<div class="umi"><span><strong>${u.code}</strong> — ${u.name}</span><span>${fmt(u.amount)}</span></div>`
+        ).join('');
+      } else {
+        G('umbox-eerr').style.display = 'none';
+      }}
   }catch{showA('al-er','❌ Error de conexión');}
   btn.disabled=false;btn.textContent='Procesar e Importar ERR';
 }
@@ -2427,8 +2442,14 @@ async function doUploadESF(){
       const esf=d.inserted_esf||0;
       showA('al-ok',`✅ ${esf} cuentas de ESF importadas. Sin mapear: ${d.skipped}.`);
       fillYears();
-      if(d.unmapped&&d.unmapped.length){G('umbox').style.display='block';G('umitems').innerHTML=d.unmapped.map(u=>`<div class="umi"><span><strong>${u.code}</strong> — ${u.name}</span><span>${fmt(u.amount)}</span></div>`).join('');}
-      else G('umbox').style.display='none';}
+      if (d.unmapped && d.unmapped.length) {
+        G('umbox-esf').style.display = 'block';
+        G('umitems-esf').innerHTML = d.unmapped.map(u =>
+          `<div class="umi"><span><strong>${u.code}</strong> — ${u.name}</span><span>${fmt(u.amount)}</span></div>`
+        ).join('');
+      } else {
+        G('umbox-esf').style.display = 'none';
+      }}
   }catch{showA('al-er','❌ Error de conexión');}
   btn.disabled=false;btn.textContent='Procesar e Importar ESF';
 }
