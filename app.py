@@ -1178,7 +1178,7 @@ DEFAULT_DASHBOARD_CONFIG = [
     "subtitle": "Ajustado por tasa paralela",
     "icon": "💵",
     "colorClass": "cb",
-    "visible": False,
+    "visible": True,
     "order": 42,
     "dataset": "divisa_real"
   },
@@ -1189,7 +1189,7 @@ DEFAULT_DASHBOARD_CONFIG = [
     "subtitle": "Ajustado por tasa paralela",
     "icon": "💰",
     "colorClass": "cg",
-    "visible": False,
+    "visible": True,
     "order": 43,
     "dataset": "divisa_real"
   },
@@ -1198,7 +1198,7 @@ DEFAULT_DASHBOARD_CONFIG = [
     "type": "divisa",
     "title": "Comparativa Bs vs USD Real",
     "subtitle": "Ingresos · Costos · Utilidad",
-    "visible": False,
+    "visible": True,
     "order": 44,
     "doubleWidth": True,
     "chartType": "bar",
@@ -2933,7 +2933,7 @@ def divisa_real_resumen():
     unit  = request.args.get('unit', 'TODAS')
     db    = get_db()
 
-    uc = '' if unit == 'TODAS' else f"AND unit='{unit}'"
+    uc = '' if unit in ('TODAS', '') else f"AND unit='{unit}'"
 
     # Obtener tasas disponibles
     if month:
