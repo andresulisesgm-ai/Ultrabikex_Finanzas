@@ -1262,7 +1262,8 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "visible": true,
     "order": 12,
     "doubleWidth": false,
-    "dataset": "semaforo"
+    "dataset": "semaforo",
+    "sem_activos": ["mb","mn","rc","rg","un","pe","roe","roa","ratio_c","pa","pd","end","rotinv","rotact","cobro"]
   },
   {
     "id": "wc-gau",
@@ -1566,8 +1567,18 @@ const WIDGET_TEMPLATES = {
   `,
   'wc-sem': `
     <div class="ch"><div><div class="ct">🚦 Semáforo Financiero</div><div class="cs">Estado de salud por indicador</div></div>
-      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-sem">✕</button></div></div>
+      <div class="cact"><span class="dh">⠿</span>
+        <button onclick="openSemConfig()" style="background:var(--sf2);border:1px solid var(--bd);border-radius:4px;padding:2px 7px;font-size:10px;cursor:pointer;color:var(--mu)">⚙️</button>
+        <button class="bcl" data-w="wc-sem">✕</button></div></div>
     <div class="semrow" id="semrow"></div>
+    <div id="sem-config-panel" style="display:none;padding:10px;border-top:1px solid var(--bd);margin-top:8px">
+      <div style="font-size:11px;font-weight:600;color:var(--fg);margin-bottom:8px">Indicadores visibles en el semáforo:</div>
+      <div id="sem-config-checks" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      <div style="margin-top:10px;display:flex;justify-content:flex-end;gap:6px">
+        <button onclick="closeSemConfig()" style="background:var(--sf2);border:1px solid var(--bd);border-radius:4px;padding:4px 10px;font-size:10px;cursor:pointer">Cancelar</button>
+        <button onclick="saveSemConfig()" style="background:var(--blue);color:white;border:none;border-radius:4px;padding:4px 10px;font-size:10px;cursor:pointer;font-weight:600">Guardar</button>
+      </div>
+    </div>
   `,
   'wc-gau': `
     <div class="ch"><div><div class="ct">⏱ Indicadores Gauge</div><div class="cs">Margen Neto · Cobertura PE · Eficiencia Operativa</div></div>
@@ -2325,87 +2336,83 @@ function initModalResize(){
 }
 
 // ── SEMÁFORO ──────────────────────────────────────────────────────────────
+const SEM_ALL_IDS = [
+  {id:'mb',    label:'Margen Bruto %'},
+  {id:'mn',    label:'Margen Neto %'},
+  {id:'rc',    label:'% Costo/Venta'},
+  {id:'rg',    label:'% Gasto/Venta'},
+  {id:'un',    label:'Utilidad Neta'},
+  {id:'pe',    label:'Cobertura P.E.'},
+  {id:'roe',   label:'ROE %'},
+  {id:'roa',   label:'ROA %'},
+  {id:'ratio_c',label:'Ratio Corriente'},
+  {id:'pa',    label:'Prueba Ácida'},
+  {id:'pd',    label:'Prueba Defensiva'},
+  {id:'end',   label:'Endeudamiento'},
+  {id:'rotinv',label:'Rotación Inv.'},
+  {id:'rotact',label:'Rotación Activos'},
+  {id:'cobro', label:'Período Cobro'},
+];
+
+function getSemActivos() {
+  const w = window.DASHBOARD_CONFIG.find(x => x.id === 'wc-sem');
+  return w?.sem_activos || SEM_ALL_IDS.map(x => x.id);
+}
+
+function openSemConfig() {
+  const activos = getSemActivos();
+  const panel = G('sem-config-panel');
+  const checks = G('sem-config-checks');
+  if (!panel || !checks) return;
+  checks.innerHTML = SEM_ALL_IDS.map(({id, label}) => `
+    <label style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--fg);background:var(--sf2);border:1px solid var(--bd);border-radius:4px;padding:4px 8px;cursor:pointer">
+      <input type="checkbox" data-sem-id="${id}" ${activos.includes(id)?'checked':''} style="accent-color:var(--blue)">
+      ${label}
+    </label>
+  `).join('');
+  panel.style.display = 'block';
+}
+
+function closeSemConfig() {
+  const panel = G('sem-config-panel');
+  if (panel) panel.style.display = 'none';
+}
+
+function saveSemConfig() {
+  const checked = [...document.querySelectorAll('#sem-config-checks input:checked')].map(cb => cb.dataset.semId);
+  const w = window.DASHBOARD_CONFIG.find(x => x.id === 'wc-sem');
+  if (w) w.sem_activos = checked;
+  closeSemConfig();
+  if (window._lastSemArgs) renderSem(...window._lastSemArgs);
+}
+
 function renderSem(mb,mn,rc,rg,un,peCov,ia){
+  window._lastSemArgs = [mb,mn,rc,rg,un,peCov,ia];
+  const activos = getSemActivos();
   const sc=(v,g,a)=>v>=g?'g':v>=a?'a':'r';
   const STT={g:'🟢 Saludable',a:'🟡 En atención',r:'🔴 Crítico'};
-  const inds=[
-    {n:'Margen Bruto %',  v:pct(mb),  c:sc(mb,30,20), r:'≥30%',
-     exp:'Rentabilidad antes de gastos',
-     d:'Mide cuánto dinero queda de cada venta después de pagar el costo directo (materiales, mano de obra directa, etc.). Es el "colchón" con el que cuentas para cubrir tus gastos operativos (alquileres, sueldos, servicios). Un margen bruto alto significa que el costo de producir/comprar no se está "comiendo" la venta. Meta: ≥30% (saludable) · 20-30% (ajustado) · <20% (peligroso: apenas cubre costos directos).'},
-    {n:'Margen Neto %',   v:pct(mn),  c:sc(mn,10,0),  r:'≥10%',
-     exp:'Rentabilidad final del negocio',
-     d:'Mide cuánto dinero realmente te queda al final, después de pagar TODOS los costos y gastos. Es la ganancia o pérdida neta que genera cada $ vendido. Si vendes $100 y el margen neto es 8%, solo te quedan $8 de ganancia limpia. Meta: ≥10% (excelente) · 0-10% (positivo pero ajustado) · <0% (pérdida: estás vendiendo pero perdiendo dinero).'},
-    {n:'% Costo/Venta',v:pct(rc),  c:rc<=50?'g':rc<=70?'a':'r', r:'≤50%',
-     exp:'Eficiencia en costos directos',
-     d:'Mide qué porcentaje de tus ingresos se va en costos directos (comprar o producir lo que vendes). Menor es mejor. Si es 60%, significa que de cada $100 que ingresas, $60 se gastan solo en reponer inventario o pagar el costo de venta. Meta: ≤50% (eficiente) · 50-70% (alto, revisa precios o proveedores) · >70% (crítico: el costo está devorando casi toda la venta).'},
-    {n:'% Gasto/Venta',v:pct(rg),  c:rg<=30?'g':rg<=45?'a':'r', r:'≤30%',
-     exp:'Eficiencia operativa (estructura de gastos)',
-     d:'Mide qué porcentaje de tus ingresos se va en gastos operativos (sueldos administrativos, alquileres, servicios, marketing, etc.). Menor es mejor. Si es 40%, significa que de cada $100 que ingresas, $40 se van en mantener la operación andando. Meta: ≤30% (estructura liviana) · 30-45% (pesada, busca optimizar) · >45% (insostenible: gastas más de lo que puedes permitirte con tus ingresos actuales).'},
-    {n:'Utilidad Neta', v:fmtS(un), c:un>0?'g':un===0?'a':'r', r:'>0',
-     exp:'Resultado final en dinero',
-     d:'La ganancia o pérdida del período en efectivo (Ingresos − Costos − Gastos). Es el número que realmente importa: ¿estás generando dinero o perdiendo? Positivo = ganancia, negativo = pérdida. Meta: >0 (ganas dinero) · =0 (punto muerto, no ganas ni pierdes) · <0 (pérdida: el negocio está quemando dinero).'},
-    {n:'Cobertura P.E.',  v:peCov!=null?pct(peCov):'N/A', c:peCov!=null?(peCov>=100?'g':peCov>=80?'a':'r'):'a', r:'≥100%',
-     exp:'¿Vendes lo suficiente para no perder?',
-     d:'Mide si tus ingresos actuales superan el punto de equilibrio (el mínimo que debes vender para no perder dinero). 100% = vendes justo lo mínimo. >100% = vendes más que el mínimo (generas ganancia). <100% = vendes menos del mínimo (pérdida asegurada). Meta: ≥100% (cubres todos los costos) · 80-100% (cerca del límite, vulnerable) · <80% (peligro: vendes muy por debajo del punto de equilibrio). Solo aplica para unidades individuales.'},
-  ];
+  const ALL_INDS = {
+    mb:     {n:'Margen Bruto %',  v:pct(mb),  c:sc(mb,30,20), r:'≥30%', exp:'Rentabilidad antes de gastos', d:'Mide cuánto dinero queda de cada venta después de pagar el costo directo. Meta: ≥30% (saludable) · 20-30% (ajustado) · <20% (peligroso).'},
+    mn:     {n:'Margen Neto %',   v:pct(mn),  c:sc(mn,10,0),  r:'≥10%', exp:'Rentabilidad final del negocio', d:'Mide cuánto dinero realmente te queda al final. Meta: ≥10% (excelente) · 0-10% (ajustado) · <0% (pérdida).'},
+    rc:     {n:'% Costo/Venta',   v:pct(rc),  c:rc<=50?'g':rc<=70?'a':'r', r:'≤50%', exp:'Eficiencia en costos directos', d:'Mide qué porcentaje de tus ingresos se va en costos directos. Meta: ≤50% (eficiente) · 50-70% (alto) · >70% (crítico).'},
+    rg:     {n:'% Gasto/Venta',   v:pct(rg),  c:rg<=30?'g':rg<=45?'a':'r', r:'≤30%', exp:'Eficiencia operativa', d:'Mide qué porcentaje de tus ingresos se va en gastos operativos. Meta: ≤30% (liviano) · 30-45% (pesado) · >45% (insostenible).'},
+    un:     {n:'Utilidad Neta',   v:fmtS(un), c:un>0?'g':un===0?'a':'r', r:'>0', exp:'Resultado final en dinero', d:'Ganancia o pérdida del período. Meta: >0 (ganas) · =0 (punto muerto) · <0 (pérdida).'},
+    pe:     {n:'Cobertura P.E.',  v:peCov!=null?pct(peCov):'N/A', c:peCov!=null?(peCov>=100?'g':peCov>=80?'a':'r'):'a', r:'≥100%', exp:'¿Vendes lo suficiente para no perder?', d:'Mide si tus ingresos superan el punto de equilibrio. Meta: ≥100% (cubres costos) · 80-100% (límite) · <80% (peligro).'},
+  };
 
-  // ── Indicadores Avanzados (solo si hay datos ESF disponibles) ──
   if(ia){
-    if(ia.roe!==null){
-      const roe=ia.roe*100;
-      inds.push({n:'ROE %', v:pct(roe), c:sc(roe,10,5), r:'10-20%',
-        exp:'Rentabilidad sobre el patrimonio',
-        d:'Mide cuánto rendimiento generan los dueños por cada $ invertido en el negocio (capital propio). ROE = Utilidad Neta / Patrimonio. Si es 15%, significa que cada $100 del patrimonio generaron $15 de ganancia. Meta: ≥10% (excelente retorno) · 5-10% (aceptable) · <5% (bajo: el dinero invertido rinde poco).'});
-    }
-    if(ia.roa!==null){
-      const roa=ia.roa*100;
-      inds.push({n:'ROA %', v:pct(roa), c:sc(roa,5,2), r:'5-15%',
-        exp:'Rentabilidad sobre los activos',
-        d:'Mide cuán eficiente es el negocio usando TODOS sus activos (efectivo, inventarios, equipos, etc.) para generar ganancias. ROA = Utilidad Neta / Total Activos. Si es 8%, significa que cada $100 en activos generaron $8 de ganancia. Meta: ≥5% (uso eficiente) · 2-5% (regular) · <2% (ineficiente: tienes muchos activos ociosos o poco rentables).'});
-    }
-    if(ia.ratio_corriente!==null){
-      const rc=ia.ratio_corriente;
-      inds.push({n:'Ratio Corriente', v:rc.toFixed(2), c:rc>=1.5?(rc<=2?'g':'a'):(rc>=1?'a':'r'), r:'1.5-2',
-        exp:'Capacidad para pagar deudas a corto plazo',
-        d:'Mide si tienes suficiente liquidez para cubrir tus obligaciones inmediatas (próximos 3 meses). Ratio = Activos Corrientes / Pasivos Corrientes. Si es 1.8, tienes $1.80 disponibles por cada $1 que debes a corto plazo. Meta: 1.5-2 (saludable) · 1-1.5 (ajustado, vulnerables ante imprevistos) · <1 (peligro: no alcanza para pagar las deudas cercanas).'});
-    }
-    if(ia.prueba_acida!==null){
-      const pa=ia.prueba_acida;
-      inds.push({n:'Prueba Ácida', v:pa.toFixed(2), c:pa>=0.8?(pa<=1?'g':'a'):(pa>=0.5?'a':'r'), r:'0.8-1',
-        exp:'Liquidez inmediata sin inventarios',
-        d:'Similar al Ratio Corriente pero SIN contar inventarios (que pueden tardar en venderse). Prueba Ácida = (Activos Corrientes − Inventarios) / Pasivos Corrientes. Si es 0.9, puedes cubrir el 90% de tus deudas inmediatas con efectivo y cuentas por cobrar, sin tener que vender inventario. Meta: 0.8-1 (óptimo) · 0.5-0.8 (depende del inventario) · <0.5 (muy justo: necesitas vender inventario para pagar).'});
-    }
-    if(ia.prueba_defensiva!==null){
-      const pd=ia.prueba_defensiva;
-      inds.push({n:'Prueba Defensiva', v:pd.toFixed(2), c:pd>=0.5?(pd<=0.7?'g':'a'):(pd>=0.3?'a':'r'), r:'0.5-0.7',
-        exp:'Cobertura con efectivo puro',
-        d:'Versión más estricta de liquidez: solo cuenta el efectivo en caja y bancos. Prueba Defensiva = Efectivo / Pasivos Corrientes. Si es 0.6, puedes cubrir el 60% de tus deudas inmediatas solo con efectivo, sin cobrar nada ni vender nada. Meta: 0.5-0.7 (colchón sano) · 0.3-0.5 (justo) · <0.3 (crítico: sin reservas, dependes de cobrar para pagar).'});
-    }
-    if(ia.ratio_endeud!==null){
-      const re=ia.ratio_endeud;
-      inds.push({n:'Endeudamiento', v:re.toFixed(2), c:re>=0.4?(re<=0.6?'g':'a'):(re<=1?'a':'r'), r:'0.4-0.6',
-        exp:'Nivel de apalancamiento del negocio',
-        d:'Mide cuánto debes vs. cuánto tienes de capital propio. Endeudamiento = Total Pasivos / Patrimonio. Si es 0.5, por cada $1 de capital propio, debes $0.50. Un balance entre deuda y recursos propios. Meta: 0.4-0.6 (equilibrado) · 0.6-1 (alta deuda, cuidado con tasas de interés) · >1 (sobreendeudado: debes más que tu capital, muy riesgoso).'});
-    }
-    if(ia.rotacion_inv!==null){
-      const ri=ia.rotacion_inv;
-      inds.push({n:'Rotación Inv. (meses)', v:ri.toFixed(1), c:ri<=3?(ri>=2?'g':'a'):(ri<=4?'a':'r'), r:'2-3',
-        exp:'Velocidad de venta del inventario',
-        d:'Mide cuánto tarda tu inventario en venderse (en meses). Rotación = (Inventario × 3) / Costo Ventas Trimestral. Si es 2.5, tu inventario se renueva cada 2.5 meses. Menor es mejor (vendes rápido, menos capital inmovilizado). Meta: 2-3 meses (saludable) · 3-4 meses (lento, capital atrapado) · >4 meses (crítico: inventario estancado, riesgo de obsolescencia).'});
-    }
-    if(ia.rotacion_activos!==null){
-      const ra=ia.rotacion_activos*4; // convertir trimestre → año
-      inds.push({n:'Rotación Activos (veces/año)', v:ra.toFixed(1), c:ra>=1.5?(ra<=2?'g':'a'):(ra>=1?'a':'r'), r:'1.5-2',
-        exp:'Eficiencia en uso de activos',
-        d:'Mide cuántas veces al año tus activos "generan" su valor en ventas. Rotación = Ingresos Anuales / Total Activos. Si es 1.8, generas $1.80 en ventas por cada $1 en activos. Meta: 1.5-2 veces/año (eficiente) · 1-1.5 (regular) · <1 (ineficiente: activos muy grandes vs. ventas, o activos ociosos).'});
-    }
-    if(ia.periodo_cobro!==null){
-      const pc=ia.periodo_cobro;
-      inds.push({n:'Período Cobro (días)', v:Math.round(pc), c:pc<=60?(pc<=30?'g':'a'):(pc<=90?'a':'r'), r:'30-60',
-        exp:'Tiempo promedio de cobro a clientes',
-        d:'Mide cuántos días tardas en cobrar tus ventas a crédito. Período = (Cuentas por Cobrar / Ingresos Trimestral) × 90. Si es 45 días, en promedio tardas mes y medio en cobrar. Menor es mejor (efectivo entra rápido). Meta: 30-60 días (saludable) · 60-90 días (lento, capital atascado en clientes) · >90 días (muy lento: cartera morosa o clientes no pagan).'});
-    }
+    if(ia.roe!==null){const v=ia.roe*100; ALL_INDS.roe={n:'ROE %',v:pct(v),c:sc(v,10,5),r:'10-20%',exp:'Rentabilidad sobre el patrimonio',d:'ROE = Utilidad Neta / Patrimonio. Meta: ≥10% (excelente) · 5-10% (aceptable) · <5% (bajo).'};}
+    if(ia.roa!==null){const v=ia.roa*100; ALL_INDS.roa={n:'ROA %',v:pct(v),c:sc(v,5,2),r:'5-15%',exp:'Rentabilidad sobre los activos',d:'ROA = Utilidad Neta / Total Activos. Meta: ≥5% (eficiente) · 2-5% (regular) · <2% (ineficiente).'};}
+    if(ia.ratio_corriente!==null){const v=ia.ratio_corriente; ALL_INDS.ratio_c={n:'Ratio Corriente',v:v.toFixed(2),c:v>=1.5?(v<=2?'g':'a'):(v>=1?'a':'r'),r:'1.5-2',exp:'Capacidad para pagar deudas a corto plazo',d:'Ratio = Activos Corrientes / Pasivos Corrientes. Meta: 1.5-2 (saludable) · 1-1.5 (ajustado) · <1 (peligro).'};}
+    if(ia.prueba_acida!==null){const v=ia.prueba_acida; ALL_INDS.pa={n:'Prueba Ácida',v:v.toFixed(2),c:v>=0.8?(v<=1?'g':'a'):(v>=0.5?'a':'r'),r:'0.8-1',exp:'Liquidez inmediata sin inventarios',d:'(Activos Corrientes − Inventarios) / Pasivos Corrientes. Meta: 0.8-1 (óptimo) · 0.5-0.8 (ajustado) · <0.5 (muy justo).'};}
+    if(ia.prueba_defensiva!==null){const v=ia.prueba_defensiva; ALL_INDS.pd={n:'Prueba Defensiva',v:v.toFixed(2),c:v>=0.5?(v<=0.7?'g':'a'):(v>=0.3?'a':'r'),r:'0.5-0.7',exp:'Cobertura con efectivo puro',d:'Efectivo / Pasivos Corrientes. Meta: 0.5-0.7 (sano) · 0.3-0.5 (justo) · <0.3 (crítico).'};}
+    if(ia.ratio_endeud!==null){const v=ia.ratio_endeud; ALL_INDS.end={n:'Endeudamiento',v:v.toFixed(2),c:v>=0.4?(v<=0.6?'g':'a'):(v<=1?'a':'r'),r:'0.4-0.6',exp:'Nivel de apalancamiento',d:'Total Pasivos / Patrimonio. Meta: 0.4-0.6 (equilibrado) · 0.6-1 (alta deuda) · >1 (sobreendeudado).'};}
+    if(ia.rotacion_inv!==null){const v=ia.rotacion_inv; ALL_INDS.rotinv={n:'Rotación Inv. (meses)',v:v.toFixed(1),c:v<=3?(v>=2?'g':'a'):(v<=4?'a':'r'),r:'2-3',exp:'Velocidad de venta del inventario',d:'(Inventario × 3) / Costo Ventas Trimestral. Meta: 2-3 meses (saludable) · 3-4 (lento) · >4 (crítico).'};}
+    if(ia.rotacion_activos!==null){const v=ia.rotacion_activos*4; ALL_INDS.rotact={n:'Rotación Activos (veces/año)',v:v.toFixed(1),c:v>=1.5?(v<=2?'g':'a'):(v>=1?'a':'r'),r:'1.5-2',exp:'Eficiencia en uso de activos',d:'Ingresos Anuales / Total Activos. Meta: 1.5-2 (eficiente) · 1-1.5 (regular) · <1 (ineficiente).'};}
+    if(ia.periodo_cobro!==null){const v=ia.periodo_cobro; ALL_INDS.cobro={n:'Período Cobro (días)',v:Math.round(v),c:v<=60?(v<=30?'g':'a'):(v<=90?'a':'r'),r:'30-60',exp:'Tiempo promedio de cobro',d:'(Cuentas por Cobrar / Ingresos Trimestral) × 90. Meta: 30-60 días (saludable) · 60-90 (lento) · >90 (moroso).'};}
   }
+
+  const inds = activos.map(id => ALL_INDS[id]).filter(Boolean);
 
   G('semrow').innerHTML=inds.map(({n,v,c,r,exp,d})=>`
     <div class="semcol" title="${escAttr(d)}">
@@ -2417,7 +2424,7 @@ function renderSem(mb,mn,rc,rg,un,peCov,ia){
       <div class="semnm">${n}</div>
       <div class="semvl">${v}</div>
       <div class="semrf">Meta ${r}</div>
-      <div class="semexp" title="${escAttr(d)}">${exp}</div>
+      <div class="semexp">${exp}</div>
     </div>`).join('');
 }
 
