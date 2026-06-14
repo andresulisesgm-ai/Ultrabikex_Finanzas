@@ -6,8 +6,8 @@
 <title>ULTRAX — Financial Intelligence</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
-<link rel="stylesheet" href="/static/libs/gridstack.min.css"/>
-<script src="/static/libs/gridstack-all.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@10.3.1/dist/gridstack.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/gridstack@10.3.1/dist/gridstack-all.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -135,31 +135,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);overf
 .pe-mark{position:absolute;top:-4px;width:2px;height:15px;background:var(--red);border-radius:1px;}
 .pe-lbls{display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--mu2);}
 
-/* ── GRIDSTACK WIDGETS ── */
-#wcon { padding: 0; width: 100%; min-height: 200px; }
-.grid-stack { width: 100% !important; }
-#gs-main { width: 100% !important; }
-.grid-stack { background: transparent; }
-.grid-stack-item-content {
-  background: var(--sf);
-  border: 1px solid var(--bd);
-  border-radius: 11px;
-  padding: 14px;
-  overflow: hidden;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-.grid-stack-item-content:hover { box-shadow: var(--sh-md); }
-.wcard { background: var(--sf); border: 1px solid var(--bd); border-radius: 11px; padding: 14px; box-shadow: var(--sh); transition: box-shadow .2s, opacity .2s; position: relative; }
-.wcard:hover { box-shadow: var(--sh-md); }
-.wcard.whidden { display: none !important; }
-.gs-edit-mode .grid-stack-item-content { border: 1.5px dashed var(--blue) !important; }
-.gs-widget-controls { display: none; position: absolute; top: 6px; right: 6px; gap: 4px; z-index: 10; }
-.gs-edit-mode .gs-widget-controls { display: flex; }
-.gs-btn { font-size: 9px; padding: 2px 7px; border-radius: 4px; cursor: pointer; border: none; font-weight: 500; }
-.gs-btn-del { background: #FCEBEB; color: #A32D2D; }
-.gs-btn-cfg { background: #E6F1FB; color: #185FA5; }
+/* ── MASONRY WIDGETS ── */
+#wcon{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:12px;align-items:start;grid-auto-rows:8px;grid-auto-flow:row dense;}
+.ww{grid-column:span 2;}
+@media(max-width:1100px){.ww{grid-column:span 1;}}
+.wcard{background:var(--sf);border:1px solid var(--bd);border-radius:11px;padding:14px;box-shadow:var(--sh);transition:box-shadow .2s,opacity .2s;position:relative;}
+.wcard:hover{box-shadow:var(--sh-md);}
+.wcard.dragging{opacity:.4;transform:scale(.97);}
+.wcard.dragover{border-color:var(--blue);box-shadow:0 0 0 2px rgba(37,99,235,.2);}
+.wcard.whidden{display:none!important;}
 .ch{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:11px;gap:7px;}
 .ct{font-size:12px;font-weight:700;color:var(--tx);}
 .cs{font-size:10px;color:var(--mu);margin-top:1px;}
@@ -176,9 +160,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);overf
 .csel:focus{outline:none;}
 .bcl{background:none;border:none;cursor:pointer;color:var(--mu2);font-size:15px;line-height:1;padding:2px 4px;border-radius:4px;transition:all .15s;}
 .bcl:hover{color:var(--red);background:var(--red-l);}
-.cv{position:relative;flex:1;min-height:120px;}
+.cv{position:relative;}
 .cv.h180{height:180px;}.cv.h200{height:200px;}.cv.h240{height:240px;}.cv.h280{height:280px;}
-.grid-stack-item-content .cv{height:auto !important;flex:1;}
 
 /* ── TREEMAP ── */
 .tmw{width:100%;height:185px;position:relative;overflow:hidden;border-radius:7px;}
@@ -637,7 +620,6 @@ input[type=file]{display:none;}
       </div>
       <div style="display: flex; gap: 8px; align-items: center;">
         <button class="btn btn-outline" id="btn-edit-mode" onclick="enterEditMode()" style="padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer; border-radius: 6px; border: 1px solid var(--bd); background: var(--sf2); color: var(--mu);">✏️ Editar Dashboard</button>
-        <button id="btn-reset-layout" onclick="LS.set('gs-layout',null);location.reload();" style="font-size:10px;padding:4px 10px;border:0.5px solid #D3D1C7;border-radius:6px;background:#fff;color:#888;cursor:pointer;margin-left:6px">Reset layout</button>
         <div id="edit-controls-group" style="display: none; gap: 8px;">
           <button class="btn btn-secondary" onclick="openAddWidgetModal()" style="padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer; border-radius: 6px; background: var(--blue-l); color: var(--blue); border: 1px solid rgba(37,99,235,.2);">➕ Agregar Widget</button>
           <button class="btn btn-success" onclick="saveDashboardConfig()" style="padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer; border-radius: 6px; background: var(--green); color: white; border: none;">💾 Guardar</button>
@@ -1522,8 +1504,6 @@ async function initDashboardConfig() {
 
 function enterEditMode() {
   window.DASHBOARD_EDIT_MODE = true;
-  document.getElementById('gs-main')?.classList.add('gs-edit-mode');
-  if (_gsGrid) { _gsGrid.enableMove(true); _gsGrid.enableResize(true); }
   ORIGINAL_CONFIG_BACKUP = JSON.parse(JSON.stringify(window.DASHBOARD_CONFIG));
   
   G('btn-edit-mode').style.display = 'none';
@@ -1535,9 +1515,6 @@ function enterEditMode() {
 
 function exitEditMode(save = false) {
   window.DASHBOARD_EDIT_MODE = false;
-  if (save) gsSaveLayout();
-  document.getElementById('gs-main')?.classList.remove('gs-edit-mode');
-  if (_gsGrid) { _gsGrid.enableMove(false); _gsGrid.enableResize(false); }
   
   G('btn-edit-mode').style.display = 'inline-block';
   G('edit-controls-group').style.display = 'none';
@@ -1674,116 +1651,51 @@ function toggleWidgetWidth(id) {
   }
 }
 
-let _gsGrid = null;
-
 function renderDashboardWidgets() {
-  const savedLayout = LS.get('gs-layout', null);
-  if (savedLayout) {
-    const maxCol = 24;
-    const needsReset = savedLayout.some(item => item.x + item.w > maxCol || item.w > maxCol);
-    if (needsReset) {
-      LS.set('gs-layout', null);
-    }
-  }
   const wcon = G('wcon');
   if (!wcon) return;
-
-  if (_gsGrid) {
-    _gsGrid.destroy(false);
-    _gsGrid = null;
-  }
-  wcon.innerHTML = '<div class="grid-stack" id="gs-main"></div>';
-
-  _gsGrid = GridStack.init({
-    column: 24,
-    cellHeight: 60,
-    margin: 8,
-    disableDrag: !window.DASHBOARD_EDIT_MODE,
-    disableResize: !window.DASHBOARD_EDIT_MODE,
-    animate: true,
-    resizable: { handles: 'e,se,s,sw,w' }
-  }, '#gs-main');
+  wcon.innerHTML = '';
 
   const sortedWidgets = window.DASHBOARD_CONFIG
     .filter(w => w.type !== 'kpi')
     .sort((a, b) => a.order - b.order);
 
-  sortedWidgets.forEach((w, idx) => {
+  sortedWidgets.forEach(w => {
     let isVisible = w.visible;
     const localHidden = LS.get('hidden', []);
-    if (localHidden.includes(w.id)) isVisible = false;
-    if (!isVisible && !window.DASHBOARD_EDIT_MODE) return;
+    if (localHidden.includes(w.id)) {
+      isVisible = false;
+    }
 
-    const saved = savedLayout ? savedLayout.find(l => l.id === w.id) : null;
-    const defaultW = w.doubleWidth ? 12 : 6;
-    const defaultH = w.id === 'wc-tbl' || w.id === 'wc-tg' ? 5 : w.id === 'wc-main' ? 5 : 4;
+    const wcard = document.createElement('div');
+    wcard.className = `wcard ${w.doubleWidth ? 'ww' : ''} ${isVisible ? '' : 'whidden'}`;
+    wcard.id = w.id;
+    wcard.setAttribute('draggable', 'true');
+    
+    let extraControls = '';
+    if (window.DASHBOARD_EDIT_MODE) {
+      wcard.classList.remove('whidden');
+      wcard.style.border = '2px dashed var(--blue)';
+      extraControls = `
+        <div class="edit-card-overlay" style="position: absolute; top: 0; right: 0; background: rgba(37,99,235,0.08); padding: 4px; border-bottom-left-radius: 8px; display: flex; gap: 4px; z-index: 10;">
+          <label style="font-size: 10px; display: flex; align-items: center; gap: 2px; cursor: pointer; color: var(--blue); font-weight: 600;">
+            <input type="checkbox" ${w.doubleWidth ? 'checked' : ''} onchange="toggleWidgetWidth('${w.id}')" style="cursor: pointer;"> Ancho Doble
+          </label>
+          <button onclick="removeWidget('${w.id}')" style="background: var(--red); color: white; border: none; border-radius: 4px; padding: 2px 6px; font-size: 10px; cursor: pointer; font-weight: bold;">✕ Quitar</button>
+        </div>
+      `;
+      wcard.style.position = 'relative';
+    }
 
-    const content = WIDGET_TEMPLATES[w.id] || `<div class="ch"><div><div class="ct">${w.title}</div></div></div>`;
-    const controls = window.DASHBOARD_EDIT_MODE ? `
-      <div class="gs-widget-controls">
-        <button class="gs-btn gs-btn-del" onclick="gsRemoveWidget('${w.id}')">✕ Quitar</button>
-      </div>` : '';
-
-    _gsGrid.addWidget({
-      x: saved?.x ?? (idx % 3) * 4,
-      y: saved?.y ?? Math.floor(idx / 3) * 4,
-      w: saved?.w ?? defaultW,
-      h: saved?.h ?? defaultH,
-      id: w.id,
-      content: `<div class="grid-stack-item-content" style="${!isVisible && window.DASHBOARD_EDIT_MODE ? 'opacity:0.4' : ''}">${controls}${content}</div>`
-    });
+    const content = WIDGET_TEMPLATES[w.id] || '';
+    wcard.innerHTML = content + extraControls;
+    wcon.appendChild(wcard);
   });
 
-  setTimeout(() => gsInitResizeHandler(), 100);
   renderKPIs();
   initClose();
+  initDrag();
   scheduleMasonry();
-}
-
-function gsRemoveWidget(id) {
-  const w = window.DASHBOARD_CONFIG.find(item => item.id === id);
-  if (w) w.visible = false;
-  const el = document.querySelector(`[gs-id="${id}"]`);
-  if (el && _gsGrid) _gsGrid.removeWidget(el);
-}
-
-function gsSaveLayout() {
-  if (!_gsGrid) return;
-  const layout = _gsGrid.save(false).map(item => ({
-    id: item.id, x: item.x, y: item.y, w: item.w, h: item.h
-  }));
-  LS.set('gs-layout', layout);
-}
-
-function gsInitResizeHandler() {
-  if (!_gsGrid) return;
-  _gsGrid.on('resizestop', function(event, el) {
-    setTimeout(() => {
-      const canvases = el.querySelectorAll('canvas');
-      canvases.forEach(canvas => {
-        const chartInstance = Chart.getChart(canvas);
-        if (chartInstance) {
-          chartInstance.resize();
-        }
-      });
-      const echartsIds = ['gauge-mn', 'gauge-pe', 'gauge-ef'];
-      echartsIds.forEach(id => {
-        const dom = el.querySelector('#' + id);
-        if (dom && dom._echart) {
-          dom._echart.resize();
-        }
-      });
-      const tmcon = el.querySelector('#tmcon');
-      if (tmcon && window._lastTMItems) {
-        renderTM(window._lastTMItems, tmcon);
-      }
-      gsSaveLayout();
-    }, 50);
-  });
-
-  _gsGrid.on('dragstop', function() {
-    gsSaveLayout();
-  });
 }
 
 function renderKPIs() {
@@ -2303,9 +2215,7 @@ function buildCharts(isTodas){
   const u=d.por_unidad||[],tmCon=G('tmcon');
   if(isTodas&&u.length){
     G('tm-title').textContent='Participación por Unidad';
-    const items = u.map((x,i)=>({l:x.unit,v:x.ingresos,c:PAL[i%PAL.length]}));
-    window._lastTMItems = items;
-    setTimeout(()=>renderTM(items,tmCon),60);
+    setTimeout(()=>renderTM(u.map((x,i)=>({l:x.unit,v:x.ingresos,c:PAL[i%PAL.length]})),tmCon),60);
     G('rad-title').textContent='Comparativo Multidimensional';G('rad-sub').textContent='6 dimensiones por unidad · clic para ver detalle';
     const mx=Math.max(...u.map(x=>x.ingresos),1);
     mkPref('ch-rad','radar',['Ingresos','Mg.Bruto','Mg.Neto','Ef.Costo','Ef.Gasto','Util.Neta'],
@@ -2317,9 +2227,7 @@ function buildCharts(isTodas){
   } else if(!isTodas){
     const cats=d.cat_gastos||[];
     G('tm-title').textContent='Estructura de Gastos';
-    const items = cats.map((c,i)=>({l:c.categoria,v:c.total,c:PAL[i%PAL.length]}));
-    window._lastTMItems = items;
-    setTimeout(()=>renderTM(items,tmCon),60);
+    setTimeout(()=>renderTM(cats.map((c,i)=>({l:c.categoria,v:c.total,c:PAL[i%PAL.length]})),tmCon),60);
     G('rad-title').textContent='Ingresos vs Util. Neta';G('rad-sub').textContent='Evolución mensual · clic para ver detalle';
     mkPref('ch-rad','line',L,[
       {label:'Ingresos',data:d.months.map(m=>m.ingresos),borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.07)',tension:.4,fill:true,pointRadius:3,pointBackgroundColor:'#2563eb',pointBorderColor:'#fff',pointBorderWidth:2},
