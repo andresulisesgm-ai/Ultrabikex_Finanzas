@@ -1518,6 +1518,8 @@ async function initDashboardConfig() {
 
 function enterEditMode() {
   window.DASHBOARD_EDIT_MODE = true;
+  document.getElementById('gs-main')?.classList.add('gs-edit-mode');
+  if (_gsGrid) { _gsGrid.enableMove(true); _gsGrid.enableResize(true); }
   ORIGINAL_CONFIG_BACKUP = JSON.parse(JSON.stringify(window.DASHBOARD_CONFIG));
   
   G('btn-edit-mode').style.display = 'none';
@@ -1529,6 +1531,9 @@ function enterEditMode() {
 
 function exitEditMode(save = false) {
   window.DASHBOARD_EDIT_MODE = false;
+  if (save) gsSaveLayout();
+  document.getElementById('gs-main')?.classList.remove('gs-edit-mode');
+  if (_gsGrid) { _gsGrid.enableMove(false); _gsGrid.enableResize(false); }
   
   G('btn-edit-mode').style.display = 'inline-block';
   G('edit-controls-group').style.display = 'none';
@@ -1665,51 +1670,78 @@ function toggleWidgetWidth(id) {
   }
 }
 
+let _gsGrid = null;
+
 function renderDashboardWidgets() {
   const wcon = G('wcon');
   if (!wcon) return;
-  wcon.innerHTML = '';
+
+  if (_gsGrid) {
+    _gsGrid.destroy(false);
+    _gsGrid = null;
+  }
+  wcon.innerHTML = '<div class="grid-stack" id="gs-main"></div>';
+
+  _gsGrid = GridStack.init({
+    column: 12,
+    cellHeight: 60,
+    margin: 8,
+    disableDrag: !window.DASHBOARD_EDIT_MODE,
+    disableResize: !window.DASHBOARD_EDIT_MODE,
+    animate: true,
+    resizable: { handles: 'e,se,s,sw,w' }
+  }, '#gs-main');
 
   const sortedWidgets = window.DASHBOARD_CONFIG
     .filter(w => w.type !== 'kpi')
     .sort((a, b) => a.order - b.order);
 
-  sortedWidgets.forEach(w => {
+  const savedLayout = LS.get('gs-layout', null);
+
+  sortedWidgets.forEach((w, idx) => {
     let isVisible = w.visible;
     const localHidden = LS.get('hidden', []);
-    if (localHidden.includes(w.id)) {
-      isVisible = false;
-    }
+    if (localHidden.includes(w.id)) isVisible = false;
+    if (!isVisible && !window.DASHBOARD_EDIT_MODE) return;
 
-    const wcard = document.createElement('div');
-    wcard.className = `wcard ${w.doubleWidth ? 'ww' : ''} ${isVisible ? '' : 'whidden'}`;
-    wcard.id = w.id;
-    wcard.setAttribute('draggable', 'true');
-    
-    let extraControls = '';
-    if (window.DASHBOARD_EDIT_MODE) {
-      wcard.classList.remove('whidden');
-      wcard.style.border = '2px dashed var(--blue)';
-      extraControls = `
-        <div class="edit-card-overlay" style="position: absolute; top: 0; right: 0; background: rgba(37,99,235,0.08); padding: 4px; border-bottom-left-radius: 8px; display: flex; gap: 4px; z-index: 10;">
-          <label style="font-size: 10px; display: flex; align-items: center; gap: 2px; cursor: pointer; color: var(--blue); font-weight: 600;">
-            <input type="checkbox" ${w.doubleWidth ? 'checked' : ''} onchange="toggleWidgetWidth('${w.id}')" style="cursor: pointer;"> Ancho Doble
-          </label>
-          <button onclick="removeWidget('${w.id}')" style="background: var(--red); color: white; border: none; border-radius: 4px; padding: 2px 6px; font-size: 10px; cursor: pointer; font-weight: bold;">✕ Quitar</button>
-        </div>
-      `;
-      wcard.style.position = 'relative';
-    }
+    const saved = savedLayout ? savedLayout.find(l => l.id === w.id) : null;
+    const defaultW = w.doubleWidth ? 8 : 4;
+    const defaultH = w.id === 'wc-tbl' || w.id === 'wc-tg' ? 5 : w.id === 'wc-main' ? 5 : 4;
 
-    const content = WIDGET_TEMPLATES[w.id] || '';
-    wcard.innerHTML = content + extraControls;
-    wcon.appendChild(wcard);
+    const content = WIDGET_TEMPLATES[w.id] || `<div class="ch"><div><div class="ct">${w.title}</div></div></div>`;
+    const controls = window.DASHBOARD_EDIT_MODE ? `
+      <div class="gs-widget-controls">
+        <button class="gs-btn gs-btn-del" onclick="gsRemoveWidget('${w.id}')">✕ Quitar</button>
+      </div>` : '';
+
+    _gsGrid.addWidget({
+      x: saved?.x ?? (idx % 3) * 4,
+      y: saved?.y ?? Math.floor(idx / 3) * 4,
+      w: saved?.w ?? defaultW,
+      h: saved?.h ?? defaultH,
+      id: w.id,
+      content: `<div class="grid-stack-item-content" style="${!isVisible && window.DASHBOARD_EDIT_MODE ? 'opacity:0.4' : ''}">${controls}${content}</div>`
+    });
   });
 
   renderKPIs();
   initClose();
-  initDrag();
   scheduleMasonry();
+}
+
+function gsRemoveWidget(id) {
+  const w = window.DASHBOARD_CONFIG.find(item => item.id === id);
+  if (w) w.visible = false;
+  const el = document.querySelector(`[gs-id="${id}"]`);
+  if (el && _gsGrid) _gsGrid.removeWidget(el);
+}
+
+function gsSaveLayout() {
+  if (!_gsGrid) return;
+  const layout = _gsGrid.save(false).map(item => ({
+    id: item.id, x: item.x, y: item.y, w: item.w, h: item.h
+  }));
+  LS.set('gs-layout', layout);
 }
 
 function renderKPIs() {
