@@ -1878,30 +1878,71 @@ function openAddWidgetModal() {
   const list = G('add-widget-list');
   if (!modal || !list) return;
 
-  list.innerHTML = '';
+  const CATEGORIAS = [
+    {
+      key: 'eerr', label: '📊 EERR — Resultados',
+      tipos: ['kpi', 'chart', 'special', 'table']
+    },
+    {
+      key: 'esf', label: '🏦 ESF — Balance',
+      tipos: ['esf']
+    },
+    {
+      key: 'indicador', label: '📐 Indicadores Financieros',
+      tipos: ['indicador']
+    }
+  ];
+
   const hiddenWidgets = window.DASHBOARD_CONFIG.filter(w => !w.visible);
+  list.innerHTML = '';
 
   if (hiddenWidgets.length === 0) {
-    list.innerHTML = `<p style="color: var(--mu2); font-size: 12px; text-align: center; padding: 10px;">Todos los widgets están en uso.</p>`;
-  } else {
-    hiddenWidgets.forEach(w => {
-      const item = document.createElement('div');
-      item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 8px; background: var(--sf2); border: 1px solid var(--bd); border-radius: 6px;';
-
-      const typeLabel = w.type === 'kpi' ? '🔑 KPI' : w.type === 'chart' ? '📊 Gráfico' : '⚙️ Especial';
-
-      item.innerHTML = `
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1">
-          <input type="checkbox" data-widget-id="${w.id}" style="width:15px;height:15px;cursor:pointer;accent-color:var(--blue)">
-          <div>
-            <div style="font-size:11px;font-weight:600;color:var(--fg)">${w.title}</div>
-            <div style="font-size:9px;color:var(--mu2)">${typeLabel} · ${w.subtitle || ''}</div>
-          </div>
-        </label>
-      `;
-      list.appendChild(item);
-    });
+    list.innerHTML = `<p style="color:var(--mu2);font-size:12px;text-align:center;padding:10px">Todos los widgets están en uso.</p>`;
+    modal.classList.add('show');
+    return;
   }
+
+  CATEGORIAS.forEach(cat => {
+    const catWidgets = hiddenWidgets.filter(w => cat.tipos.includes(w.type));
+    if (catWidgets.length === 0) return;
+
+    const section = document.createElement('div');
+    section.style.cssText = 'margin-bottom:6px;border:1px solid var(--bd);border-radius:8px;overflow:hidden';
+
+    const header = document.createElement('div');
+    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--sf2);cursor:pointer;user-select:none';
+    header.innerHTML = `
+      <span style="font-size:12px;font-weight:700;color:var(--fg)">${cat.label}</span>
+      <span class="cat-arrow" style="font-size:10px;color:var(--mu2)">▼</span>
+    `;
+
+    const body = document.createElement('div');
+    body.style.cssText = 'padding:6px 8px;display:flex;flex-direction:column;gap:4px';
+
+    catWidgets.forEach(w => {
+      const typeLabel = w.type === 'kpi' ? '🔑 KPI' : w.type === 'chart' ? '📊 Gráfico' : w.type === 'esf' ? '🏦 ESF' : w.type === 'indicador' ? '📐 Indicador' : '⚙️ Especial';
+      const item = document.createElement('label');
+      item.style.cssText = 'display:flex;align-items:center;gap:10px;cursor:pointer;padding:6px 4px;border-radius:5px;background:var(--sf);border:1px solid transparent';
+      item.innerHTML = `
+        <input type="checkbox" data-widget-id="${w.id}" style="width:14px;height:14px;cursor:pointer;accent-color:var(--blue);flex-shrink:0">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;font-weight:600;color:var(--fg)">${w.icon || ''} ${w.title}</div>
+          <div style="font-size:9px;color:var(--mu2)">${typeLabel}${w.subtitle ? ' · ' + w.subtitle : ''}</div>
+        </div>
+      `;
+      body.appendChild(item);
+    });
+
+    header.addEventListener('click', () => {
+      const isOpen = body.style.display !== 'none';
+      body.style.display = isOpen ? 'none' : 'flex';
+      header.querySelector('.cat-arrow').textContent = isOpen ? '▶' : '▼';
+    });
+
+    section.appendChild(header);
+    section.appendChild(body);
+    list.appendChild(section);
+  });
 
   modal.classList.add('show');
 }
@@ -2797,6 +2838,70 @@ async function loadDash(){
     rTable();rWF(tI,tC,ub,tG,un);
     applyHidden();
     scheduleMasonry();
+
+    // Renderizar widgets ESF
+    const esfActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-esf-kpi-activos' && w.visible);
+    if (esfActivo) {
+      fetch(`/api/esf/totals?year=${year}&unit=${unit==='TODAS'?'':unit}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(esf => {
+          if (!esf) return;
+          const t = esf.totales;
+          const setE = (id, val) => { const el = G(id); if (el) el.textContent = fmtS(val); };
+          const setPct = (id, num, den) => { const el = G(id); if (el) el.textContent = den ? pct(num/den*100) : '—'; };
+          setE('esf-kpi-activos-val', t.total_activos);
+          setE('esf-kpi-activos-ac', fmtS(t.activos_corrientes));
+          setE('esf-kpi-activos-anc', fmtS(t.activos_no_corrientes));
+          setE('esf-kpi-pasivos-val', t.total_pasivos);
+          setE('esf-kpi-pasivos-pc', fmtS(t.pasivos_corrientes));
+          setE('esf-kpi-pasivos-pnc', fmtS(t.pasivos_no_corrientes));
+          setE('esf-kpi-patrimonio-val', t.patrimonio);
+          setE('esf-kpi-efectivo-val', t.efectivo);
+          setPct('esf-kpi-efectivo-pct', t.efectivo, t.activos_corrientes);
+          setE('esf-kpi-cxc-val', t.cuentas_por_cobrar);
+          setPct('esf-kpi-cxc-pct', t.cuentas_por_cobrar, t.activos_corrientes);
+          setE('esf-kpi-inv-val', t.inventarios);
+          setPct('esf-kpi-inv-pct', t.inventarios, t.activos_corrientes);
+
+          // Gráfica estructura financiera
+          const esfEstCanvas = G('ch-esf-est');
+          if (esfEstCanvas) {
+            if (CH['ch-esf-est']) CH['ch-esf-est'].destroy();
+            const ctsel = document.getElementById('ct-ch-esf-est');
+            const ctype = ctsel ? ctsel.value : 'doughnut';
+            CH['ch-esf-est'] = new Chart(esfEstCanvas, {
+              type: ctype,
+              data: {
+                labels: ['Activos Corrientes', 'Activos No Corrientes', 'Pasivos Corrientes', 'Pasivos No Corrientes', 'Patrimonio'],
+                datasets: [{
+                  data: [t.activos_corrientes, t.activos_no_corrientes, t.pasivos_corrientes, t.pasivos_no_corrientes, t.patrimonio],
+                  backgroundColor: ['#2563eb','#0891b2','#dc2626','#f97316','#059669']
+                }]
+              },
+              options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } }
+            });
+          }
+        });
+    }
+
+    // Renderizar widgets de indicadores avanzados
+    if (ia) {
+      const setI = (id, val, suffix) => {
+        const el = G(id);
+        if (!el) return;
+        el.textContent = val == null ? '—' : (suffix === '%' ? pct(val * 100) : Number(val).toFixed(2) + (suffix || ''));
+      };
+      setI('ind-roe-val', ia.roe, '%');
+      setI('ind-roa-val', ia.roa, '%');
+      setI('ind-rc-val', ia.ratio_corriente, 'x');
+      setI('ind-pa-val', ia.prueba_acida, 'x');
+      setI('ind-pd-val', ia.prueba_defensiva, 'x');
+      setI('ind-end-val', ia.ratio_endeud, 'x');
+      setI('ind-rotinv-val', ia.rotacion_inv, ' m');
+      setI('ind-rotact-val', ia.rotacion_activos, 'x');
+      setI('ind-cobro-val', ia.periodo_cobro, ' d');
+    }
+
   }catch(err){
     console.error('loadDash:',err);
     G('schips').innerHTML=`<span style="color:var(--red);font-size:12px">Error JS: ${err.message}</span>`;
