@@ -651,6 +651,8 @@ def dashboard():
     return jsonify({
         'months': months_data, 'por_unidad': por_unidad, 'top_gastos': top_gastos,
         'cat_gastos': cat_gastos, 'loaded': [{'unit': r['unit'], 'month': r['month']} for r in loaded],
+        'totals': totals,
+        'indicadores': indicadores_avanzados
     })
 
 
