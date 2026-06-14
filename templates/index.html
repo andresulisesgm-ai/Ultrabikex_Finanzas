@@ -441,6 +441,31 @@ input[type=file]{display:none;}
   font-weight: bold;
   font-size: 12px;
 }
+#traza-panel {
+  position: absolute;
+  z-index: 999;
+  background: #fff;
+  border: 0.5px solid #D3D1C7;
+  border-radius: 10px;
+  padding: 12px 14px;
+  min-width: 280px;
+  max-width: 340px;
+  max-height: 340px;
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+  font-size: 11px;
+  display: none;
+  pointer-events: none;
+}
+#traza-panel .tp-title { font-size: 12px; font-weight: 500; color: #2C2C2A; margin-bottom: 2px; }
+#traza-panel .tp-total { font-size: 11px; color: #888; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 0.5px solid #E0DDD6; }
+#traza-panel .tp-row { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 0.5px solid #F1EFE8; }
+#traza-panel .tp-row:last-child { border: none; }
+#traza-panel .tp-code { color: #888; flex-shrink: 0; font-family: monospace; }
+#traza-panel .tp-name { color: #444; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#traza-panel .tp-val { color: #2C2C2A; font-weight: 500; flex-shrink: 0; }
+#traza-panel .tp-neg { color: #A32D2D; }
+#traza-panel .tp-loading { color: #888; padding: 8px 0; }
 </style>
 </head>
 <body>
@@ -1691,6 +1716,8 @@ function renderKPIs() {
     const kc = document.createElement('div');
     kc.className = `kc ${w.colorClass} ${isVisible ? '' : 'hidden'}`;
     kc.id = w.id;
+    kc.addEventListener('mouseenter', (e) => showTraza(e, w.id));
+    kc.addEventListener('mouseleave', hideTraza);
 
     let extraControls = '';
     if (window.DASHBOARD_EDIT_MODE) {
@@ -4226,6 +4253,106 @@ function toggleEERRRow(event, rowId) {
 
   loadDash();
 })();
+
+const TRAZA_MAP = {
+  'ingr': 'ingresos',
+  'cos':  'costos',
+  'gas':  'gastos',
+  'ub':   'utilidad_bruta',
+  'un':   'utilidad_neta',
+  'ebt':  'ebitda',
+  'mb':   'ingresos',
+  'mn':   'ingresos',
+  'rc':   'costos',
+  'rg':   'gastos'
+};
+
+const TRAZA_LABELS = {
+  'ingresos':       'Ingresos totales',
+  'costos':         'Costo de ventas',
+  'gastos':         'Gastos operativos',
+  'utilidad_bruta': 'Utilidad bruta',
+  'utilidad_neta':  'Utilidad neta',
+  'ebitda':         'EBITDA'
+};
+
+let _trazaTimer = null;
+let _trazaCache = {};
+
+async function showTraza(e, kcId) {
+  const kpiId = kcId.replace('kc-', '');
+  const kpi   = TRAZA_MAP[kpiId];
+  if (!kpi) return;
+
+  const panel = G('traza-panel');
+  panel.style.display = 'block';
+
+  const rect = e.currentTarget.getBoundingClientRect();
+  const scrollY = window.scrollY || document.documentElement.scrollTop;
+  const scrollX = window.scrollX || document.documentElement.scrollLeft;
+  panel.style.top  = (rect.bottom + scrollY + 6) + 'px';
+  panel.style.left = (rect.left  + scrollX) + 'px';
+
+  const year = G('sel-year') ? G('sel-year').value : new Date().getFullYear();
+  const unit = G('sel-unit') ? G('sel-unit').value : '';
+  const cacheKey = `${kpi}_${year}_${unit}`;
+
+  G('tp-title').textContent = TRAZA_LABELS[kpi] || kpi;
+  G('tp-total').textContent = 'Cargando...';
+  G('tp-rows').innerHTML = '<div class="tp-loading">Consultando cuentas...</div>';
+
+  if (_trazaCache[cacheKey]) {
+    renderTrazaPanel(_trazaCache[cacheKey]);
+    return;
+  }
+
+  try {
+    const u = unit && unit !== 'TODAS' ? unit : '';
+    const r = await fetch(`/api/trazabilidad?year=${year}&unit=${u}&kpi=${kpi}`);
+    const d = await r.json();
+    _trazaCache[cacheKey] = d;
+    renderTrazaPanel(d);
+  } catch(err) {
+    G('tp-total').textContent = 'Error al cargar';
+    G('tp-rows').innerHTML = '';
+  }
+}
+
+function renderTrazaPanel(d) {
+  G('tp-title').textContent = TRAZA_LABELS[d.kpi] || d.kpi;
+  G('tp-total').textContent = `Total: ${fmtS(d.total)} · ${d.cuentas.length} cuentas`;
+  G('tp-rows').innerHTML = d.cuentas.map(c => `
+    <div class="tp-row">
+      <span class="tp-code">${c.odoo_code}</span>
+      <span class="tp-name" title="${c.odoo_name}">${c.odoo_name}</span>
+      <span class="tp-val ${c.total < 0 ? 'tp-neg' : ''}">${fmtS(Math.abs(c.total))}</span>
+    </div>
+  `).join('');
+}
+
+function hideTraza() {
+  _trazaTimer = setTimeout(() => {
+    const panel = G('traza-panel');
+    if (panel) panel.style.display = 'none';
+  }, 200);
+}
+
+function cancelHideTraza() {
+  clearTimeout(_trazaTimer);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const panel = G('traza-panel');
+  if (panel) {
+    panel.addEventListener('mouseenter', cancelHideTraza);
+    panel.addEventListener('mouseleave', hideTraza);
+  }
+});
 </script>
+<div id="traza-panel">
+  <div class="tp-title" id="tp-title"></div>
+  <div class="tp-total" id="tp-total"></div>
+  <div id="tp-rows"></div>
+</div>
 </body>
 </html>
