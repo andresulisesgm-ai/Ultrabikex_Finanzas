@@ -1706,8 +1706,6 @@ function renderDashboardWidgets() {
     .filter(w => w.type !== 'kpi')
     .sort((a, b) => a.order - b.order);
 
-  const savedLayout = LS.get('gs-layout', null);
-
   sortedWidgets.forEach((w, idx) => {
     let isVisible = w.visible;
     const localHidden = LS.get('hidden', []);
