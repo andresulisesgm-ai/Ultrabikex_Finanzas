@@ -463,7 +463,6 @@ input[type=file]{display:none;}
   <div class="nav-item" onclick="showPage('datos',this)"><span class="nav-icon">≡</span>Ver Datos</div>
   <div class="nav-sec">Sistema</div>
   <div class="nav-item" onclick="showPage('backup',this)"><span class="nav-icon">⊞</span>Backup / Restaurar</div>
-  <div class="nav-item" onclick="openExcelModal()"><span class="nav-icon">↓</span>Exportar Excel</div>
   <div class="nav-item" onclick="doPdfExport()"><span class="nav-icon">📄</span>Exportar PDF</div>
   <div class="sidebar-footer">
     <div id="userInfo"></div>
@@ -483,8 +482,11 @@ input[type=file]{display:none;}
   <div class="topbar">
     <div><h2 id="ptitle">Dashboard Financiero</h2><p id="psub">Estado de resultados consolidado</p></div>
     <div class="tr">
-
-      <button class="tb-sel" id="btnprint" onclick="window.print()" title="Imprimir o guardar como PDF esta hoja, con los filtros actuales" style="cursor:pointer">🖨 Imprimir / PDF</button>
+      <button class="tb-sel" id="btn-export-excel" onclick="doExcelExport()" 
+        title="Exportar a Excel" style="cursor:pointer;display:none">📊 Exportar Excel</button>
+      <button class="tb-sel" id="btnprint" onclick="window.print()" 
+        title="Imprimir o guardar como PDF esta hoja, con los filtros actuales" 
+        style="cursor:pointer">🖨 Imprimir / PDF</button>
     </div>
   </div>
 
@@ -985,6 +987,57 @@ const PAL=['#2563eb','#059669','#d97706','#dc2626','#7c3aed','#0891b2','#be185d'
 const MO=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC'];
 let CH={},DD=null,MAP=[],sFile=null,sRF=null,mainDS=null;
 let currentUser = {{ user|tojson|safe }};
+
+function getCurrentYear() {
+  const activePage = document.querySelector('.page.active');
+  if (!activePage) return G('dash-year') ? G('dash-year').value : '2026';
+  const id = activePage.id;
+  if (id === 'page-eerr') return G('eerr-year').value;
+  if (id === 'page-err_divisa') return G('err-divisa-year').value;
+  if (id === 'page-presupuesto') return G('bgt-year').value;
+  if (id === 'page-comparativa') return G('cmp-year').value;
+  if (id === 'page-esf') return G('esf-year').value;
+  return G('dash-year') ? G('dash-year').value : '2026';
+}
+
+function getCurrentUnit() {
+  const activePage = document.querySelector('.page.active');
+  if (!activePage) return G('dash-unit') ? G('dash-unit').value : '';
+  const id = activePage.id;
+  let val = '';
+  if (id === 'page-eerr') val = G('eerr-unit').value;
+  else if (id === 'page-err_divisa') val = G('err-divisa-unit').value;
+  else if (id === 'page-presupuesto') val = G('bgt-unit').value;
+  else if (id === 'page-comparativa') val = G('cmp-unit').value;
+  else if (id === 'page-esf') val = G('esf-unit').value;
+  else val = G('dash-unit') ? G('dash-unit').value : '';
+  if (val === 'TODAS' || val === 'Consolidado' || val === 'Todas') return '';
+  return val;
+}
+
+function doExcelExport() {
+  const activePage = document.querySelector('.page.active');
+  if (!activePage) return;
+  const id = activePage.id;
+  let url = '';
+  if (id === 'page-eerr') {
+    url = '/api/export/excel?year=' + G('eerr-year').value + 
+          (G('eerr-unit').value ? '&unit=' + encodeURIComponent(G('eerr-unit').value) : '');
+  } else if (id === 'page-err_divisa') {
+    url = '/api/export/excel?year=' + G('err-divisa-year').value + 
+          (G('err-divisa-unit').value ? '&unit=' + encodeURIComponent(G('err-divisa-unit').value) : '');
+  } else if (id === 'page-esf') {
+    url = '/api/export/esf?year=' + G('esf-year').value + 
+          (G('esf-unit').value ? '&unit=' + encodeURIComponent(G('esf-unit').value) : '');
+  } else if (id === 'page-presupuesto') {
+    url = '/api/export/excel?year=' + G('bgt-year').value + 
+          (G('bgt-unit').value ? '&unit=' + encodeURIComponent(G('bgt-unit').value) : '');
+  } else if (id === 'page-comparativa') {
+    url = '/api/export/excel?year=' + G('cmp-year').value + 
+          (G('cmp-unit').value ? '&unit=' + encodeURIComponent(G('cmp-unit').value) : '');
+  }
+  if (url) window.location.href = url;
+}
 
 // ── AUTH ──────────────────────────────────────────────────────────────────
 function isAdmin() {
@@ -1684,6 +1737,12 @@ function showPage(name,el){
   if(name==='config_tasas'){cargarTasas();cargarMetodosPago();}
   if(name==='err_divisa') loadERRDivisa();
   if(name==='presupuesto') loadBgt();
+
+  const PAGES_WITH_EXCEL = ['eerr','err_divisa','esf','presupuesto','comparativa'];
+  const btnExcel = document.getElementById('btn-export-excel');
+  if (btnExcel) {
+    btnExcel.style.display = PAGES_WITH_EXCEL.includes(name) ? '' : 'none';
+  }
 }
 
 // ── KPI PILLS ─────────────────────────────────────────────────────────────

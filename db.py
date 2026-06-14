@@ -33,9 +33,9 @@ def classify_account(codigo: str) -> tuple:
 
     # Cuentas de activo con depreciación/deterioro/amortización acumulada (reducen el activo)
     if re.match(r'^1\.02\.06\.\d+\.(500|501)$', codigo):
-        return (-1, None)
+        return (1, None)
     if re.match(r'^1\.02\.07\.\d+\.(500|002)$', codigo):
-        return (-1, None)
+        return (1, None)
 
     # Devoluciones y descuentos sobre ventas (reducen ingresos)
     if codigo.startswith('4.01.01.02.') or codigo.startswith('4.01.01.03.'):

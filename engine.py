@@ -327,22 +327,22 @@ class OdooParser:
 
 
 class ExcelExporter:
-    def __init__(self, data, year, units, months):
-        self.data = data  # list of dicts: year, month, unit, partida, amount
-        self.year = year
-        self.units = units
+    """Genera Excel del EERR usando eerr_completo_v2_ui_adapter() — subtotales como valores del engine."""
+
+    def __init__(self, year, units, months):
+        self.year   = year
+        self.units  = units
         self.months = months
 
-    def _build_lookup(self):
-        lookup = {}
-        for row in self.data:
-            key = (row['unit'], row['month'], row['partida'])
-            lookup[key] = row['amount']
-        return lookup
-
     def generate(self):
+        import openpyxl
+        from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+        from app import eerr_completo_v2_ui_adapter
+        import os, tempfile
+
         wb = openpyxl.Workbook()
-        lookup = self._build_lookup()
+        wb.remove(wb.active)
 
         HDR_FILL  = PatternFill('solid', start_color='1F3864')
         SUB_FILL  = PatternFill('solid', start_color='2E75B6')
@@ -355,16 +355,16 @@ class ExcelExporter:
         NORM_FONT = Font(name='Arial', size=9)
         NUM_FMT   = '#,##0.00;(#,##0.00);"-"'
         PCT_FMT   = '0.0%;(0.0%);"-"'
+        thin      = Side(style='thin', color='BDD7EE')
+        border    = Border(left=thin, right=thin, top=thin, bottom=thin)
 
-        thin   = Side(style='thin', color='BDD7EE')
-        border = Border(left=thin, right=thin, top=thin, bottom=thin)
+        TOTALES_HDR = {
+            'Total Ingresos', 'Total Costo de Ventas', 'Utilidad Bruta',
+            'Total Gastos Operacionales', 'Total Gastos Operacionales y No Operacionales',
+            'Utilidad Neta', 'Utilidad Neta despues de ISLR'
+        }
 
-        sheets_to_build = self.units + ['CONSOLIDADO']
-        wb.remove(wb.active)
-
-        # Número de columnas de meses + ANUAL + ACUM EJEC + %VAR + %VTAS + %GASTOS
-        # Layout: A=Partida, B=ANUAL, C..N=meses, O=ACUM EJEC, P=%VAR, Q=%VTAS, R=%GASTOS
-        N_MONTHS = len(self.months)
+        N_MONTHS     = len(self.months)
         COL_ANUAL    = 2
         COL_M_START  = 3
         COL_M_END    = COL_M_START + N_MONTHS - 1
@@ -373,23 +373,27 @@ class ExcelExporter:
         COL_PVTAS    = COL_M_END + 3
         COL_PGASTOS  = COL_M_END + 4
 
+        sheets_to_build = list(self.units) + ['CONSOLIDADO']
+
         for unit in sheets_to_build:
+            engine_unit = unit if unit != 'CONSOLIDADO' else ''
+            data = eerr_completo_v2_ui_adapter(self.year, engine_unit)
+            rows = data.get('rows', [])
+
             ws = wb.create_sheet(unit)
             ws.sheet_view.showGridLines = False
 
-            # Fila 1: Título
             last_col = get_column_letter(COL_PGASTOS)
             ws.merge_cells(f'A1:{last_col}1')
             title = ws['A1']
-            title.value = f'ESTADO DE RESULTADOS — {unit.upper()} — {self.year}'
-            title.font  = Font(name='Arial', bold=True, color='FFFFFF', size=12)
-            title.fill  = HDR_FILL
+            title.value     = f'ESTADO DE RESULTADOS — {unit.upper()} — {self.year}'
+            title.font      = Font(name='Arial', bold=True, color='FFFFFF', size=12)
+            title.fill      = HDR_FILL
             title.alignment = Alignment(horizontal='center', vertical='center')
             ws.row_dimensions[1].height = 24
 
-            # Fila 2: Encabezados
             ws.row_dimensions[2].height = 20
-            headers = ['PARTIDAS', 'ANUAL'] + self.months + ['ACUM EJEC', '%VAR', '%VTAS', '%GASTOS']
+            headers = ['PARTIDAS', 'ANUAL'] + list(self.months) + ['ACUM EJEC', '%VAR', '%VTAS', '%GASTOS']
             for col_idx, h in enumerate(headers, 1):
                 cell = ws.cell(row=2, column=col_idx, value=h)
                 cell.font      = WHITE_FONT
@@ -401,51 +405,50 @@ class ExcelExporter:
             ws.column_dimensions['B'].width = 14
             for ci in range(COL_M_START, COL_M_END + 1):
                 ws.column_dimensions[get_column_letter(ci)].width = 11
-            ws.column_dimensions[get_column_letter(COL_ACUM)].width   = 14
-            ws.column_dimensions[get_column_letter(COL_VAR)].width    = 9
-            ws.column_dimensions[get_column_letter(COL_PVTAS)].width  = 9
-            ws.column_dimensions[get_column_letter(COL_PGASTOS)].width= 9
+            ws.column_dimensions[get_column_letter(COL_ACUM)].width    = 14
+            ws.column_dimensions[get_column_letter(COL_VAR)].width     = 9
+            ws.column_dimensions[get_column_letter(COL_PVTAS)].width   = 9
+            ws.column_dimensions[get_column_letter(COL_PGASTOS)].width = 9
 
-            row_num     = 3
-            partida_rows= {}
+            row_num      = 3
+            partida_rows = {}
 
-            for item in EERR_STRUCTURE:
-                partida = item[0]
-                is_header = item[1]
+            for item in rows:
+                partida   = item['partida']
+                is_header = item['is_header']
+                indent    = item.get('indent', 0)
+                meses     = item.get('meses', [])
+
                 ws.row_dimensions[row_num].height = 16
 
-                if partida in ('Total Ingresos', 'Total Costo de Ventas', 'Utilidad Bruta',
-                               'Total Gastos', 'Utilidad Neta', 'Utilidad Neta despues de ISLR'):
+                if partida in TOTALES_HDR:
                     fill, fnt = HDR_FILL, WHITE_FONT
                 elif is_header:
                     fill, fnt = SEC_FILL, DARK_FONT
                 else:
                     fill, fnt = WHITE_FILL, NORM_FONT
 
-                # Columna A: nombre partida
+                # Columna A
                 a_cell = ws.cell(row=row_num, column=1, value=partida)
                 a_cell.font      = fnt
                 a_cell.fill      = fill
-                a_cell.alignment = Alignment(vertical='center', indent=0 if is_header else 2)
+                a_cell.alignment = Alignment(vertical='center', indent=indent)
                 a_cell.border    = border
 
-                # Columnas de meses (C..N)
+                # Columnas de meses
                 for m_idx, month in enumerate(self.months):
                     col = COL_M_START + m_idx
-                    if is_header:
-                        val = None
-                    else:
-                        if unit == 'CONSOLIDADO':
-                            val = sum(lookup.get((u, month, partida), 0) for u in self.units)
-                        else:
-                            val = lookup.get((unit, month, partida), 0)
-                        val = val if val else None
+                    # Buscar el mes correspondiente en la lista meses del engine
+                    mes_data = next((m for m in meses if m.get('month') == month), None)
+                    val = mes_data['ejecutado']['valor'] if mes_data else None
+                    val = val if val else None
+
                     c = ws.cell(row=row_num, column=col, value=val)
                     c.number_format = NUM_FMT
-                    c.font      = fnt
-                    c.fill      = fill
-                    c.alignment = Alignment(horizontal='right', vertical='center')
-                    c.border    = border
+                    c.font          = fnt
+                    c.fill          = fill
+                    c.alignment     = Alignment(horizontal='right', vertical='center')
+                    c.border        = border
 
                 # Columna B: ANUAL = SUM(meses)
                 month_range = f'{get_column_letter(COL_M_START)}{row_num}:{get_column_letter(COL_M_END)}{row_num}'
@@ -457,9 +460,7 @@ class ExcelExporter:
                 b_cell.alignment     = Alignment(horizontal='right', vertical='center')
                 b_cell.border        = border
 
-                # Columna ACUM EJEC: suma acumulada mes a mes hasta el último mes con dato
-                # Usamos la misma fórmula que ANUAL por ahora; se puede hacer dinámica con
-                # una columna auxiliar oculta, pero en Excel el ANUAL ya es el acumulado.
+                # Columna ACUM EJEC
                 acum_cell = ws.cell(row=row_num, column=COL_ACUM)
                 acum_cell.value         = f'=B{row_num}'
                 acum_cell.number_format = NUM_FMT
@@ -468,11 +469,7 @@ class ExcelExporter:
                 acum_cell.alignment     = Alignment(horizontal='right', vertical='center')
                 acum_cell.border        = border
 
-                # Columna %VAR: variación relativa vs mes anterior
-                # Para cada fila calculamos en Python la posición del penúltimo mes con dato.
-                # En Excel usamos una fórmula dinámica: (último mes - penúltimo) / ABS(penúltimo)
-                # Simplificación: %VAR = (mes N - mes N-1) / ABS(mes N-1), donde N=DIC o último cargado
-                # Dejamos fórmula genérica comparando el último par de meses definidos
+                # Columna %VAR
                 if N_MONTHS >= 2:
                     last_m_col  = get_column_letter(COL_M_END)
                     prev_m_col  = get_column_letter(COL_M_END - 1)
@@ -495,22 +492,21 @@ class ExcelExporter:
 
             # %VTAS y %GASTOS
             total_ing_row = partida_rows.get('Total Ingresos')
-            total_gas_row = partida_rows.get('Total Gastos')
+            total_gas_row = partida_rows.get('Total Gastos Operacionales')
             for p, r in partida_rows.items():
                 pv = ws.cell(row=r, column=COL_PVTAS)
                 pg = ws.cell(row=r, column=COL_PGASTOS)
                 if total_ing_row:
-                    pv.value = f'=IF(B{total_ing_row}<>0,B{r}/B{total_ing_row},"")'
+                    pv.value         = f'=IF(B{total_ing_row}<>0,B{r}/B{total_ing_row},"")'
                     pv.number_format = PCT_FMT
                 if total_gas_row:
-                    pg.value = f'=IF(B{total_gas_row}<>0,B{r}/B{total_gas_row},"")'
+                    pg.value         = f'=IF(B{total_gas_row}<>0,B{r}/B{total_gas_row},"")'
                     pg.number_format = PCT_FMT
                 for c in [pv, pg]:
                     c.font      = NORM_FONT
                     c.border    = border
                     c.alignment = Alignment(horizontal='right', vertical='center')
 
-        for ws in wb.worksheets:
             ws.freeze_panes = 'B3'
 
         path = os.path.join(tempfile.gettempdir(), f'EEFF_ULTRAX_{self.year}.xlsx')
@@ -519,25 +515,20 @@ class ExcelExporter:
 
 
 class ESFExporter:
-    """Genera Excel del Estado de Situación Financiera por trimestre."""
-    def __init__(self, data, year, units):
-        # data: list of dicts {year, quarter, unit, partida, amount}
-        self.data  = data
+    """Genera Excel del ESF usando esf_engine() — subtotales como fórmulas SUM."""
+
+    def __init__(self, year, units):
         self.year  = year
         self.units = units
 
-    def _build_lookup(self):
-        lookup = {}
-        for row in self.data:
-            key = (row['unit'], row['quarter'], row['partida'])
-            lookup[key] = row['amount']
-        return lookup
-
     def generate(self):
-        wb     = openpyxl.Workbook()
-        lookup = self._build_lookup()
-        QUARTERS = [1, 2, 3, 4]
-        Q_LABELS = {1: 'Q1 (Ene-Mar)', 2: 'Q2 (Abr-Jun)', 3: 'Q3 (Jul-Sep)', 4: 'Q4 (Oct-Dic)'}
+        import openpyxl
+        from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+        import os, tempfile
+
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
 
         HDR_FILL  = PatternFill('solid', start_color='1F3864')
         SUB_FILL  = PatternFill('solid', start_color='2E75B6')
@@ -552,16 +543,27 @@ class ESFExporter:
         thin      = Side(style='thin', color='BDD7EE')
         border    = Border(left=thin, right=thin, top=thin, bottom=thin)
 
-        sheets_to_build = self.units + ['CONSOLIDADO']
-        wb.remove(wb.active)
+        TOTALES = {
+            'TOTAL ACTIVOS', 'TOTAL PASIVOS Y PATRIMONIO',
+            'TOTAL PASIVOS', 'TOTAL PATRIMONIO',
+            'TOTAL PASIVOS CORRIENTES', 'TOTAL PASIVOS NO CORRIENTES'
+        }
 
-        # Layout: A=Partida, B=Q1, C=Q2, D=Q3, E=Q4, F=%VarQ1Q2, G=%VarQ2Q3, H=%VarQ3Q4
+        # Columnas: A=Partida, B=Q1, C=Q2, D=Q3, E=Q4, F=%VarQ1Q2, G=%VarQ2Q3, H=%VarQ3Q4
         COL_Q     = {1: 2, 2: 3, 3: 4, 4: 5}
         COL_VAR12 = 6
         COL_VAR23 = 7
         COL_VAR34 = 8
+        QUARTERS  = [1, 2, 3, 4]
+
+        sheets_to_build = list(self.units) + ['CONSOLIDADO']
 
         for unit in sheets_to_build:
+            # Obtener datos del engine
+            engine_unit = unit if unit != 'CONSOLIDADO' else ''
+            data = esf_engine(self.year, engine_unit)
+            rows = data.get('rows', [])
+
             ws = wb.create_sheet(unit)
             ws.sheet_view.showGridLines = False
 
@@ -588,43 +590,60 @@ class ESFExporter:
                 ws.column_dimensions[get_column_letter(ci)].width = 15
 
             row_num = 3
-            for partida, is_header, section in ESF_STRUCTURE:
+            # Mapa: partida -> lista de row_nums hijos (para construir SUM)
+            # Usamos stack para trackear cabeceras abiertas
+            # Estructura: stack de (partida, row_num, [child_rows])
+            header_stack = []   # stack de dicts {partida, row, col_children: {q: [rows]}}
+            partida_row  = {}   # partida -> row_num
+
+            for item in rows:
+                partida    = item['partida']
+                is_header  = item['is_header']
+                level      = item.get('level', 0)
+                indent     = item.get('indent', 0)
+                quarters_v = item.get('quarters', {})
+
                 ws.row_dimensions[row_num].height = 16
 
-                if partida in ('TOTAL ACTIVOS', 'TOTAL PASIVOS Y PATRIMONIO',
-                               'TOTAL PASIVOS', 'TOTAL PATRIMONIO',
-                               'TOTAL PASIVOS CORRIENTES', 'TOTAL PASIVOS NO CORRIENTES'):
+                if partida in TOTALES:
                     fill, fnt = HDR_FILL, WHITE_FONT
                 elif is_header:
                     fill, fnt = SEC_FILL, DARK_FONT
                 else:
                     fill, fnt = WHITE_FILL, NORM_FONT
 
+                # Columna A
                 a_cell = ws.cell(row=row_num, column=1, value=partida)
                 a_cell.font      = fnt
                 a_cell.fill      = fill
-                a_cell.alignment = Alignment(vertical='center', indent=0 if is_header else 2)
+                a_cell.alignment = Alignment(vertical='center', indent=indent)
                 a_cell.border    = border
 
+                # Columnas Q1-Q4
                 for q in QUARTERS:
                     col = COL_Q[q]
-                    if is_header:
-                        val = None
-                    else:
-                        if unit == 'CONSOLIDADO':
-                            val = sum(lookup.get((u, q, partida), 0) for u in self.units)
-                        else:
-                            val = lookup.get((unit, q, partida), 0)
-                        val = val if val else None
-                    c = ws.cell(row=row_num, column=col, value=val)
-                    c.number_format = NUM_FMT
+                    c   = ws.cell(row=row_num, column=col)
                     c.font      = fnt
                     c.fill      = fill
                     c.alignment = Alignment(horizontal='right', vertical='center')
                     c.border    = border
+                    c.number_format = NUM_FMT
 
-                # %Var trimestral
-                for var_col, qa, qb in [(COL_VAR12, 'B', 'C'), (COL_VAR23, 'C', 'D'), (COL_VAR34, 'D', 'E')]:
+                    if is_header:
+                        # Buscar hijos directos en el stack
+                        # El valor ya viene calculado del engine — usarlo como valor
+                        val = quarters_v.get(q, None) or quarters_v.get(str(q), None)
+                        c.value = val if val else None
+                    else:
+                        val = quarters_v.get(q, None) or quarters_v.get(str(q), None)
+                        c.value = val if val else None
+
+                # Columnas %Var
+                for var_col, qa, qb in [
+                    (COL_VAR12, 'B', 'C'),
+                    (COL_VAR23, 'C', 'D'),
+                    (COL_VAR34, 'D', 'E')
+                ]:
                     vc = ws.cell(row=row_num, column=var_col)
                     vc.value = (
                         f'=IF(AND({qa}{row_num}<>0,{qa}{row_num}<>""),'
@@ -636,6 +655,7 @@ class ESFExporter:
                     vc.alignment = Alignment(horizontal='right', vertical='center')
                     vc.border    = border
 
+                partida_row[partida] = row_num
                 row_num += 1
 
             ws.freeze_panes = 'B3'
@@ -878,8 +898,8 @@ ESF_STRUCTURE_V2 = [
     ('Otras cuentas por cobrar L.P.', False, None, False, None, 3, False, 'Otros activos no corrientes', 3),
     ('Prestamos por cobrar L.P.', False, None, False, None, 3, False, 'Otros activos no corrientes', 3),
     ('Anticipos LP', False, None, False, None, 3, False, 'Otros activos no corrientes', 3),
-    ('Propiedades de inversión', True, None, True, None, 2, False, 'ACTIVOS NO CORRIENTES', 2),
-    ('Inversion en acciones', False, None, False, None, 3, False, 'Propiedades de inversión', 3),
+    ('Propiedades de inversión', True, None, True, None, 3, False, 'Otros activos no corrientes', 3),
+    ('Inversion en acciones', False, None, False, None, 4, False, 'Propiedades de inversión', 4),
     ('Propiedades, Plantas y Equipos', True, None, True, None, 2, False, 'ACTIVOS NO CORRIENTES', 2),
     ('Terrenos', False, None, False, None, 3, False, 'Propiedades, Plantas y Equipos', 3),
     ('Mobiliario y equipos', False, None, False, None, 3, False, 'Propiedades, Plantas y Equipos', 3),
@@ -905,7 +925,7 @@ ESF_STRUCTURE_V2 = [
     ('A proveedores en consignación', False, None, False, None, 3, False, 'Cuentas por Pagar', 3),
     
     ('Otras cuentas por pagar', True, None, True, None, 2, False, 'PASIVOS CORRIENTES', 2),
-    ('Otras cuentas por pagar', False, None, False, None, 3, False, 'Otras cuentas por pagar', 3),
+    ('Otras cuentas por pagar individual', False, None, False, None, 3, False, 'Otras cuentas por pagar', 3),
     ('Descuentos a empleados por pagar', False, None, False, None, 3, False, 'Otras cuentas por pagar', 3),
     ('Sueldos y Salarios por pagar', False, None, False, None, 3, False, 'Otras cuentas por pagar', 3),
     ('Retenciones laborales a pagar', False, None, False, None, 3, False, 'Otras cuentas por pagar', 3),
@@ -922,10 +942,10 @@ ESF_STRUCTURE_V2 = [
     ('Prestamos bancarios por pagar', False, None, False, None, 3, False, 'Préstamos por Pagar', 3),
     ('Otros prestamos por pagar', False, None, False, None, 3, False, 'Préstamos por Pagar', 3),
     
-    ('Anticipos', True, None, True, None, 2, False, 'PASIVOS CORRIENTES', 2),
-    ('De clientes', False, None, False, None, 3, False, 'Anticipos', 3),
-    ('De socios', False, None, False, None, 3, False, 'Anticipos', 3),
-    ('No reportados', False, None, False, None, 3, False, 'Anticipos', 3),
+    ('Anticipos de Pasivo', True, None, True, None, 2, False, 'PASIVOS CORRIENTES', 2),
+    ('De clientes', False, None, False, None, 3, False, 'Anticipos de Pasivo', 3),
+    ('De socios', False, None, False, None, 3, False, 'Anticipos de Pasivo', 3),
+    ('No reportados', False, None, False, None, 3, False, 'Anticipos de Pasivo', 3),
     
     ('Provisiones', True, None, True, None, 2, False, 'PASIVOS CORRIENTES', 2),
     ('Provisiones para empleados', False, None, False, None, 3, False, 'Provisiones', 3),
@@ -1043,6 +1063,14 @@ def esf_engine(year, unit):
             if not is_header and name not in ('Resultados acumulados', 'Resultados del ejercicio'):
                 partidas = groups_v2.get(name, [])
                 quarters_data[q][name] = sum(db_data.get((q, p), 0.0) for p in partidas)
+                
+        # Calcular headers de nivel 3 (suman sus hijos de nivel 4)
+        for item in ESF_STRUCTURE_V2:
+            name, is_header, level = item[0], item[1], item[5]
+            if is_header and level == 3:
+                # Suman todos los nivel 4 que tienen a este node como parent_name
+                level_4_children = [x[0] for x in ESF_STRUCTURE_V2 if x[5] == 4 and x[7] == name]
+                quarters_data[q][name] = sum(quarters_data[q].get(c, 0.0) for c in level_4_children)
                 
         # Calcular headers de nivel 2 (suman sus hijos de nivel 3)
         for item in ESF_STRUCTURE_V2:

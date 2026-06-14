@@ -3260,40 +3260,34 @@ def comparativa():
 
 @app.route('/api/export/excel', methods=['GET'])
 def export_excel():
+    from engine import ExcelExporter
     year = request.args.get('year', str(datetime.now().year))
     unit = request.args.get('unit', '')
     mf   = request.args.get('month_from', '')
     mt   = request.args.get('month_to', '')
-    db   = get_db()
 
-    q = 'SELECT * FROM financials WHERE year=?'; params = [year]
-    if unit: q += ' AND unit=?'; params.append(unit)
     if mf and mt and mf in MONTHS and mt in MONTHS:
         fi, ti = MONTHS.index(mf), MONTHS.index(mt)
         sel = MONTHS[fi:ti+1] if fi <= ti else MONTHS[fi:] + MONTHS[:ti+1]
-        q += f' AND month IN ({",".join("?"*len(sel))})'; params.extend(sel)
     elif mf and mf in MONTHS:
         sel = MONTHS[MONTHS.index(mf):]
-        q += f' AND month IN ({",".join("?"*len(sel))})'; params.extend(sel)
+    else:
+        sel = MONTHS
 
-    rows = db.execute(q + ' ORDER BY unit, month, partida', params).fetchall()
-    exp  = ExcelExporter([dict(r) for r in rows], year, [unit] if unit else UNITS, sel if 'sel' in locals() else MONTHS)
-    path = exp.generate()
-    suf  = (f'_{unit}' if unit else '_CONSOLIDADO') + (f'_{mf}-{mt}' if mf and mt else '')
+    units = [unit] if unit else UNITS
+    exp   = ExcelExporter(year, units, sel)
+    path  = exp.generate()
+    suf   = (f'_{unit}' if unit else '_CONSOLIDADO') + (f'_{mf}-{mt}' if mf and mt else '')
     return send_file(path, as_attachment=True, download_name=f'EERR_ULTRAX_{year}{suf}.xlsx')
 
 
 @app.route('/api/export/esf', methods=['GET'])
 def export_esf():
+    from engine import ESFExporter
     year = request.args.get('year', str(datetime.now().year))
     unit = request.args.get('unit', '')
-    db   = get_db()
-
-    uc   = f"AND unit='{unit}'" if unit else ''
-    rows = db.execute(
-        f'SELECT * FROM esf_data WHERE year=? {uc} ORDER BY unit, quarter, partida', [year]
-    ).fetchall()
-    exp  = ESFExporter([dict(r) for r in rows], year, [unit] if unit else UNITS)
+    units = [unit] if unit else UNITS
+    exp  = ESFExporter(year, units)
     path = exp.generate()
     suf  = f'_{unit}' if unit else '_CONSOLIDADO'
     return send_file(path, as_attachment=True, download_name=f'ESF_ULTRAX_{year}{suf}.xlsx')
