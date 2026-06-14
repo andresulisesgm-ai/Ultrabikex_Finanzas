@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>ULTRAX — Financial Intelligence</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -1364,7 +1365,11 @@ const WIDGET_TEMPLATES = {
   'wc-gau': `
     <div class="ch"><div><div class="ct">⏱ Indicadores Gauge</div><div class="cs">Margen Neto · Cobertura PE · Eficiencia Operativa</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-gau">✕</button></div></div>
-    <div class="grow" id="grow"></div>
+    <div id="grow" style="display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap">
+      <div id="gauge-mn" style="width:200px;height:160px"></div>
+      <div id="gauge-pe" style="width:200px;height:160px"></div>
+      <div id="gauge-ef" style="width:200px;height:160px"></div>
+    </div>
   `,
   'wc-rank': `
     <div class="ch"><div><div class="ct">🏅 Ranking de Rentabilidad</div><div class="cs">Ordenado por margen neto</div></div>
@@ -1988,42 +1993,81 @@ function renderSem(mb,mn,rc,rg,un,peCov,ia){
 }
 
 // ── GAUGES ────────────────────────────────────────────────────────────────
-function mkGauge(lbl,val,min,max,zones,sub){
-  const W=140,H=88,cx=70,cy=76,r=55;
-  const p=cl((val-min)/(max-min),0,1);
-  const na=Math.PI-p*Math.PI;
-  function arc(f,t,col){
-    const fp=cl((f-min)/(max-min),0,1),tp=cl((t-min)/(max-min),0,1);
-    const a1=Math.PI-fp*Math.PI,a2=Math.PI-tp*Math.PI;
-    const x1=cx+r*Math.cos(a1),y1=cy-r*Math.sin(a1);
-    const x2=cx+r*Math.cos(a2),y2=cy-r*Math.sin(a2);
-    const lg=(tp-fp)>.5?1:0;
-    return`<path d="M${x1},${y1} A${r},${r} 0 ${lg},0 ${x2},${y2}" fill="none" stroke="${col}" stroke-width="9" stroke-linecap="round"/>`;
-  }
-  const arcs=zones.map(z=>arc(z.f,z.t,z.c)).join('');
-  const nx=cx+48*Math.cos(na),ny=cy-48*Math.sin(na);
-  const col=zones.find(z=>val>=z.f&&val<=z.t)?.c||'#64748b';
-  return`<div class="gwrap">
-    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="overflow:visible">
-      <path d="M${cx-r},${cy} A${r},${r} 0 0,1 ${cx+r},${cy}" fill="none" stroke="#e2e8f0" stroke-width="9" stroke-linecap="round"/>
-      ${arcs}
-      <line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="${col}" stroke-width="2.5" stroke-linecap="round"/>
-      <circle cx="${cx}" cy="${cy}" r="4.5" fill="${col}"/>
-      <circle cx="${cx}" cy="${cy}" r="2" fill="#fff"/>
-      <text x="${cx}" y="${cy+15}" text-anchor="middle" font-family="DM Mono,monospace" font-size="12" font-weight="700" fill="${col}">${typeof val==='number'?val.toFixed(1)+'%':val}</text>
-    </svg>
-    <div class="glbl">${lbl}</div>
-    <div class="gsub">${sub}</div>
-  </div>`;
+function mkEChart(domId, lbl, val, min, max, ref, sub) {
+  const dom = G(domId);
+  if (!dom) return;
+  if (dom._echart) dom._echart.dispose();
+  const chart = echarts.init(dom);
+  dom._echart = chart;
+
+  const pct = Math.max(0, Math.min(100, ((val - min) / (max - min)) * 100));
+
+  chart.setOption({
+    series: [{
+      type: 'gauge',
+      startAngle: 200,
+      endAngle: -20,
+      min: min,
+      max: max,
+      radius: '88%',
+      center: ['50%', '62%'],
+      splitNumber: 4,
+      axisLine: {
+        lineStyle: {
+          width: 18,
+          color: [
+            [ref / max * 0.5, '#E24B4A'],
+            [ref / max * 0.85, '#EF9F27'],
+            [1, '#1D9E75']
+          ]
+        }
+      },
+      pointer: {
+        length: '72%',
+        width: 4,
+        itemStyle: { color: '#444441' }
+      },
+      axisTick: {
+        distance: -22,
+        length: 6,
+        lineStyle: { color: '#fff', width: 1.5 }
+      },
+      splitLine: {
+        distance: -28,
+        length: 14,
+        lineStyle: { color: '#fff', width: 2.5 }
+      },
+      axisLabel: {
+        color: '#888780',
+        fontSize: 9,
+        distance: -42,
+        formatter: (v) => v === min || v === max || v === Math.round((min+max)/2) ? v + (max <= 200 ? '%' : '') : ''
+      },
+      detail: {
+        valueAnimation: true,
+        formatter: (v) => v.toFixed(1) + '%',
+        color: '#2C2C2A',
+        fontSize: 18,
+        fontWeight: '500',
+        offsetCenter: [0, '28%']
+      },
+      title: {
+        offsetCenter: [0, '55%'],
+        fontSize: 10,
+        color: '#888780',
+        fontWeight: '400'
+      },
+      data: [{ value: val, name: sub }]
+    }]
+  });
 }
-function renderGauges(mn,peCov,rg){
-  try{
-    G('grow').innerHTML=[
-      mkGauge('Margen Neto',mn,-20,30,[{f:-20,t:0,c:'#dc2626'},{f:0,t:10,c:'#f59e0b'},{f:10,t:30,c:'#10b981'}],'Ref ≥10%'),
-      mkGauge('Cobertura PE',peCov!=null?peCov:0,0,150,[{f:0,t:80,c:'#dc2626'},{f:80,t:100,c:'#f59e0b'},{f:100,t:150,c:'#10b981'}],'Ref ≥100%'),
-      mkGauge('Efic.Operativa',100-rg,0,100,[{f:0,t:40,c:'#dc2626'},{f:40,t:60,c:'#f59e0b'},{f:60,t:100,c:'#10b981'}],'100−%Gasto/Vta'),
-    ].join('');
-  }catch(e){console.warn('gauges',e);}
+
+function renderGauges(mn, peCov, rg) {
+  try {
+    mkEChart('gauge-mn', 'Margen Neto', mn, -20, 30, 10, 'Ref ≥10%');
+    mkEChart('gauge-pe', 'Cobertura PE', peCov != null ? peCov : 0, 0, 150, 100, 'Ref ≥100%');
+    mkEChart('gauge-ef', 'Efic. Operativa', 100 - rg, 0, 100, 60, '100−%Gasto/Vta');
+  } catch(e) { console.warn('gauges', e); }
 }
 
 // ── RANKING ───────────────────────────────────────────────────────────────
