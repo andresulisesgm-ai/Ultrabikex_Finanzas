@@ -1452,9 +1452,9 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "type": "esf",
     "title": "Estructura Financiera",
     "subtitle": "Activos · Pasivos · Patrimonio",
-    "visible": false,
+    "visible": true,
     "order": 30,
-    "doubleWidth": false,
+    "doubleWidth": true,
     "chartType": "doughnut",
     "dataset": "esf_totals"
   },
@@ -1586,7 +1586,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "subtitle": "Ajustado por tasa paralela",
     "icon": "💵",
     "colorClass": "cb",
-    "visible": false,
+    "visible": true,
     "order": 42,
     "dataset": "divisa_real"
   },
@@ -1597,7 +1597,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "subtitle": "Ajustado por tasa paralela",
     "icon": "💰",
     "colorClass": "cg",
-    "visible": false,
+    "visible": true,
     "order": 43,
     "dataset": "divisa_real"
   },
@@ -1606,7 +1606,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "type": "divisa",
     "title": "Comparativa Bs vs USD Real",
     "subtitle": "Ingresos · Costos · Utilidad",
-    "visible": false,
+    "visible": true,
     "order": 44,
     "doubleWidth": true,
     "chartType": "bar",
@@ -3113,17 +3113,18 @@ async function loadDash(){
             const stacked = ctype === 'bar-stack';
             if (CH['ch-dcomp']) CH['ch-dcomp'].destroy();
             
-            const bsData = [
-              resumen.literal_bcv.ingresos,
-              resumen.literal_bcv.costos,
-              resumen.literal_bcv.gastos,
-              resumen.literal_bcv.utilidad_neta
-            ];
-            const usdRealData = paralela ? [
-              resumen.divisa_real.ingresos / paralela,
-              resumen.divisa_real.costos / paralela,
-              resumen.divisa_real.gastos / paralela,
-              resumen.divisa_real.utilidad_neta / paralela
+            const bcv = resumen.tasa_bcv_promedio;
+            const usdBcvData = bcv ? [
+              resumen.literal_bcv.ingresos / bcv,
+              resumen.literal_bcv.costos / bcv,
+              resumen.literal_bcv.gastos / bcv,
+              resumen.literal_bcv.utilidad_neta / bcv
+            ] : [null, null, null, null];
+            const usdParaleloData = paralela ? [
+              resumen.literal_bcv.ingresos / paralela,
+              resumen.literal_bcv.costos / paralela,
+              resumen.literal_bcv.gastos / paralela,
+              resumen.literal_bcv.utilidad_neta / paralela
             ] : [null, null, null, null];
 
             CH['ch-dcomp'] = new Chart(dcompCanvas, {
@@ -3131,8 +3132,8 @@ async function loadDash(){
               data: {
                 labels: ['Ingresos','Costos','Gastos','Util. Neta'],
                 datasets: [
-                  { label: 'Bs', data: bsData, backgroundColor: '#2563eb' },
-                  { label: 'USD Real', data: usdRealData, backgroundColor: '#059669' }
+                  { label: 'USD BCV', data: usdBcvData, backgroundColor: '#2563eb' },
+                  { label: 'USD Paralelo', data: usdParaleloData, backgroundColor: '#059669' }
                 ]
               },
               options: { responsive:true, scales: stacked ? {x:{stacked:true},y:{stacked:true}} : {} }
