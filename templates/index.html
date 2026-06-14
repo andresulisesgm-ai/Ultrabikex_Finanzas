@@ -1556,6 +1556,61 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "visible": false,
     "order": 39,
     "dataset": "indicadores_avanzados"
+  },
+  {
+    "id": "wc-panel-indicadores",
+    "type": "panel",
+    "title": "Panel de Indicadores",
+    "subtitle": "ROE · ROA · Liquidez · Rotación",
+    "visible": false,
+    "order": 40,
+    "doubleWidth": true,
+    "chartType": "bar",
+    "dataset": "indicadores_avanzados"
+  },
+  {
+    "id": "wc-panel-esf",
+    "type": "panel",
+    "title": "Panel Balance ESF",
+    "subtitle": "Activos · Pasivos · Patrimonio",
+    "visible": false,
+    "order": 41,
+    "doubleWidth": true,
+    "chartType": "bar",
+    "dataset": "esf_totals"
+  },
+  {
+    "id": "wc-divisa-ingr",
+    "type": "divisa",
+    "title": "Ingresos en USD Real",
+    "subtitle": "Ajustado por tasa paralela",
+    "icon": "💵",
+    "colorClass": "cb",
+    "visible": false,
+    "order": 42,
+    "dataset": "divisa_real"
+  },
+  {
+    "id": "wc-divisa-un",
+    "type": "divisa",
+    "title": "Utilidad Neta en USD Real",
+    "subtitle": "Ajustado por tasa paralela",
+    "icon": "💰",
+    "colorClass": "cg",
+    "visible": false,
+    "order": 43,
+    "dataset": "divisa_real"
+  },
+  {
+    "id": "wc-divisa-comp",
+    "type": "divisa",
+    "title": "Comparativa Bs vs USD Real",
+    "subtitle": "Ingresos · Costos · Utilidad",
+    "visible": false,
+    "order": 44,
+    "doubleWidth": true,
+    "chartType": "bar",
+    "dataset": "divisa_real"
   }
 ];
 
@@ -1744,6 +1799,57 @@ const WIDGET_TEMPLATES = {
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-ind-cobro">✕</button></div></div>
     <div class="esf-kpi-val" id="ind-cobro-val" style="font-size:28px;font-weight:700;color:var(--amber);padding:16px 0 4px">—</div>
     <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">Ref: &lt;30 días óptimo · &lt;60 aceptable</div>
+  `,
+  'wc-panel-indicadores': `
+    <div class="ch"><div><div class="ct">📐 Panel de Indicadores</div><div class="cs">ROE · ROA · Liquidez · Rotación</div></div>
+      <div class="cact"><span class="dh">⠿</span>
+        <select class="csel ctsel" id="ct-ch-pind" onchange="setChartType('ch-pind',this.value)" title="Tipo de gráfico">
+          <option value="bar">Barras</option>
+          <option value="radar">Radar</option>
+          <option value="polarArea">Área Polar</option>
+          <option value="bar-h">Barras Horizontales</option>
+          <option value="table">Tabla</option>
+        </select>
+        <button class="bcl" data-w="wc-panel-indicadores">✕</button></div></div>
+    <canvas id="ch-pind" height="220"></canvas>
+    <div id="ch-pind-table" style="display:none"></div>
+  `,
+  'wc-panel-esf': `
+    <div class="ch"><div><div class="ct">🏗 Panel Balance ESF</div><div class="cs">Activos · Pasivos · Patrimonio</div></div>
+      <div class="cact"><span class="dh">⠿</span>
+        <select class="csel ctsel" id="ct-ch-pesf" onchange="setChartType('ch-pesf',this.value)" title="Tipo de gráfico">
+          <option value="bar">Barras</option>
+          <option value="bar-stack">Barras Apiladas</option>
+          <option value="doughnut">Dona</option>
+          <option value="polarArea">Área Polar</option>
+          <option value="table">Tabla</option>
+        </select>
+        <button class="bcl" data-w="wc-panel-esf">✕</button></div></div>
+    <canvas id="ch-pesf" height="220"></canvas>
+    <div id="ch-pesf-table" style="display:none"></div>
+  `,
+  'wc-divisa-ingr': `
+    <div class="ch"><div><div class="ct">💵 Ingresos USD Real</div><div class="cs">Ajustado por tasa paralela</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-divisa-ingr">✕</button></div></div>
+    <div class="esf-kpi-val" id="divisa-ingr-val" style="font-size:28px;font-weight:700;color:var(--blue);padding:16px 0 4px">—</div>
+    <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">Tasa paralela: <span id="divisa-ingr-tasa">—</span></div>
+  `,
+  'wc-divisa-un': `
+    <div class="ch"><div><div class="ct">💰 Utilidad Neta USD Real</div><div class="cs">Ajustado por tasa paralela</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-divisa-un">✕</button></div></div>
+    <div class="esf-kpi-val" id="divisa-un-val" style="font-size:28px;font-weight:700;color:var(--green);padding:16px 0 4px">—</div>
+    <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">Tasa paralela: <span id="divisa-un-tasa">—</span></div>
+  `,
+  'wc-divisa-comp': `
+    <div class="ch"><div><div class="ct">📊 Comparativa Bs vs USD Real</div><div class="cs">Ingresos · Costos · Utilidad</div></div>
+      <div class="cact"><span class="dh">⠿</span>
+        <select class="csel ctsel" id="ct-ch-dcomp" onchange="setChartType('ch-dcomp',this.value)" title="Tipo de gráfico">
+          <option value="bar">Barras agrupadas</option>
+          <option value="bar-stack">Barras Apiladas</option>
+          <option value="line">Líneas</option>
+        </select>
+        <button class="bcl" data-w="wc-divisa-comp">✕</button></div></div>
+    <canvas id="ch-dcomp" height="220"></canvas>
   `
 };
 
@@ -1888,14 +1994,24 @@ const CHART_OPTIONS = {
   'wc-rad':          [['radar','Radar'],['line','Líneas'],['bar','Barras'],['polarArea','Área Polar']],
   'wc-est':          [['doughnut','Dona'],['pie','Pastel'],['bar','Barras'],['polarArea','Área Polar']],
   'wc-tg':           [['bar','Barras'],['line','Líneas'],['bar-h','Barras Horizontales'],['doughnut','Dona']],
-  'wc-esf-estructura':[['doughnut','Dona'],['pie','Pastel'],['bar','Barras'],['polarArea','Área Polar']]
+  'wc-esf-estructura':[['doughnut','Dona'],['pie','Pastel'],['bar','Barras'],['polarArea','Área Polar']],
+  'wc-panel-indicadores':[['bar','Barras'],['radar','Radar'],['polarArea','Área Polar'],['bar-h','Barras Horizontales'],['table','Tabla']],
+  'wc-panel-esf':[['bar','Barras'],['bar-stack','Barras Apiladas'],['doughnut','Dona'],['polarArea','Área Polar'],['table','Tabla']],
+  'wc-divisa-comp':[['bar','Barras agrupadas'],['bar-stack','Barras Apiladas'],['line','Líneas']]
 };
 
-const CATEGORIAS_MODAL = [
-  { key:'eerr',      label:'📊 EERR — Resultados',       tipos:['kpi','chart','special','table'] },
-  { key:'esf',       label:'🏦 ESF — Balance',            tipos:['esf'] },
-  { key:'indicador', label:'📐 Indicadores Financieros',  tipos:['indicador'] }
-];
+function getCategoriesModal() {
+  const cats = [
+    { key:'eerr',      label:'📊 EERR — Resultados',       tipos:['kpi','chart','special','table'] },
+    { key:'esf',       label:'🏦 ESF — Balance',            tipos:['esf'] },
+    { key:'indicador', label:'📐 Indicadores Financieros',  tipos:['indicador'] },
+    { key:'panel',     label:'📈 Panels con Gráfica',       tipos:['panel'] },
+  ];
+  if (DD && DD._tasas) {
+    cats.push({ key:'divisa', label:'💵 Divisa Real',       tipos:['divisa'] });
+  }
+  return cats;
+}
 
 function openAddWidgetModal() {
   const modal = G('add-widget-modal');
@@ -1914,7 +2030,7 @@ function openAddWidgetModal() {
   }
 
   // PASO 1 — categorías colapsables con checkboxes
-  list.innerHTML = '<div id="awm-step1">' + CATEGORIAS_MODAL.map(cat => {
+  list.innerHTML = '<div id="awm-step1">' + getCategoriesModal().map(cat => {
     const ws = hidden.filter(w => cat.tipos.includes(w.type));
     if (!ws.length) return '';
     return `
@@ -2882,6 +2998,116 @@ async function loadDash(){
     rTable();rWF(tI,tC,ub,tG,un);
     applyHidden();
     scheduleMasonry();
+
+    // Renderizar Panel de Indicadores
+    const pindActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-panel-indicadores' && w.visible);
+    if (pindActivo && ia) {
+      const labels = ['ROE %','ROA %','Ratio Corriente','Prueba Ácida','Prueba Defensiva','Endeudamiento','Rot. Inv.','Rot. Activos','P. Cobro'];
+      const valores = [
+        ia.roe!=null?ia.roe*100:null, ia.roa!=null?ia.roa*100:null,
+        ia.ratio_corriente, ia.prueba_acida, ia.prueba_defensiva,
+        ia.ratio_endeud, ia.rotacion_inv, ia.rotacion_activos!=null?ia.rotacion_activos*4:null, ia.periodo_cobro
+      ];
+      const ctsel = document.getElementById('ct-ch-pind');
+      const ctype = ctsel ? ctsel.value : 'bar';
+      const canvas = G('ch-pind');
+      const tableDiv = G('ch-pind-table');
+      if (ctype === 'table') {
+        if (canvas) canvas.style.display = 'none';
+        if (tableDiv) {
+          tableDiv.style.display = 'block';
+          tableDiv.innerHTML = `<table style="width:100%;font-size:11px;border-collapse:collapse">
+            <thead><tr><th style="text-align:left;padding:4px;border-bottom:1px solid var(--bd)">Indicador</th><th style="text-align:right;padding:4px;border-bottom:1px solid var(--bd)">Valor</th></tr></thead>
+            <tbody>${labels.map((l,i)=>`<tr><td style="padding:4px;border-bottom:1px solid var(--bd)">${l}</td><td style="text-align:right;padding:4px;border-bottom:1px solid var(--bd)">${valores[i]!=null?Number(valores[i]).toFixed(2):'—'}</td></tr>`).join('')}</tbody>
+          </table>`;
+        }
+      } else {
+        if (canvas) canvas.style.display = '';
+        if (tableDiv) tableDiv.style.display = 'none';
+        if (CH['ch-pind']) CH['ch-pind'].destroy();
+        const realType = ctype === 'bar-h' ? 'bar' : ctype;
+        const opts = ctype === 'bar-h' ? {indexAxis:'y'} : {};
+        if (canvas) CH['ch-pind'] = new Chart(canvas, {
+          type: realType,
+          data: { labels, datasets: [{ label: 'Valor', data: valores, backgroundColor: PAL }] },
+          options: { responsive:true, ...opts, plugins:{ legend:{display:false} } }
+        });
+      }
+    }
+
+    // Renderizar Panel Balance ESF
+    const pesfActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-panel-esf' && w.visible);
+    if (pesfActivo) {
+      fetch(`/api/esf/totals?year=${year}&unit=${unit==='TODAS'?'':unit}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(esf => {
+          if (!esf) return;
+          const t = esf.totales;
+          const labels = ['Activos Corrientes','Activos No Corrientes','Pasivos Corrientes','Pasivos No Corrientes','Patrimonio'];
+          const valores = [t.activos_corrientes, t.activos_no_corrientes, t.pasivos_corrientes, t.pasivos_no_corrientes, t.patrimonio];
+          const colors = ['#2563eb','#0891b2','#dc2626','#f97316','#059669'];
+          const ctsel = document.getElementById('ct-ch-pesf');
+          const ctype = ctsel ? ctsel.value : 'bar';
+          const canvas = G('ch-pesf');
+          const tableDiv = G('ch-pesf-table');
+          if (ctype === 'table') {
+            if (canvas) canvas.style.display = 'none';
+            if (tableDiv) {
+              tableDiv.style.display = 'block';
+              tableDiv.innerHTML = `<table style="width:100%;font-size:11px;border-collapse:collapse">
+                <thead><tr><th style="text-align:left;padding:4px;border-bottom:1px solid var(--bd)">Rubro</th><th style="text-align:right;padding:4px;border-bottom:1px solid var(--bd)">Monto</th></tr></thead>
+                <tbody>${labels.map((l,i)=>`<tr><td style="padding:4px;border-bottom:1px solid var(--bd)">${l}</td><td style="text-align:right;padding:4px;border-bottom:1px solid var(--bd)">${fmtS(valores[i])}</td></tr>`).join('')}</tbody>
+              </table>`;
+            }
+          } else {
+            if (canvas) canvas.style.display = '';
+            if (tableDiv) tableDiv.style.display = 'none';
+            if (CH['ch-pesf']) CH['ch-pesf'].destroy();
+            const realType = ctype === 'bar-stack' ? 'bar' : ctype;
+            const stacked = ctype === 'bar-stack';
+            if (canvas) CH['ch-pesf'] = new Chart(canvas, {
+              type: realType,
+              data: { labels, datasets: [{ label: 'Monto', data: valores, backgroundColor: colors }] },
+              options: { responsive:true, plugins:{ legend:{display:false} }, scales: stacked ? {x:{stacked:true},y:{stacked:true}} : {} }
+            });
+          }
+        });
+    }
+
+    // Renderizar widgets Divisa Real
+    if (DD._modo_divisa && DD._tasas) {
+      const paralela = DD._tasas.paralela;
+      const ingrUSD = paralela ? tI / paralela : null;
+      const unUSD = paralela ? un / paralela : null;
+      const dIngrEl = G('divisa-ingr-val');
+      const dUnEl = G('divisa-un-val');
+      const dTasaIngr = G('divisa-ingr-tasa');
+      const dTasaUn = G('divisa-un-tasa');
+      if (dIngrEl) dIngrEl.textContent = ingrUSD != null ? '$' + ingrUSD.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+      if (dUnEl) dUnEl.textContent = unUSD != null ? '$' + unUSD.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+      if (dTasaIngr) dTasaIngr.textContent = paralela ? paralela.toFixed(2) : '—';
+      if (dTasaUn) dTasaUn.textContent = paralela ? paralela.toFixed(2) : '—';
+
+      const dcompCanvas = G('ch-dcomp');
+      if (dcompCanvas && window.DASHBOARD_CONFIG.find(w => w.id === 'wc-divisa-comp' && w.visible)) {
+        const ctsel = document.getElementById('ct-ch-dcomp');
+        const ctype = ctsel ? ctsel.value : 'bar';
+        const realType = ctype === 'bar-stack' ? 'bar' : ctype;
+        const stacked = ctype === 'bar-stack';
+        if (CH['ch-dcomp']) CH['ch-dcomp'].destroy();
+        CH['ch-dcomp'] = new Chart(dcompCanvas, {
+          type: realType,
+          data: {
+            labels: ['Ingresos','Costos','Gastos','Util. Neta'],
+            datasets: [
+              { label: 'Bs', data: [tI, tC, tG, un], backgroundColor: '#2563eb' },
+              { label: 'USD Real', data: paralela ? [tI/paralela, tC/paralela, tG/paralela, un/paralela] : [null,null,null,null], backgroundColor: '#059669' }
+            ]
+          },
+          options: { responsive:true, scales: stacked ? {x:{stacked:true},y:{stacked:true}} : {} }
+        });
+      }
+    }
 
     // Renderizar widgets ESF
     const esfActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-esf-kpi-activos' && w.visible);
