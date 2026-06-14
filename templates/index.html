@@ -136,11 +136,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);overf
 .pe-lbls{display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--mu2);}
 
 /* ── MASONRY WIDGETS ── */
-#wcon{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:12px;align-items:start;grid-auto-rows:8px;grid-auto-flow:row dense;}
+#wcon{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start;grid-auto-rows:8px;grid-auto-flow:row dense;}
 .ww{grid-column:span 2;}
 @media(max-width:1100px){.ww{grid-column:span 1;}}
 .wcard{background:var(--sf);border:1px solid var(--bd);border-radius:11px;padding:14px;box-shadow:var(--sh);transition:box-shadow .2s,opacity .2s;position:relative;}
 .wcard:hover{box-shadow:var(--sh-md);}
+.wcard.ws { grid-column: span 1; }
+.wcard.wm { grid-column: span 2; }
+.wcard.wl { grid-column: span 3; }
+.wcard.wxl { grid-column: span 4; }
 .wcard.dragging{opacity:.4;transform:scale(.97);}
 .wcard.dragover{border-color:var(--blue);box-shadow:0 0 0 2px rgba(37,99,235,.2);}
 .wcard.whidden{display:none!important;}
@@ -1642,10 +1646,11 @@ function removeWidget(id) {
   }
 }
 
-function toggleWidgetWidth(id) {
+function setWidgetSize(id, size) {
   const w = window.DASHBOARD_CONFIG.find(item => item.id === id);
   if (w) {
-    w.doubleWidth = !w.doubleWidth;
+    w.size = size;
+    w.doubleWidth = size === 'xl' || size === 'l';
     renderDashboardWidgets();
     loadDash();
     setTimeout(() => resizeWidgetCharts(id), 150);
@@ -1683,8 +1688,9 @@ function renderDashboardWidgets() {
       isVisible = false;
     }
 
+    const sizeClass = { s: 'ws', m: 'wm', l: 'wl', xl: 'wxl' }[w.size || 'm'] || 'wm';
     const wcard = document.createElement('div');
-    wcard.className = `wcard ${w.doubleWidth ? 'ww' : ''} ${isVisible ? '' : 'whidden'}`;
+    wcard.className = `wcard ${sizeClass} ${isVisible ? '' : 'whidden'}`;
     wcard.id = w.id;
     wcard.setAttribute('draggable', 'true');
     
@@ -1693,13 +1699,15 @@ function renderDashboardWidgets() {
       wcard.classList.remove('whidden');
       wcard.style.border = '2px dashed var(--blue)';
       extraControls = `
-        <div class="edit-card-overlay" style="position: absolute; top: 0; right: 0; background: rgba(37,99,235,0.08); padding: 4px; border-bottom-left-radius: 8px; display: flex; gap: 4px; z-index: 10;">
-          <label style="font-size: 10px; display: flex; align-items: center; gap: 2px; cursor: pointer; color: var(--blue); font-weight: 600;">
-            <input type="checkbox" ${w.doubleWidth ? 'checked' : ''} onchange="toggleWidgetWidth('${w.id}')" style="cursor: pointer;"> Ancho Doble
-          </label>
-          <button onclick="removeWidget('${w.id}')" style="background: var(--red); color: white; border: none; border-radius: 4px; padding: 2px 6px; font-size: 10px; cursor: pointer; font-weight: bold;">✕ Quitar</button>
-        </div>
-      `;
+  <div class="edit-card-overlay" style="position:absolute;top:0;right:0;background:rgba(37,99,235,0.08);padding:4px;border-bottom-left-radius:8px;display:flex;gap:4px;z-index:10;align-items:center;">
+    <span style="font-size:9px;color:var(--blue);font-weight:600;margin-right:2px">Tamaño:</span>
+    <button onclick="setWidgetSize('${w.id}','s')" style="font-size:9px;padding:1px 5px;border-radius:3px;border:1px solid var(--blue);background:${(w.size||'m')==='s'?'var(--blue)':'white'};color:${(w.size||'m')==='s'?'white':'var(--blue)'};cursor:pointer">S</button>
+    <button onclick="setWidgetSize('${w.id}','m')" style="font-size:9px;padding:1px 5px;border-radius:3px;border:1px solid var(--blue);background:${(w.size||'m')==='m'?'var(--blue)':'white'};color:${(w.size||'m')==='m'?'white':'var(--blue)'};cursor:pointer">M</button>
+    <button onclick="setWidgetSize('${w.id}','l')" style="font-size:9px;padding:1px 5px;border-radius:3px;border:1px solid var(--blue);background:${(w.size||'m')==='l'?'var(--blue)':'white'};color:${(w.size||'m')==='l'?'white':'var(--blue)'};cursor:pointer">L</button>
+    <button onclick="setWidgetSize('${w.id}','xl')" style="font-size:9px;padding:1px 5px;border-radius:3px;border:1px solid var(--blue);background:${(w.size||'m')==='xl'?'var(--blue)':'white'};color:${(w.size||'m')==='xl'?'white':'var(--blue)'};cursor:pointer">XL</button>
+    <button onclick="removeWidget('${w.id}')" style="background:var(--red);color:white;border:none;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer;font-weight:bold;margin-left:4px">✕</button>
+  </div>
+`;
       wcard.style.position = 'relative';
     }
 
