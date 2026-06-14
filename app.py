@@ -2122,11 +2122,12 @@ def compute_indicadores(db, year, unit='', ingresos=0.0, util_neta=0.0):
     # Ingresos y costos trimestrales (para rotación inventarios)
     uc = f"AND unit='{unit}'" if unit else ''
     meses_q = {1:[1,2,3], 2:[4,5,6], 3:[7,8,9], 4:[10,11,12]}[last_q]
+    meses_nombres = [MONTHS[m-1] for m in meses_q]
     rows_q = db.execute(
-        f'''SELECT SUM(amount) total, account_number FROM financials
-            WHERE year=? AND month IN ({','.join('?'*len(meses_q))}) {uc}
-            GROUP BY account_number''',
-        [year] + meses_q
+        f'''SELECT SUM(amount_sign) total, odoo_code AS account_number FROM financials_detail
+            WHERE year=? AND month IN ({','.join('?'*len(meses_nombres))}) {uc}
+            GROUP BY odoo_code''',
+        [year] + meses_nombres
     ).fetchall()
     ing_q = sum(r['total'] for r in rows_q if r['account_number'].startswith('4'))
     cos_q = sum(r['total'] for r in rows_q if r['account_number'].startswith('5'))
