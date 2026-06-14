@@ -635,6 +635,7 @@ input[type=file]{display:none;}
       </div>
       <div style="display: flex; gap: 8px; align-items: center;">
         <button class="btn btn-outline" id="btn-edit-mode" onclick="enterEditMode()" style="padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer; border-radius: 6px; border: 1px solid var(--bd); background: var(--sf2); color: var(--mu);">✏️ Editar Dashboard</button>
+        <button id="btn-reset-layout" onclick="LS.set('gs-layout',null);location.reload();" style="font-size:10px;padding:4px 10px;border:0.5px solid #D3D1C7;border-radius:6px;background:#fff;color:#888;cursor:pointer;margin-left:6px">Reset layout</button>
         <div id="edit-controls-group" style="display: none; gap: 8px;">
           <button class="btn btn-secondary" onclick="openAddWidgetModal()" style="padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer; border-radius: 6px; background: var(--blue-l); color: var(--blue); border: 1px solid rgba(37,99,235,.2);">➕ Agregar Widget</button>
           <button class="btn btn-success" onclick="saveDashboardConfig()" style="padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer; border-radius: 6px; background: var(--green); color: white; border: none;">💾 Guardar</button>
@@ -1674,6 +1675,14 @@ function toggleWidgetWidth(id) {
 let _gsGrid = null;
 
 function renderDashboardWidgets() {
+  const savedLayout = LS.get('gs-layout', null);
+  if (savedLayout) {
+    const maxCol = 24;
+    const needsReset = savedLayout.some(item => item.x + item.w > maxCol || item.w > maxCol);
+    if (needsReset) {
+      LS.set('gs-layout', null);
+    }
+  }
   const wcon = G('wcon');
   if (!wcon) return;
 
