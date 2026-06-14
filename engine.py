@@ -344,24 +344,31 @@ class ExcelExporter:
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
 
-        HDR_FILL  = PatternFill('solid', start_color='1F3864')
-        SUB_FILL  = PatternFill('solid', start_color='2E75B6')
-        SEC_FILL  = PatternFill('solid', start_color='BDD7EE')
-        WHITE_FILL= PatternFill('solid', start_color='FFFFFF')
-        ACUM_FILL = PatternFill('solid', start_color='EBF3FB')
-        VAR_FILL  = PatternFill('solid', start_color='FFF2CC')
-        WHITE_FONT= Font(name='Arial', bold=True, color='FFFFFF', size=10)
-        DARK_FONT = Font(name='Arial', bold=True, color='1F3864', size=10)
+        HDR_FILL  = PatternFill('solid', start_color='000000')  # Negro - título y headers
+        SUB_FILL  = PatternFill('solid', start_color='000000')  # Negro - encabezado columnas
+        SEC_FILL  = PatternFill('solid', start_color='FFFFFF')  # Blanco - subtotales
+        WHITE_FILL= PatternFill('solid', start_color='FFFFFF')  # Blanco - partidas hoja
+        ACUM_FILL = PatternFill('solid', start_color='FFFF00')  # Amarillo - acumulados
+        VAR_FILL  = PatternFill('solid', start_color='FFFF00')  # Amarillo - variaciones
+        WHITE_FONT= Font(name='Arial', bold=True, color='FFFFFF', size=10)  # Blanco sobre negro
+        DARK_FONT = Font(name='Arial', bold=True, color='000000', size=10)  # Negro sobre blanco
         NORM_FONT = Font(name='Arial', size=9)
+        TEAL_FILL = PatternFill('solid', start_color='6AD9E8')  # Turquesa - totales principales
         NUM_FMT   = '#,##0.00;(#,##0.00);"-"'
         PCT_FMT   = '0.0%;(0.0%);"-"'
-        thin      = Side(style='thin', color='BDD7EE')
+        thin      = Side(style='thin', color='D9D9D9')  # Borde gris suave
         border    = Border(left=thin, right=thin, top=thin, bottom=thin)
 
         TOTALES_HDR = {
             'Total Ingresos', 'Total Costo de Ventas', 'Utilidad Bruta',
             'Total Gastos Operacionales', 'Total Gastos Operacionales y No Operacionales',
-            'Utilidad Neta', 'Utilidad Neta despues de ISLR'
+            'Utilidad Neta', 'Utilidad Neta despues de ISLR',
+            'Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)',
+            'Utilidad antes de Intereses e Impuestos (EBIT)',
+            'Utilidad Bruta por Venta de Mercancia y Taller',
+            'Utilidad Bruta por Servicios', 'Utilidad Bruta por Eventos',
+            'Utilidad antes de Comisiones por Ventas',
+            'Utilidad después de Comisiones por Ventas'
         }
 
         N_MONTHS     = len(self.months)
@@ -422,7 +429,7 @@ class ExcelExporter:
                 ws.row_dimensions[row_num].height = 16
 
                 if partida in TOTALES_HDR:
-                    fill, fnt = HDR_FILL, WHITE_FONT
+                    fill, fnt = TEAL_FILL, DARK_FONT
                 elif is_header:
                     fill, fnt = SEC_FILL, DARK_FONT
                 else:
@@ -509,8 +516,24 @@ class ExcelExporter:
 
             ws.freeze_panes = 'B3'
 
-            # Hoja de Notas EERR
-            self._build_notes_sheet(wb, unit, engine_unit)
+            # Construir Notas y obtener mapa de filas
+            notes_name, partida_month_rows = self._build_notes_sheet(wb, unit, engine_unit)
+
+            # Si hay datos en Notas, reescribir celdas de meses en EERR con fórmulas a Notas
+            if partida_month_rows:
+                for partida, r in partida_rows.items():
+                    if partida in partida_month_rows:
+                        for m_idx, month in enumerate(self.months):
+                            col = COL_M_START + m_idx
+                            filas = partida_month_rows[partida].get(month, [])
+                            if filas:
+                                refs = '+'.join(
+                                    f"'{notes_name}'!{get_column_letter(4+m_idx)}{f}"
+                                    for f in filas
+                                )
+                                c = ws.cell(row=r, column=col)
+                                c.value = f'={refs}'
+                                c.number_format = NUM_FMT
 
         path = os.path.join(tempfile.gettempdir(), f'EEFF_ULTRAX_{self.year}.xlsx')
         wb.save(path)
@@ -520,26 +543,30 @@ class ExcelExporter:
         import sqlite3, os
         from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
+        from collections import defaultdict
 
         DB_PATH = os.path.join(os.path.dirname(__file__), 'data', 'ultrax.db')
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
 
-        HDR_FILL  = PatternFill('solid', start_color='1F3864')
-        SEC_FILL  = PatternFill('solid', start_color='BDD7EE')
+        HDR_FILL  = PatternFill('solid', start_color='000000')
+        SEC_FILL  = PatternFill('solid', start_color='E2EFDA')
         WHITE_FILL= PatternFill('solid', start_color='FFFFFF')
         WHITE_FONT= Font(name='Arial', bold=True, color='FFFFFF', size=10)
-        DARK_FONT = Font(name='Arial', bold=True, color='1F3864', size=10)
+        DARK_FONT = Font(name='Arial', bold=True, color='000000', size=10)
         NORM_FONT = Font(name='Arial', size=9)
         NUM_FMT   = '#,##0.00;(#,##0.00);"-"'
-        thin      = Side(style='thin', color='BDD7EE')
+        thin      = Side(style='thin', color='D9D9D9')
         border    = Border(left=thin, right=thin, top=thin, bottom=thin)
 
-        ws = wb.create_sheet(f'N EERR {unit}')
+        notes_sheet_name = f'N EERR {unit}'
+        ws = wb.create_sheet(notes_sheet_name)
         ws.sheet_view.showGridLines = False
 
-        # Título
-        ws.merge_cells('A1:F1')
+        N = len(self.months)
+        total_cols = 4 + N + 1  # codigo, nombre, partida, (vacio), meses..., total
+
+        ws.merge_cells(f'A1:{get_column_letter(total_cols)}1')
         t = ws['A1']
         t.value     = f'NOTAS — ESTADO DE RESULTADOS — {unit.upper()} — {self.year}'
         t.font      = Font(name='Arial', bold=True, color='FFFFFF', size=12)
@@ -547,9 +574,7 @@ class ExcelExporter:
         t.alignment = Alignment(horizontal='center', vertical='center')
         ws.row_dimensions[1].height = 24
 
-        # Encabezados
-        headers = ['CÓDIGO ODOO', 'NOMBRE CUENTA', 'PARTIDA', 'MES'] + list(self.months) + ['TOTAL']
-        N = len(self.months)
+        headers = ['CÓDIGO ODOO', 'NOMBRE CUENTA', 'PARTIDA'] + list(self.months) + ['TOTAL']
         for ci, h in enumerate(headers, 1):
             cell = ws.cell(row=2, column=ci, value=h)
             cell.font      = WHITE_FONT
@@ -560,14 +585,11 @@ class ExcelExporter:
         ws.column_dimensions['A'].width = 18
         ws.column_dimensions['B'].width = 45
         ws.column_dimensions['C'].width = 40
-        ws.column_dimensions['D'].width = 8
-        for ci in range(5, 5 + N + 1):
+        for ci in range(4, 4 + N + 2):
             ws.column_dimensions[get_column_letter(ci)].width = 12
 
-        # Obtener partidas únicas en orden de EERR_STRUCTURE
         partidas_order = [item[0] for item in EERR_STRUCTURE if not item[1]]
 
-        # Query detalle
         if engine_unit:
             rows = conn.execute(
                 '''SELECT odoo_code, odoo_name, partida, month, amount_sign
@@ -586,31 +608,29 @@ class ExcelExporter:
                 (self.year,)
             ).fetchall()
 
-        # Agrupar por partida → cuenta → mes
-        from collections import defaultdict
         data = defaultdict(lambda: defaultdict(lambda: {'name': '', 'meses': {}}))
         for r in rows:
             data[r['partida']][r['odoo_code']]['name'] = r['odoo_name']
             data[r['partida']][r['odoo_code']]['meses'][r['month']] = r['amount_sign']
 
-        row_num = 3
-        current_partida = None
+        # mapa retornado: {partida: {month: [row_nums en hoja Notas]}}
+        partida_month_rows = defaultdict(lambda: defaultdict(list))
 
+        row_num = 3
         for partida in partidas_order:
             if partida not in data:
                 continue
 
             # Fila cabecera de partida
             ws.row_dimensions[row_num].height = 16
+            ws.merge_cells(f'A{row_num}:C{row_num}')
             a = ws.cell(row=row_num, column=1, value=partida)
             a.font = DARK_FONT; a.fill = SEC_FILL; a.border = border
-            ws.merge_cells(f'A{row_num}:D{row_num}')
-            for ci in range(5, 5 + N + 1):
+            for ci in range(2, 4 + N + 2):
                 c = ws.cell(row=row_num, column=ci)
                 c.fill = SEC_FILL; c.border = border
             row_num += 1
 
-            child_rows = []
             for code, info in sorted(data[partida].items()):
                 ws.row_dimensions[row_num].height = 15
                 ws.cell(row=row_num, column=1, value=code).border = border
@@ -621,29 +641,31 @@ class ExcelExporter:
                 ws.cell(row=row_num, column=3).font = NORM_FONT
 
                 for m_idx, month in enumerate(self.months):
-                    col = 5 + m_idx
+                    col = 4 + m_idx
                     val = info['meses'].get(month, None)
                     c = ws.cell(row=row_num, column=col, value=val)
                     c.number_format = NUM_FMT
                     c.font = NORM_FONT
                     c.border = border
                     c.alignment = Alignment(horizontal='right')
+                    # Registrar esta fila para el mes en el mapa
+                    partida_month_rows[partida][month].append(row_num)
 
                 # Total fila
-                m_start = get_column_letter(5)
-                m_end   = get_column_letter(4 + N)
-                tot = ws.cell(row=row_num, column=5+N,
+                m_start = get_column_letter(4)
+                m_end   = get_column_letter(3 + N)
+                tot = ws.cell(row=row_num, column=4+N,
                               value=f'=SUM({m_start}{row_num}:{m_end}{row_num})')
                 tot.number_format = NUM_FMT
                 tot.font = NORM_FONT
                 tot.border = border
                 tot.alignment = Alignment(horizontal='right')
 
-                child_rows.append(row_num)
                 row_num += 1
 
         ws.freeze_panes = 'A3'
         conn.close()
+        return notes_sheet_name, partida_month_rows
 
 
 class ESFExporter:
