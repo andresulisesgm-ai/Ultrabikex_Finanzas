@@ -1684,7 +1684,7 @@ function renderDashboardWidgets() {
   wcon.innerHTML = '<div class="grid-stack" id="gs-main"></div>';
 
   _gsGrid = GridStack.init({
-    column: 12,
+    column: 24,
     cellHeight: 60,
     margin: 8,
     disableDrag: !window.DASHBOARD_EDIT_MODE,
@@ -1706,7 +1706,7 @@ function renderDashboardWidgets() {
     if (!isVisible && !window.DASHBOARD_EDIT_MODE) return;
 
     const saved = savedLayout ? savedLayout.find(l => l.id === w.id) : null;
-    const defaultW = w.doubleWidth ? 8 : 4;
+    const defaultW = w.doubleWidth ? 12 : 6;
     const defaultH = w.id === 'wc-tbl' || w.id === 'wc-tg' ? 5 : w.id === 'wc-main' ? 5 : 4;
 
     const content = WIDGET_TEMPLATES[w.id] || `<div class="ch"><div><div class="ct">${w.title}</div></div></div>`;
