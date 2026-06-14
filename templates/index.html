@@ -1036,6 +1036,10 @@ input[type=file]{display:none;}
     <div id="add-widget-list" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto;padding-right:4px">
       <!-- List of available widgets will be generated here -->
     </div>
+    <div style="margin-top:12px;display:flex;justify-content:flex-end;gap:8px">
+      <button class="btnc" onclick="closeAddWidgetModal()" style="padding:6px 14px">Cancelar</button>
+      <button onclick="addSelectedWidgets()" style="background:var(--blue);color:white;border:none;border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer">➕ Agregar seleccionados</button>
+    </div>
   </div>
 </div>
 
@@ -1604,22 +1608,39 @@ function openAddWidgetModal() {
   } else {
     hiddenWidgets.forEach(w => {
       const item = document.createElement('div');
-      item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 8px; background: var(--sf2); border: 1px solid var(--bd); border-radius: 6px; margin-bottom: 4px;';
-      
+      item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 8px; background: var(--sf2); border: 1px solid var(--bd); border-radius: 6px;';
+
       const typeLabel = w.type === 'kpi' ? '🔑 KPI' : w.type === 'chart' ? '📊 Gráfico' : '⚙️ Especial';
-      
+
       item.innerHTML = `
-        <div>
-          <div style="font-size: 11px; font-weight: 600; color: var(--fg);">${w.title}</div>
-          <div style="font-size: 9px; color: var(--mu2);">${typeLabel}</div>
-        </div>
-        <button onclick="addWidget('${w.id}')" style="background: var(--blue); color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 10px; cursor: pointer; font-weight: 600;">➕ Agregar</button>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1">
+          <input type="checkbox" data-widget-id="${w.id}" style="width:15px;height:15px;cursor:pointer;accent-color:var(--blue)">
+          <div>
+            <div style="font-size:11px;font-weight:600;color:var(--fg)">${w.title}</div>
+            <div style="font-size:9px;color:var(--mu2)">${typeLabel} · ${w.subtitle || ''}</div>
+          </div>
+        </label>
       `;
       list.appendChild(item);
     });
   }
 
   modal.classList.add('show');
+}
+
+function addSelectedWidgets() {
+  const checked = document.querySelectorAll('#add-widget-list input[type="checkbox"]:checked');
+  if (checked.length === 0) {
+    closeAddWidgetModal();
+    return;
+  }
+  checked.forEach(cb => {
+    const w = window.DASHBOARD_CONFIG.find(item => item.id === cb.dataset.widgetId);
+    if (w) w.visible = true;
+  });
+  renderDashboardWidgets();
+  loadDash();
+  closeAddWidgetModal();
 }
 
 function closeAddWidgetModal() {
