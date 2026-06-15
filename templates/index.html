@@ -686,7 +686,7 @@ input[type=file]{display:none;}
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div style="font-size:12px;font-weight:700">Estado de Situación Financiera (Balance General)</div>
         <div style="display:flex;gap:6px;align-items:center">
-          <select class="csel" id="esf-unit" onchange="loadESF()" style="padding:5px 8px">{% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}</select>
+          <input type="hidden" id="esf-unit" value="">
           <select class="csel" id="esf-year" onchange="loadESF()" style="padding:5px 8px"><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option></select>
           <button class="btns" onclick="window.location.href='/api/export/esf?year='+G('esf-year').value+(G('esf-unit').value?'&unit='+encodeURIComponent(G('esf-unit').value):'')" style="font-size:11px">↓ Excel</button>
           <button class="btns" onclick="window.location.href='/api/export/esf/pdf?year='+G('esf-year').value+(G('esf-unit').value?'&unit='+encodeURIComponent(G('esf-unit').value):'')" style="font-size:11px">↓ PDF</button>
@@ -4469,7 +4469,7 @@ function renderEERRDet() {
 let ESF_DATA = null, esfQ = 1;
 
 async function loadESF() {
-  const year = G('esf-year').value, unit = G('esf-unit').value;
+  const year = G('esf-year').value, unit = '';
   G('esf-body').innerHTML = '<p style="color:var(--mu);font-size:12px;padding:20px 0">Cargando...</p>';
   try {
     const r = await fetch(`/api/esf/completo?year=${year}&unit=${encodeURIComponent(unit)}`);
