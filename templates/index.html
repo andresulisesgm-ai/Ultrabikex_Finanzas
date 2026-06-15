@@ -4606,9 +4606,16 @@ function renderESF() {
     }
   }
 
+  // Reordenamiento visual: extraer TOTAL ACTIVOS para moverlo después de Total Activos No Corrientes
+  const totalActivosRow = rows.find(r => r.partida === 'TOTAL ACTIVOS');
+
   let htmlRows = '';
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
+
+    // Saltar TOTAL ACTIVOS en su posición original
+    if (r.partida === 'TOTAL ACTIVOS') continue;
+
     const cleanName = cleanPartidaName(r.partida);
     const isHdr = r.is_header;
     const level = r.level;
@@ -4616,7 +4623,7 @@ function renderESF() {
     const useBold = r.bold || isHdr || isTotal;
     const parentIdx = parentIndices[i];
     const hasChildren = isParent[i];
-    
+
     let cls = 'esf-leaf';
     if (level === 0) {
       cls = 'esf-grand';
@@ -4625,10 +4632,10 @@ function renderESF() {
     } else if (level === 2 && isHdr) {
       cls = 'esf-sub';
     }
-    
+
     const boldStyle = useBold ? 'font-weight:700' : '';
     const padLeft = (r.indent * 12 + 10) + 'px';
-    
+
     const isAlwaysExpanded = level <= 1;
     let saved = null;
     try {
@@ -4645,7 +4652,7 @@ function renderESF() {
     }
 
     const escapedPartida = r.partida.replace(/"/g, '&quot;');
-    
+
     htmlRows += `<div class="esf-row ${cls}" 
                       data-row-id="${i}" 
                       data-parent-id="${parentIdx !== null ? parentIdx : ''}" 
@@ -4656,7 +4663,48 @@ function renderESF() {
       <div style="padding-left:${padLeft};${boldStyle}">${toggleHtml}${cleanName}</div>
       ${numCells(r)}
     </div>`;
+
+    // Insertar TOTAL ACTIVOS justo después de Total Activos No Corrientes
+    if (r.partida === 'Total Activos No Corrientes' && totalActivosRow) {
+      htmlRows += `<div class="esf-row esf-grand" 
+                        data-row-id="total-activos-moved" 
+                        data-level="0" 
+                        data-expanded="true" 
+                        data-partida="TOTAL ACTIVOS"
+                        style="grid-template-columns:${gridCols}">
+        <div style="padding-left:10px;font-weight:700">TOTAL ACTIVOS</div>
+        ${numCells(totalActivosRow)}
+      </div>`;
+    }
   }
+
+  // Fila DIFERENCIA al final (Total Activos - Total Pasivos - Patrimonio)
+  const getDiferencia = (q) => {
+    const activos = rows.find(r => r.partida === 'TOTAL ACTIVOS');
+    const pasivos = rows.find(r => r.partida === 'TOTAL PASIVOS');
+    const patrimonio = rows.find(r => r.partida === 'Total Patrimonio');
+    const a = activos ? (activos.quarters[q] || 0) : 0;
+    const p = pasivos ? (pasivos.quarters[q] || 0) : 0;
+    const pt = patrimonio ? (patrimonio.quarters[q] || 0) : 0;
+    return a - p - pt;
+  };
+  const difRowObj = {
+    quarters: {
+      1: getDiferencia(1),
+      2: getDiferencia(2),
+      3: getDiferencia(3),
+      4: getDiferencia(4)
+    }
+  };
+  htmlRows += `<div class="esf-row esf-grand" 
+                    data-row-id="diferencia" 
+                    data-level="0" 
+                    data-expanded="true" 
+                    data-partida="DIFERENCIA"
+                    style="grid-template-columns:${gridCols};background:var(--purple,#6c5ce7);margin-top:8px;color:var(--white,#fff)">
+    <div style="padding-left:10px;font-weight:700;color:var(--white,#fff)">DIFERENCIA</div>
+    ${numCells(difRowObj)}
+  </div>`;
 
   const qHdrs = quarters.map(q => `<div class="esf-num" style="font-weight:700">${qLabels[q]}</div>`).join('');
   const vHdrs = qAll ? '<div class="esf-var" style="font-weight:700">Q1→Q2</div><div class="esf-var" style="font-weight:700">Q2→Q3</div><div class="esf-var" style="font-weight:700">Q3→Q4</div>' : '';
