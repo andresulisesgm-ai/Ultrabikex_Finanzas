@@ -16,6 +16,98 @@ app.teardown_appcontext(close_db)
 UNITS  = ['Rodeo', 'PiedeMonte', 'Terracota', 'Ucafe', 'Barinas', 'Naranjos']
 MONTHS = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC']
 
+# ── %Vtas segmentado para Costo de Ventas / Utilidad Bruta por segmento ──
+# Estas partidas dividen %Vtas contra el ingreso de su propio segmento
+# (Mercancia+Taller, Servicios o Eventos) en vez del Total Ingresos general.
+# Spec confirmado contra formulas de ESF_EJEMPLO.xlsx, hoja "EERR RODEO".
+PARTIDAS_DIVISOR_SEGMENTADO = {
+    'Subtotal Costo de Ventas por Mercancia': 'mercancia_taller',
+    'Costos de venta por mercancia': 'mercancia_taller',
+    'Utilidad Bruta por Venta de Mercancia y Taller': 'mercancia_taller',
+    'Subtotal Costo de Ventas por Servicios': 'servicios',
+    'Costo de venta por servicio del café': 'servicios',
+    'Utilidad Bruta por Servicios': 'servicios',
+    'Subtotal Costo de Ventas por Eventos': 'eventos',
+    'Costo de ventas por eventos': 'eventos',
+    'Utilidad Bruta por Eventos': 'eventos',
+}
+
+# Claves de subtotales_por_mes[m] (ya calculadas via EERR_STRUCTURE) por segmento.
+SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO = {
+    'mercancia_taller': ['Subtotal Ingresos por Venta de Mercancia', 'Subtotal Ingresos por Taller'],
+    'servicios': ['Subtotal Ingresos por Servicios'],
+    'eventos': ['Subtotal Ingresos por Eventos'],
+}
+
+# Partidas hoja por segmento (mismo universo que arma EERR_STRUCTURE para
+# los subtotales de arriba), usadas contra datos crudos: by_budget y by_prev_raw.
+SEGMENTOS_INGRESO_PCT_VTAS = {
+    'mercancia_taller': [
+        'Ingresos por venta de mercancias',
+        'Devoluciones sobre ventas',
+        'Descuentos sobre ventas',
+        'Ingresos por taller',
+    ],
+    'servicios': [
+        'Ingresos por servicios del café',
+        'Ingresos por zona FIT',
+        'Ingresos por fletes',
+        'Ingresos por otros servicios',
+    ],
+    'eventos': [
+        'Ingresos por eventos',
+    ],
+}
+
+
+def divisor_ejec(partida_name, subtotales_mes, default):
+    """Divisor de %Vtas ejecutado (y base de acumulado/promedio) para un mes."""
+    segmento = PARTIDAS_DIVISOR_SEGMENTADO.get(partida_name)
+    if segmento is None:
+        return default
+    return sum(subtotales_mes.get(k, 0) for k in SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO[segmento])
+
+
+def divisor_ppto_mes(partida_name, by_budget, m, default):
+    """Divisor de %Vtas de presupuesto para un mes."""
+    segmento = PARTIDAS_DIVISOR_SEGMENTADO.get(partida_name)
+    if segmento is None:
+        return default
+    return sum(by_budget.get(p, {}).get(m, 0) for p in SEGMENTOS_INGRESO_PCT_VTAS[segmento])
+
+
+def divisor_prev(partida_name, by_prev_raw, default):
+    """Divisor de %Vtas para la columna de año anterior."""
+    segmento = PARTIDAS_DIVISOR_SEGMENTADO.get(partida_name)
+    if segmento is None:
+        return default
+    return sum(by_prev_raw.get(p, 0) for p in SEGMENTOS_INGRESO_PCT_VTAS[segmento])
+
+
+# ── %Gastos: rango de partidas donde aplica ──────────────────────────────
+# Desde 'Total Gastos Operacionales' hasta 'Total Gastos Operacionales y No
+# Operacionales' (ambos inclusive), excluyendo cualquier línea de Utilidad
+# (Utilidad antes/después de Comisiones, EBIT, EBITDA quedan intercaladas
+# en ese rango). ISLR se agrega aparte: confirmado por la cliente, aunque
+# está fuera del rango contiguo.
+PARTIDAS_PCT_GASTOS_EXTRA = {'ISLR'}
+
+
+def calcular_muestra_pct_gastos(effective):
+    """Devuelve {partida_name: bool} indicando si esa fila debe mostrar %Gastos."""
+    resultado = {}
+    en_rango = False
+    for node in effective:
+        nombre = node['partida_name']
+        if nombre == 'Total Gastos Operacionales':
+            en_rango = True
+        muestra = (en_rango and not nombre.startswith('Utilidad')) or nombre in PARTIDAS_PCT_GASTOS_EXTRA
+        resultado[nombre] = muestra
+        if nombre == 'Total Gastos Operacionales y No Operacionales':
+            en_rango = False
+    return resultado
+
+
 # Categorías de gasto: cada una agrupa partidas cuyo nombre contiene alguna palabra clave.
 GASTO_CATS = {
     'Administración':   ['servicios públicos','telefonía','alquiler','condominio','outsorsing','oficina','limpieza','alimentos','honorarios','retenciones','mantenimiento','viáticos admin','seguro','impuesto','depreciación','deterioro','amortización','comisiones bancarias','IGTF','intereses'],
@@ -1819,6 +1911,7 @@ def eerr_completo_v2_ui_adapter(year, unit):
     from engine import build_effective_structure
     db_overrides = db.execute('SELECT partida_name, target_subtotal FROM eerr_nodes').fetchall()
     effective = build_effective_structure(EERR_STRUCTURE, db_overrides=db_overrides)
+    muestra_pct_gastos_map = calcular_muestra_pct_gastos(effective)
     structure_with_levels = [(node['partida_name'], node['is_header'], node['level']) for node in effective]
 
     # Pre-calcular subtotales para todos los meses
@@ -2022,7 +2115,7 @@ def eerr_completo_v2_ui_adapter(year, unit):
         valores_calculados_por_mes[m] = {**subtotales_por_mes[m], **totales_mes}
 
         ingresos_ejec_mes[m] = ingresos_operativos
-        gastos_ejec_mes[m] = gastos_operacionales
+        gastos_ejec_mes[m] = gastos_operacionales + otros_gastos
         ingresos_ppto_mes[m] = sum(by_budget.get(p, {}).get(m, 0) for p in op_ing_partidas)
         gastos_ppto_mes[m] = sum(by_budget.get(p, {}).get(m, 0) for p in gas_p)
 
@@ -2052,7 +2145,7 @@ def eerr_completo_v2_ui_adapter(year, unit):
         else:
             prev_val = resolve_leaf_value_prev(partida_name, by_prev_raw)
 
-        prev_pct_vtas = safe_pct(prev_val, ingresos_prev)
+        prev_pct_vtas = safe_pct(prev_val, divisor_prev(partida_name, by_prev_raw, ingresos_prev))
         prev_pct_gastos = safe_pct(prev_val, gastos_prev)
 
         meses_data = []
@@ -2074,14 +2167,17 @@ def eerr_completo_v2_ui_adapter(year, unit):
                 val_ejec = resolve_leaf_value(partida_name, m, by_partida)
                 val_ppto = resolve_leaf_value(partida_name, m, by_budget)
 
+            divisor_vtas_mes = divisor_ejec(partida_name, subtotales_por_mes[m], ingresos_ejec_mes[m])
+            divisor_vtas_ppto = divisor_ppto_mes(partida_name, by_budget, m, ingresos_ppto_mes[m])
+
             acum_ejec += val_ejec
             acum_ppto += val_ppto
-            acum_ing_ejec += ingresos_ejec_mes[m]
-            acum_ing_ppto += ingresos_ppto_mes[m]
+            acum_ing_ejec += divisor_vtas_mes
+            acum_ing_ppto += divisor_vtas_ppto
             acum_gas_ejec += gastos_ejec_mes[m]
             acum_gas_ppto += gastos_ppto_mes[m]
 
-            pct_vtas_ejec = safe_pct(val_ejec, ingresos_ejec_mes[m])
+            pct_vtas_ejec = safe_pct(val_ejec, divisor_vtas_mes)
             pct_gastos_ejec = safe_pct(val_ejec, gastos_ejec_mes[m])
 
             mes_data = {
@@ -2148,6 +2244,7 @@ def eerr_completo_v2_ui_adapter(year, unit):
             'es_nota': es_nota,
             'parent_name': parent_name,
             'indent': indent,
+            'muestra_pct_gastos': muestra_pct_gastos_map.get(partida_name, False),
             'year_prev': {
                 'valor': round(prev_val, 2),
                 'pct_vtas': prev_pct_vtas,
@@ -3329,6 +3426,7 @@ def eerr_divisa_real():
     # ── PASO 7: AGREGACIÓN JERÁRQUICA V2 DE SUBTOTALES ──
     db_overrides = db.execute('SELECT partida_name, target_subtotal FROM eerr_nodes').fetchall()
     effective = build_effective_structure(EERR_STRUCTURE, db_overrides=db_overrides)
+    muestra_pct_gastos_map = calcular_muestra_pct_gastos(effective)
     structure_with_levels = [(node['partida_name'], node['is_header'], node['level']) for node in effective]
 
     subtotales_por_mes = {}
@@ -3529,7 +3627,7 @@ def eerr_divisa_real():
         valores_calculados_por_mes[m] = {**subtotales_por_mes[m], **totales_mes}
 
         ingresos_ejec_mes[m] = ingresos_operativos
-        gastos_ejec_mes[m] = gastos_operacionales
+        gastos_ejec_mes[m] = gastos_operacionales + otros_gastos
         ingresos_ppto_mes[m] = sum(by_budget.get(p, {}).get(m, 0) for p in op_ing_partidas)
         gastos_ppto_mes[m] = sum(by_budget.get(p, {}).get(m, 0) for p in gas_p)
 
@@ -3559,7 +3657,7 @@ def eerr_divisa_real():
         else:
             prev_val = resolve_leaf_value_prev(partida_name, by_prev_raw)
 
-        prev_pct_vtas = safe_pct(prev_val, ingresos_prev)
+        prev_pct_vtas = safe_pct(prev_val, divisor_prev(partida_name, by_prev_raw, ingresos_prev))
         prev_pct_gastos = safe_pct(prev_val, gastos_prev)
 
         meses_data = []
@@ -3581,14 +3679,17 @@ def eerr_divisa_real():
                 val_ejec = resolve_leaf_value(partida_name, m, by_partida)
                 val_ppto = resolve_leaf_value(partida_name, m, by_budget)
 
+            divisor_vtas_mes = divisor_ejec(partida_name, subtotales_por_mes[m], ingresos_ejec_mes[m])
+            divisor_vtas_ppto = divisor_ppto_mes(partida_name, by_budget, m, ingresos_ppto_mes[m])
+
             acum_ejec += val_ejec
             acum_ppto += val_ppto
-            acum_ing_ejec += ingresos_ejec_mes[m]
-            acum_ing_ppto += ingresos_ppto_mes[m]
+            acum_ing_ejec += divisor_vtas_mes
+            acum_ing_ppto += divisor_vtas_ppto
             acum_gas_ejec += gastos_ejec_mes[m]
             acum_gas_ppto += gastos_ppto_mes[m]
 
-            pct_vtas_ejec = safe_pct(val_ejec, ingresos_ejec_mes[m])
+            pct_vtas_ejec = safe_pct(val_ejec, divisor_vtas_mes)
             pct_gastos_ejec = safe_pct(val_ejec, gastos_ejec_mes[m])
 
             mes_data = {
@@ -3654,6 +3755,7 @@ def eerr_divisa_real():
             'es_nota': es_nota,
             'parent_name': parent_name,
             'indent': indent,
+            'muestra_pct_gastos': muestra_pct_gastos_map.get(partida_name, False),
             'year_prev': {
                 'valor': round(prev_val, 2),
                 'pct_vtas': prev_pct_vtas,

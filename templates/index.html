@@ -3656,7 +3656,7 @@ async function loadERRDivisa(){
 
     r += `<td style="${cStyle};${boldStyle}">${fmtZ(row.year_prev.valor)}</td>`;
     r += `<td style="${cStyle}">${pctZ(row.year_prev.pct_vtas)}</td>`;
-    r += `<td style="${cStyle};border-right:2px solid var(--bd)">${pctZ(row.year_prev.pct_gastos)}</td>`;
+    r += `<td style="${cStyle};border-right:2px solid var(--bd)">${row.muestra_pct_gastos ? pctZ(row.year_prev.pct_gastos) : ''}</td>`;
     
       // Renderizar celdas según tipo de mes
     for(let i=0;i<row.meses.length;i++){
@@ -3667,7 +3667,7 @@ async function loadERRDivisa(){
 
       r+=`<td style="${cStyle};${bg};${bLeft};${boldStyle}">${fmtZ(m.ejecutado.valor)}</td>`;
       r+=`<td style="${cStyle};${bg}">${pctZ(m.ejecutado.pct_vtas)}</td>`;
-      r+=`<td style="${cStyle};${bg}">${pctZ(m.ejecutado.pct_gastos)}</td>`;
+      r+=`<td style="${cStyle};${bg}">${row.muestra_pct_gastos ? pctZ(m.ejecutado.pct_gastos) : ''}</td>`;
 
       if(type!=='A'){
         r+=`<td style="${cStyle};${bg}">${varCol(m.vari_rel)}</td>`;
@@ -3675,11 +3675,11 @@ async function loadERRDivisa(){
         if(type==='E'){
           r+=`<td style="${cStyle};${bg};${boldStyle}">${fmtZ(m.anio.valor)}</td>`;
           r+=`<td style="${cStyle};${bg}">${pctZ(m.anio.pct_vtas)}</td>`;
-          r+=`<td style="${cStyle};${bg}">${pctZ(m.anio.pct_gastos)}</td>`;
+          r+=`<td style="${cStyle};${bg}">${row.muestra_pct_gastos ? pctZ(m.anio.pct_gastos) : ''}</td>`;
         }else{
           r+=`<td style="${cStyle};${bg};${boldStyle}">${fmtZ(m.acum_ejecutado.valor)}</td>`;
           r+=`<td style="${cStyle};${bg}">${pctZ(m.acum_ejecutado.pct_vtas)}</td>`;
-          r+=`<td style="${cStyle};${bg}">${pctZ(m.acum_ejecutado.pct_gastos)}</td>`;
+          r+=`<td style="${cStyle};${bg}">${row.muestra_pct_gastos ? pctZ(m.acum_ejecutado.pct_gastos) : ''}</td>`;
         }
 
         if(type==='C' || type==='D' || type==='E'){
@@ -3690,7 +3690,7 @@ async function loadERRDivisa(){
           if(type==='D'){
             r+=`<td style="${cStyle};${bg}">${fmtZ(m.prom_6_ejec.valor)}</td>`;
             r+=`<td style="${cStyle};${bg}">${pctZ(m.prom_6_ejec.pct_vtas)}</td>`;
-            r+=`<td style="${cStyle};${bg}">${pctZ(m.prom_6_ejec.pct_gastos)}</td>`;
+            r+=`<td style="${cStyle};${bg}">${row.muestra_pct_gastos ? pctZ(m.prom_6_ejec.pct_gastos) : ''}</td>`;
             r+=`<td style="${cStyle};${bg}">${fmtZ(m.prom_6_ppto.valor)}</td>`;
             r+=`<td style="${cStyle};${bg}">${pctZ(m.prom_6_ppto.pct_vtas)}</td>`;
             r+=`<td style="${cStyle};${bg}">${varCol(m.var_ppto_prom)}</td>`;
@@ -4251,7 +4251,7 @@ async function loadEERR(){
 
     r += `<td style="${cStyle};${boldStyle}">${fmtZ(row.year_prev.valor)}</td>`;
     r += `<td style="${cStyle}">${pctZ(row.year_prev.pct_vtas)}</td>`;
-    r += `<td style="${cStyle};border-right:2px solid var(--bd)">${pctZ(row.year_prev.pct_gastos)}</td>`;
+    r += `<td style="${cStyle};border-right:2px solid var(--bd)">${row.muestra_pct_gastos ? pctZ(row.year_prev.pct_gastos) : ''}</td>`;
 
     // Render celdas por tipo de mes
     for (let j = 0; j < row.meses.length; j++) {
@@ -4262,7 +4262,7 @@ async function loadEERR(){
 
       r += `<td style="${cStyle};${bg};${bLeft};${boldStyle}">${fmtZ(m.ejecutado.valor)}</td>`;
       r += `<td style="${cStyle};${bg}">${pctZ(m.ejecutado.pct_vtas)}</td>`;
-      r += `<td style="${cStyle};${bg}">${pctZ(m.ejecutado.pct_gastos)}</td>`;
+      r += `<td style="${cStyle};${bg}">${row.muestra_pct_gastos ? pctZ(m.ejecutado.pct_gastos) : ''}</td>`;
 
       if (type !== 'A') {
         r += `<td style="${cStyle};${bg}">${varCol(m.vari_rel)}</td>`;
@@ -4270,11 +4270,11 @@ async function loadEERR(){
         if (type === 'E') {
           r += `<td style="${cStyle};${bg};${boldStyle}">${fmtZ(m.anio.valor)}</td>`;
           r += `<td style="${cStyle};${bg}">${pctZ(m.anio.pct_vtas)}</td>`;
-          r += `<td style="${cStyle};${bg}">${pctZ(m.anio.pct_gastos)}</td>`;
+          r += `<td style="${cStyle};${bg}">${row.muestra_pct_gastos ? pctZ(m.anio.pct_gastos) : ''}</td>`;
         } else {
           r += `<td style="${cStyle};${bg};${boldStyle}">${fmtZ(m.acum_ejecutado.valor)}</td>`;
           r += `<td style="${cStyle};${bg}">${pctZ(m.acum_ejecutado.pct_vtas)}</td>`;
-          r += `<td style="${cStyle};${bg}">${pctZ(m.acum_ejecutado.pct_gastos)}</td>`;
+          r += `<td style="${cStyle};${bg}">${row.muestra_pct_gastos ? pctZ(m.acum_ejecutado.pct_gastos) : ''}</td>`;
         }
 
         if (type === 'C' || type === 'D' || type === 'E') {
@@ -4285,7 +4285,7 @@ async function loadEERR(){
           if (type === 'D') {
             r += `<td style="${cStyle};${bg}">${fmtZ(m.prom_6_ejec.valor)}</td>`;
             r += `<td style="${cStyle};${bg}">${pctZ(m.prom_6_ejec.pct_vtas)}</td>`;
-            r += `<td style="${cStyle};${bg}">${pctZ(m.prom_6_ejec.pct_gastos)}</td>`;
+            r += `<td style="${cStyle};${bg}">${row.muestra_pct_gastos ? pctZ(m.prom_6_ejec.pct_gastos) : ''}</td>`;
             r += `<td style="${cStyle};${bg}">${fmtZ(m.prom_6_ppto.valor)}</td>`;
             r += `<td style="${cStyle};${bg}">${pctZ(m.prom_6_ppto.pct_vtas)}</td>`;
             r += `<td style="${cStyle};${bg}">${varCol(m.var_ppto_prom)}</td>`;
