@@ -903,6 +903,14 @@ input[type=file]{display:none;}
         </div>
       </div>
 
+      <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+        <select id="metodos-year" style="padding:6px 10px;font-size:11px;border-radius:6px;background:var(--sf2);border:1px solid var(--bd);color:var(--tx)" onchange="cargarMetodosPago()">
+          {% for y in range(2023, 2028) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+        </select>
+        <select id="metodos-month" style="padding:6px 10px;font-size:11px;border-radius:6px;background:var(--sf2);border:1px solid var(--bd);color:var(--tx)" onchange="cargarMetodosPago()">
+          {% for m in ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC'] %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+        </select>
+      </div>
       <input type="text" id="metodos-buscador" placeholder="Buscar por código o nombre de cuenta..." oninput="filtrarMetodos()" style="width:100%;padding:6px 10px;font-size:11px;border-radius:6px;background:var(--sf2);margin-bottom:10px">
 
       <div id="metodos-loading" style="padding:20px;text-align:center;color:var(--mu)">Cargando cuentas...</div>
@@ -922,7 +930,7 @@ input[type=file]{display:none;}
             <tbody id="metodos-tbody"></tbody>
           </table>
         </div>
-        <button class="btnm" style="margin-top:12px" onclick="guardarMetodos()">Guardar Configuración</button>
+
       </div>
     </div>
   </div>
@@ -2353,6 +2361,11 @@ function togglePin(){
   }
 }
 document.addEventListener('DOMContentLoaded',function(){
+  const now=new Date();
+  const MONTHS=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC'];
+  const my=G('metodos-year');const mm=G('metodos-month');
+  if(my)my.value=now.getFullYear();
+  if(mm){mm.value=MONTHS[now.getMonth()];}
   const pinned=localStorage.getItem('sb-pinned')!=='0';
   const sb=document.querySelector('.sidebar');
   const main=document.querySelector('.main');
@@ -3449,7 +3462,7 @@ async function eliminarTasa(id) {
 }
 
 async function cargarMetodosPago(){
-  const year=G('tasas-year').value, month=G('tasas-month').value;
+  const year=G('metodos-year').value, month=G('metodos-month').value;
   G('metodos-loading').style.display='block';
   G('metodos-container').style.display='none';
 
@@ -3497,7 +3510,7 @@ function filtrarMetodos(){
 }
 
 async function guardarMetodos(){
-  const year=G('tasas-year').value, month=G('tasas-month').value;
+  const year=G('metodos-year').value, month=G('metodos-month').value;
   const inputs=document.querySelectorAll('.pct-input');
   const metodos=[];
   for(const inp of inputs){
@@ -3512,7 +3525,7 @@ async function guardarMetodos(){
 
 async function copiarMetodosMesAnterior(){
   if(!confirm('¿Copiar configuración del mes anterior como base?'))return;
-  const year=G('tasas-year').value, month=G('tasas-month').value;
+  const year=G('metodos-year').value, month=G('metodos-month').value;
   const MONTHS=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC'];
   const idx=MONTHS.indexOf(month);
   let from_month,from_year;
