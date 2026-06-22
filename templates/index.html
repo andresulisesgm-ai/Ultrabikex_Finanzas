@@ -754,7 +754,7 @@ input[type=file]{display:none;}
     <div class="card" id="form-esf" style="max-width:600px;display:none">
       <div class="stitle">Cargar Estado de Situación Financiera (ESF) — Odoo</div>
       <div class="fgrow">
-        <div class="fg"><label>Unidad</label><select id="up-unit-esf">{% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}</select></div>
+        <div class="fg" style="display:none"><label>Unidad</label><select id="up-unit-esf">{% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}</select></div>
         <div class="fg"><label>Trimestre</label><select id="up-quarter-esf"><option value="1">Q1</option><option value="2">Q2</option><option value="3">Q3</option><option value="4">Q4</option></select></div>
         <div class="fg"><label>Año</label><input type="number" id="up-year-esf" value="2026" min="2020" max="2035"></div>
       </div>
@@ -3268,7 +3268,7 @@ async function doUploadESF(){
   if(!isAdmin()){alert('⛔ Acceso denegado: se requiere rol de administrador');return;}
   if(!sFileESF)return;const btn=G('btnup-esf');btn.disabled=true;btn.textContent='Procesando...';
   const MONTH_MAP={'1':'MAR','2':'JUN','3':'SEPT','4':'DIC'};  // Quarter → último mes
-  const fd=new FormData();fd.append('file',sFileESF);fd.append('unit',G('up-unit-esf').value);fd.append('month',MONTH_MAP[G('up-quarter-esf').value]);fd.append('year',G('up-year-esf').value);fd.append('is_esf','true');
+  const fd=new FormData();fd.append('file',sFileESF);fd.append('unit','CONSOLIDADO');fd.append('month',MONTH_MAP[G('up-quarter-esf').value]);fd.append('year',G('up-year-esf').value);fd.append('is_esf','true');
   try{const r=await fetch('/api/upload',{method:'POST',body:fd});const d=await r.json();
     if(d.error)showA('al-er','❌ '+d.error);
     else{

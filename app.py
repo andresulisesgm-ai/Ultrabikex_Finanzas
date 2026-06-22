@@ -214,6 +214,9 @@ def upload():
     month   = request.form.get('month')
     year    = request.form.get('year', str(datetime.now().year))
     is_esf  = request.form.get('is_esf', 'false').lower() == 'true'
+    if is_esf:
+        unit = 'CONSOLIDADO'
+
 
     if not all([file, unit, month]):
         return jsonify({'error': 'Faltan parámetros'}), 400
@@ -308,8 +311,8 @@ def upload():
 
         db.commit()
         db.execute(
-            'INSERT INTO history (year, month, unit, inserted) VALUES (?,?,?,?)',
-            (year, month, unit, inserted_fin + inserted_esf)
+            'INSERT INTO history (year, month, unit, inserted, is_esf) VALUES (?,?,?,?,?)',
+            (year, month, unit, inserted_fin + inserted_esf, 1 if is_esf else 0)
         )
         db.commit()
 
@@ -396,7 +399,12 @@ def revert_history(hid):
     h  = db.execute('SELECT * FROM history WHERE id=?', (hid,)).fetchone()
     if not h:         return jsonify({'error': 'No encontrado'}), 404
     if h['reverted']: return jsonify({'error': 'Ya revertida'}), 400
-    db.execute('DELETE FROM financials WHERE year=? AND month=? AND unit=?', (h['year'], h['month'], h['unit']))
+    if h['is_esf']:
+        quarter = MONTH_TO_QUARTER.get(h['month'], 1)
+        db.execute('DELETE FROM esf_data WHERE year=? AND quarter=? AND unit=?', (h['year'], quarter, h['unit']))
+        db.execute('DELETE FROM financials_detail WHERE year=? AND quarter=? AND unit=? AND report_type=\'esf\'', (h['year'], quarter, h['unit']))
+    else:
+        db.execute('DELETE FROM financials WHERE year=? AND month=? AND unit=?', (h['year'], h['month'], h['unit']))
     db.execute('UPDATE history SET reverted=1 WHERE id=?', (hid,))
     db.commit()
     return jsonify({'ok': True})
