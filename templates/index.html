@@ -888,14 +888,17 @@ input[type=file]{display:none;}
     <div class="card fullpage">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:11px">
         <div style="font-size:12px;font-weight:700">Métodos de Pago por Cuenta</div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <select id="metodos-year" style="padding:6px 10px;font-size:11px;border-radius:6px;background:var(--sf2);border:1px solid var(--bd);color:var(--tx)" onchange="cargarMetodosPago()">
-            {% for y in range(2023, 2028) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
-          </select>
-          <select id="metodos-month" style="padding:6px 10px;font-size:11px;border-radius:6px;background:var(--sf2);border:1px solid var(--bd);color:var(--tx)" onchange="cargarMetodosPago()">
-            {% for m in ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC'] %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
-          </select>
-          <button class="btns" onclick="copiarMetodosMesAnterior()">Copiar del mes anterior</button>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="metodos-year" style="padding:6px 10px;font-size:11px;border-radius:6px;background:var(--sf2);border:1px solid var(--bd);color:var(--tx)" onchange="cargarMetodosPago()">
+              {% for y in range(2023, 2028) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+            </select>
+            <select id="metodos-month" style="padding:6px 10px;font-size:11px;border-radius:6px;background:var(--sf2);border:1px solid var(--bd);color:var(--tx)" onchange="cargarMetodosPago()">
+              {% for m in ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC'] %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+            </select>
+            <button class="btns" onclick="copiarMetodosMesAnterior()">Copiar del mes anterior</button>
+          </div>
+          <button class="btnm" onclick="guardarMetodos()">Guardar configuración</button>
         </div>
       </div>
       <div style="font-size:11px;color:var(--mu);margin-bottom:12px">Define el % Cash y % BCV de cada cuenta × unidad. El sistema calcula automáticamente el ajuste ponderado por diferencial.</div>
