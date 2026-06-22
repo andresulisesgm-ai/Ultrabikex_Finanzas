@@ -3458,7 +3458,7 @@ async function cargarMetodosPago(){
   const allCuentas=await rMap.json();
 
   // Filtrar solo cuentas 4.x/5.x/6.x (EERR), eliminar 1.x/2.x/3.x (ESF)
-  const cuentas=allCuentas.filter(c=>c.odoo_code.startsWith('4')||c.odoo_code.startsWith('5')||c.odoo_code.startsWith('6'));
+  const cuentas=allCuentas.filter(c=>(c.odoo_code.startsWith('4')||c.odoo_code.startsWith('5')||c.odoo_code.startsWith('6'))&&c.odoo_code.split('.').length-1===4);
 
   // Obtener % Cash ya configurados para este período
   const rMet=await fetch(`/api/metodo_pago?year=${year}&month=${month}`);
