@@ -1350,6 +1350,35 @@ def esf_engine(year, unit):
     for r in rows_esf:
         db_data[(r['quarter'], r['partida'])] = r['amount']
         
+    # 2b. Detalle por cuenta individual Odoo (nivel 4 trazabilidad)
+    detail_args = [year]
+    detail_unit_clause = ''
+    if unit:
+        detail_unit_clause = 'AND fd.unit = ?'
+        detail_args.append(unit)
+        
+    detail_rows_raw = cursor.execute(f'''
+        SELECT fd.quarter, mg.group_name, fd.odoo_code, fd.odoo_name,
+               SUM(fd.amount_sign) as total
+        FROM financials_detail fd
+        JOIN mapping_groups_v2 mg ON fd.odoo_code = mg.odoo_code
+        WHERE fd.year = ? AND fd.report_type = "esf"
+          AND mg.report_type = "esf"
+          {detail_unit_clause}
+        GROUP BY fd.quarter, mg.group_name, fd.odoo_code, fd.odoo_name
+        HAVING SUM(fd.amount_sign) != 0
+    ''', detail_args).fetchall()
+    
+    detail_by_group = {}
+    for r in detail_rows_raw:
+        gn = r['group_name']
+        key = (r['odoo_code'], r['odoo_name'])
+        if gn not in detail_by_group:
+            detail_by_group[gn] = {}
+        if key not in detail_by_group[gn]:
+            detail_by_group[gn][key] = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}
+        detail_by_group[gn][key][r['quarter']] = round(r['total'], 2)
+        
     conn.close()
     
     # 3. Importación perezosa de la Utilidad Neta desde EERR V2
@@ -1478,6 +1507,21 @@ def esf_engine(year, unit):
             'indent': indent,
             'quarters': quarters_val
         })
+        
+        # Nivel 4: cuentas individuales que componen este nodo hoja
+        if not is_header and name not in ('Resultados acumulados', 'Resultados del ejercicio'):
+            for (odoo_code, odoo_name), q_vals in detail_by_group.get(name, {}).items():
+                rows.append({
+                    'partida':    odoo_name,
+                    'odoo_code':  odoo_code,
+                    'is_header':  False,
+                    'bold':       False,
+                    'bg_color':   None,
+                    'level':      4,
+                    'parent_name': name,
+                    'indent':     indent + 1,
+                    'quarters':   q_vals
+                })
         
     return {
         'year': year,

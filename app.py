@@ -229,6 +229,18 @@ def upload():
         inserted_fin, inserted_esf, skipped, unmapped = 0, 0, 0, []
         quarter = MONTH_TO_QUARTER.get(month, 1)
 
+        # Limpiar datos previos del mismo período antes de insertar (evita acumulación de cargas)
+        if is_esf:
+            db.execute(
+                'DELETE FROM esf_data WHERE year=? AND quarter=? AND unit=?',
+                (year, quarter, unit)
+            )
+            db.execute(
+                'DELETE FROM financials_detail WHERE year=? AND quarter=? AND unit=? AND report_type=\'esf\'',
+                (year, quarter, unit)
+            )
+            db.commit()
+
         for code, amount in accounts.items():
             is_balance = OdooParser.is_balance_account(code)
 

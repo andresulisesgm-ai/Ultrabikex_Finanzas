@@ -4616,6 +4616,25 @@ function renderESF() {
     // Saltar TOTAL ACTIVOS en su posición original
     if (r.partida === 'TOTAL ACTIVOS') continue;
 
+    // Ocultar subtotales redundantes (el header de sección ya muestra el valor)
+    const _HIDDEN_SUBS = new Set([
+      'Total Activos Corrientes','Total Activos No Corrientes',
+      'Total Pasivos Corrientes','Total Pasivos No Corrientes'
+    ]);
+    if (_HIDDEN_SUBS.has(r.partida)) {
+      if (r.partida === 'Total Activos No Corrientes' && totalActivosRow) {
+        htmlRows += `<div class="esf-row esf-grand" 
+                          data-row-id="total-activos-moved" 
+                          data-level="0" data-expanded="true" 
+                          data-partida="TOTAL ACTIVOS"
+                          style="grid-template-columns:${gridCols}">
+          <div style="padding-left:10px;font-weight:700">TOTAL ACTIVOS</div>
+          ${numCells(totalActivosRow)}
+        </div>`;
+      }
+      continue;
+    }
+
     const cleanName = cleanPartidaName(r.partida);
     const isHdr = r.is_header;
     const level = r.level;
@@ -4664,18 +4683,7 @@ function renderESF() {
       ${numCells(r)}
     </div>`;
 
-    // Insertar TOTAL ACTIVOS justo después de Total Activos No Corrientes
-    if (r.partida === 'Total Activos No Corrientes' && totalActivosRow) {
-      htmlRows += `<div class="esf-row esf-grand" 
-                        data-row-id="total-activos-moved" 
-                        data-level="0" 
-                        data-expanded="true" 
-                        data-partida="TOTAL ACTIVOS"
-                        style="grid-template-columns:${gridCols}">
-        <div style="padding-left:10px;font-weight:700">TOTAL ACTIVOS</div>
-        ${numCells(totalActivosRow)}
-      </div>`;
-    }
+
   }
 
   // Fila DIFERENCIA al final (Total Activos - Total Pasivos - Patrimonio)
