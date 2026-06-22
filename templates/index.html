@@ -43,15 +43,42 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);overf
 .nav-item.active{background:var(--blue-l);color:var(--blue);font-weight:600;}
 .nav-icon{font-size:12px;width:14px;text-align:center;}
 .sidebar-footer{margin-top:auto;padding:10px 14px;border-top:1px solid var(--bd);font-size:10px;color:var(--mu2);}
+.sidebar{transition:width .2s ease;}
+.sidebar.collapsed{width:42px;overflow:hidden;}
+.sidebar.collapsed:hover{width:var(--sw);}
+.sidebar.collapsed:hover .nav-sec,.sidebar.collapsed:hover .logo h1,.sidebar.collapsed:hover .logo p{display:block!important;}
+.sidebar.collapsed:hover .nav-item{font-size:12px;justify-content:flex-start;}
+.sidebar.collapsed:hover .nav-item .nav-icon{width:14px;}
+.sidebar.collapsed:hover .logo-row{justify-content:flex-start;}
+.sidebar.collapsed:hover .pin-btn{display:inline-flex;}
+.sidebar.collapsed:hover .sidebar-footer{padding:10px 14px;}
+.sidebar.collapsed:hover .sidebar-footer > *{display:block!important;}
+.sidebar.collapsed:hover .footer-actions{flex-direction:row;align-items:center;}
+.sidebar.collapsed:hover .btn-footer{width:auto;height:32px;padding:8px 10px;font-size:10px;}
+.sidebar.collapsed:hover .btn-footer .btn-label{display:inline;}
+.sidebar.collapsed .nav-sec,.sidebar.collapsed .logo h1,.sidebar.collapsed .logo p{display:none!important;}
+.sidebar.collapsed .nav-item{font-size:0;justify-content:center;}.sidebar.collapsed .nav-item .nav-icon{font-size:12px;width:14px;}
+.sidebar.collapsed .logo{padding:16px 4px 13px;}
+.sidebar.collapsed .logo-row{justify-content:center;}
+.sidebar.collapsed .pin-btn{display:none;}
+.sidebar.collapsed .sidebar-footer{padding:10px 4px;}
+.sidebar.collapsed .sidebar-footer > *:not(.footer-actions){display:none!important;}
+.sidebar.collapsed .footer-actions{flex-direction:column;gap:4px;align-items:center;}
+.sidebar.collapsed .btn-footer{width:34px;height:34px;padding:0;justify-content:center;font-size:13px;}
+.sidebar.collapsed .btn-logout .btn-icon{color:var(--red);}
+.sidebar.collapsed .btn-footer .btn-label{display:none;}
+.main{transition:margin-left .2s ease;margin-left:var(--sw);min-height:100vh;}
+.main.collapsed{margin-left:42px!important;}
+.pin-btn{background:none;border:none;cursor:pointer;font-size:13px;padding:2px 4px;color:var(--mu2);border-radius:4px;transition:all .15s;margin-left:auto;line-height:1;}
+.pin-btn:hover{background:var(--sf3);color:var(--tx);}
+.pin-btn.pinned{color:var(--blue);}
 #userInfo{text-align:center;}
 .user-badge{display:inline-block;padding:4px 8px;background:var(--blue-l);color:var(--blue);border-radius:5px;font-size:10px;font-weight:600;margin-bottom:8px;text-transform:uppercase;}
 .user-badge.viewer{background:var(--amber-l);color:var(--amber);}
 .footer-actions{display:flex;gap:6px;margin-top:8px;align-items:center;}
-.btn-footer{flex:1;height:32px;padding:8px 10px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;border:none;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:5px;box-sizing:border-box;}
-.btn-logout{background:var(--red);color:#fff;}
-.btn-logout:hover{background:#b91c1c;transform:translateY(-1px);}
-.btn-close-app{background:#64748b;color:#fff;}
-.btn-close-app:hover{background:#475569;transform:translateY(-1px);}
+.btn-footer{flex:1;height:32px;padding:8px 10px;border-radius:6px;font-size:10px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;border:none;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:5px;box-sizing:border-box;background:none;color:var(--mu);}
+.btn-logout:hover{background:var(--red-l);color:var(--red);}
+.btn-close-app:hover{background:var(--sf3);color:var(--tx2);}
 .footer-copyright{font-size:9px;color:var(--mu2);margin-top:8px;text-align:center;}
 
 /* ── MAIN ── */
@@ -477,7 +504,7 @@ input[type=file]{display:none;}
 
 <nav class="sidebar">
   <div class="logo">
-    <div class="logo-row"><div class="logo-icon">UX</div><h1>ULTRAX</h1></div>
+    <div class="logo-row"><div class="logo-icon">UX</div><h1>ULTRAX</h1><button class="pin-btn" id="pin-btn" onclick="togglePin()" title="Fijar sidebar">📌&#xFE0E;</button></div>
     <p>Financial Intelligence</p>
   </div>
   <div class="nav-sec">Principal</div>
@@ -501,10 +528,10 @@ input[type=file]{display:none;}
     <div id="userInfo"></div>
     <div class="footer-actions">
       <button class="btn-footer btn-logout" onclick="logout()" title="Cerrar sesión">
-        <span>⏻</span> Sesión
+        <span class="btn-icon">⏻</span><span class="btn-label"> Sesión</span>
       </button>
       <button class="btn-footer btn-close-app" onclick="closeApp()" title="Apagar servidor">
-        <span>⏻</span> Servidor
+        <span class="btn-icon">⏻</span><span class="btn-label"> Servidor</span>
       </button>
     </div>
     <div class="footer-copyright">ULTRAX C.A. © 2026</div>
@@ -2311,6 +2338,33 @@ function renderKPIPills() {
 }
 
 // ── PAGES ─────────────────────────────────────────────────────────────────
+function togglePin(){
+  const sb=document.querySelector('.sidebar');
+  const main=document.querySelector('.main');
+  const btn=G('pin-btn');
+  const pinned=btn.classList.toggle('pinned');
+  localStorage.setItem('sb-pinned', pinned?'1':'0');
+  if(pinned){
+    sb.classList.remove('collapsed');
+    main.classList.remove('collapsed');
+  } else {
+    sb.classList.add('collapsed');
+    main.classList.add('collapsed');
+  }
+}
+document.addEventListener('DOMContentLoaded',function(){
+  const pinned=localStorage.getItem('sb-pinned')!=='0';
+  const sb=document.querySelector('.sidebar');
+  const main=document.querySelector('.main');
+  const btn=G('pin-btn');
+  if(!btn)return;
+  if(pinned){
+    btn.classList.add('pinned');
+  } else {
+    sb.classList.add('collapsed');
+    main.classList.add('collapsed');
+  }
+});
 function showPage(name,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
