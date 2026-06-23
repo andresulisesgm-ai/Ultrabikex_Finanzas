@@ -2664,14 +2664,264 @@ def compute_esf(db, year, unit=''):
     return result_quarters, quarters_available
 
 
+def compute_indicadores_v2(db, year):
+    """
+    Calcula los 20 indicadores financieros por trimestre + año actual + año anterior.
+    Estructura de salida compatible con el módulo Indicadores Financieros del frontend.
+    """
+    from engine import EERR_STRUCTURE, build_effective_structure
+    import unicodedata
+
+    def safe_div(a, b):
+        if b is None or b == 0:
+            return None
+        return round(a / b, 4) if a is not None else None
+
+    def vari_rel(prev, curr):
+        if prev is None or curr is None:
+            return None
+        if prev == 0:
+            return 1.0 if curr > 0 else (None if curr == 0 else -1.0)
+        return round((curr - prev) / abs(prev), 4)
+
+    QUARTER_MONTHS = {
+        1: ['ENE','FEB','MAR'],
+        2: ['ABR','MAY','JUN'],
+        3: ['JUL','AGO','SEPT'],
+        4: ['OCT','NOV','DIC']
+    }
+
+    # ── EERR: cargar financials por trimestre ──────────────────────────────────
+    groups_v2, _ = get_grouped_partidas_v2(db, 'eerr')
+    db_overrides = db.execute('SELECT partida_name, target_subtotal FROM eerr_nodes').fetchall()
+    effective = build_effective_structure(EERR_STRUCTURE, db_overrides=db_overrides)
+
+    def norm(s):
+        if not s: return ''
+        s = ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
+        return s.lower().strip()
+
+    def get_subtotal(partida_name, by_partida_q):
+        """Resuelve valor de un nodo hoja o grupo en by_partida para un trimestre."""
+        if partida_name in groups_v2:
+            return sum(by_partida_q.get(p, 0) for p in groups_v2[partida_name])
+        val = by_partida_q.get(partida_name, 0)
+        if val == 0:
+            pn = norm(partida_name)
+            for k, v in by_partida_q.items():
+                if norm(k) == pn:
+                    return v
+        return val
+
+    def calc_eerr_quarter(year_str, months):
+        """Suma financials de los meses del trimestre y calcula subtotales EERR."""
+        uc = ''
+        placeholders = ','.join('?' * len(months))
+        rows = db.execute(
+            f'SELECT partida, month, SUM(amount) amount FROM financials WHERE year=? AND month IN ({placeholders}) GROUP BY partida, month',
+            [year_str] + months
+        ).fetchall()
+        by_partida = {}
+        for r in rows:
+            by_partida.setdefault(r['partida'], 0)
+            by_partida[r['partida']] += r['amount']
+
+        # Calcular subtotales jerárquicos usando groups_v2
+        subtotales = {}
+        for node in effective:
+            name = node['partida_name']
+            if node['is_header']:
+                subtotales[name] = sum(
+                    by_partida.get(p, 0) for p in groups_v2.get(name, [])
+                )
+
+        def get_val(name):
+            if name in subtotales:
+                return subtotales[name]
+            return get_subtotal(name, by_partida)
+
+        ing    = get_val('Total Ingresos')
+        cos    = get_val('Total Costo de Ventas ')
+        ut_br  = ing - cos
+        gas_op = get_val('Total Gastos Operacionales')
+        ut_op  = ut_br - gas_op
+        ot_ing = get_val('Otros Ingresos no Operacionales')
+        ot_gas = get_val('Otros Gastos no Operacionales')
+        otros  = ot_ing - ot_gas
+        ut_ai  = ut_op + otros
+        islr   = get_val('ISLR')
+        ut_net = ut_ai - islr
+
+        return {
+            'ingresos':  ing,
+            'costos':    cos,
+            'ut_bruta':  ut_br,
+            'gas_op':    gas_op,
+            'ut_op':     ut_op,
+            'otros_nop': otros,
+            'ut_ai':     ut_ai,
+            'islr':      islr,
+            'ut_neta':   ut_net,
+            'margen_bruto': safe_div(ut_br, ing),
+            'margen_neto':  safe_div(ut_net, ing),
+        }
+
+    # ── ESF: cargar por trimestre ──────────────────────────────────────────────
+    def get_esf_quarter(q):
+        from engine import esf_engine
+        res = esf_engine(year, '')
+        nodes = {n['partida']: n.get('quarters', {}).get(q) or n.get('valor', 0)
+                 for n in res.get('nodes', [])}
+        # Intentar desde compute_esf también
+        result_quarters, _ = compute_esf(db, year, '')
+        tot = result_quarters.get(q, {}).get('totales', {})
+        return {
+            'tot_activos': tot.get('TOTAL ACTIVOS', 0),
+            'act_corr':    tot.get('ACTIVOS CORRIENTES', 0),
+            'pas_corr':    tot.get('TOTAL PASIVOS CORRIENTES', 0) or tot.get('PASIVOS CORRIENTES', 0),
+            'tot_pas':     tot.get('TOTAL PASIVOS', 0),
+            'patrimonio':  tot.get('TOTAL PATRIMONIO', 0) or tot.get('PATRIMONIO', 0),
+            'efectivo':    tot.get('Total Efectivo y Equivalentes', 0),
+            'inventarios': tot.get('Total Inventarios', 0),
+            'cxc':         tot.get('Total Cuentas por Cobrar (neto)', 0),
+            'res_ejercicio': nodes.get('Resultados del ejercicio', 0),
+        }
+
+    # ── Año anterior (acumulado anual) ─────────────────────────────────────────
+    year_prev = str(int(year) - 1)
+    all_months = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC']
+    prev_eerr = calc_eerr_quarter(year_prev, all_months)
+    prev_esf  = get_esf_quarter(4) if False else {  # sin datos año prev → zeros
+        'tot_activos':0,'act_corr':0,'pas_corr':0,'tot_pas':0,
+        'patrimonio':0,'efectivo':0,'inventarios':0,'cxc':0,'res_ejercicio':0
+    }
+
+    # ── Calcular por trimestre ─────────────────────────────────────────────────
+    quarters_data = {}
+    acum_eerr = {k: 0 for k in ['ingresos','costos','ut_bruta','gas_op','ut_op','otros_nop','ut_ai','islr','ut_neta']}
+    for q in [1, 2, 3, 4]:
+        months = QUARTER_MONTHS[q]
+        eerr_q = calc_eerr_quarter(year, months)
+        esf_q  = get_esf_quarter(q)
+        for k in acum_eerr:
+            acum_eerr[k] += eerr_q.get(k, 0) or 0
+        quarters_data[q] = {'eerr': eerr_q, 'esf': esf_q}
+
+    # Año actual acumulado
+    ing_aa  = acum_eerr['ingresos']
+    cos_aa  = acum_eerr['costos']
+    esf_last = quarters_data[max(q for q in [1,2,3,4] if quarters_data[q]['esf']['tot_activos'] != 0) if any(quarters_data[q]['esf']['tot_activos'] for q in [1,2,3,4]) else 4]['esf']
+
+    def build_ind(nombre, referencia, val_prev, vals_q, val_aa, es_pct=False, es_ratio=False):
+        resultado = {'nombre': nombre, 'referencia': referencia, 'es_pct': es_pct, 'es_ratio': es_ratio}
+        resultado['year_prev'] = val_prev
+        resultado['anio_actual'] = val_aa
+        trimestres = []
+        vp = val_prev
+        for q in [1,2,3,4]:
+            v = vals_q[q]
+            trimestres.append({'q': q, 'valor': v, 'vari_rel': vari_rel(vp, v)})
+            if v is not None:
+                vp = v
+        resultado['trimestres'] = trimestres
+        resultado['vari_rel_aa'] = vari_rel(val_prev, val_aa)
+        return resultado
+
+    def qv(q, key):
+        return quarters_data[q]['eerr'].get(key)
+
+    def qe(q, key):
+        return quarters_data[q]['esf'].get(key, 0) or 0
+
+    indicadores = [
+        build_ind('Ingresos Brutos', None,
+            prev_eerr['ingresos'],
+            {q: qv(q,'ingresos') for q in [1,2,3,4]},
+            ing_aa),
+        build_ind('Costo de ventas', None,
+            prev_eerr['costos'],
+            {q: qv(q,'costos') for q in [1,2,3,4]},
+            cos_aa),
+        build_ind('Utilidad Bruta', None,
+            prev_eerr['ut_bruta'],
+            {q: qv(q,'ut_bruta') for q in [1,2,3,4]},
+            acum_eerr['ut_bruta']),
+        build_ind('Margen Bruto (30% a 50%)', '30%-50%',
+            prev_eerr['margen_bruto'],
+            {q: qv(q,'margen_bruto') for q in [1,2,3,4]},
+            safe_div(acum_eerr['ut_bruta'], ing_aa), es_pct=True),
+        build_ind('Gastos Operacionales', None,
+            prev_eerr['gas_op'],
+            {q: qv(q,'gas_op') for q in [1,2,3,4]},
+            acum_eerr['gas_op']),
+        build_ind('Utilidad Neta operacional', None,
+            prev_eerr['ut_op'],
+            {q: qv(q,'ut_op') for q in [1,2,3,4]},
+            acum_eerr['ut_op']),
+        build_ind('Otros Ingresos y gastos no operacionales', None,
+            prev_eerr['otros_nop'],
+            {q: qv(q,'otros_nop') for q in [1,2,3,4]},
+            acum_eerr['otros_nop']),
+        build_ind('Utilidad Neta antes de ISLR', None,
+            prev_eerr['ut_ai'],
+            {q: qv(q,'ut_ai') for q in [1,2,3,4]},
+            acum_eerr['ut_ai']),
+        build_ind('ISLR', None,
+            prev_eerr['islr'],
+            {q: qv(q,'islr') for q in [1,2,3,4]},
+            acum_eerr['islr']),
+        build_ind('Utilidad Neta despues de ISLR', None,
+            prev_eerr['ut_neta'],
+            {q: qv(q,'ut_neta') for q in [1,2,3,4]},
+            acum_eerr['ut_neta']),
+        build_ind('Margen Neto (5% y 15%)', '5%-15%',
+            prev_eerr['margen_neto'],
+            {q: qv(q,'margen_neto') for q in [1,2,3,4]},
+            safe_div(acum_eerr['ut_neta'], ing_aa), es_pct=True),
+        build_ind('ROE (10% y 20%)', '10%-20%',
+            None,
+            {q: safe_div(qe(q,'res_ejercicio'), qe(q,'patrimonio')) for q in [1,2,3,4]},
+            safe_div(esf_last['res_ejercicio'], esf_last['patrimonio']), es_pct=True),
+        build_ind('Rotación de Inventarios (2 y 3 meses)', '2-3 meses',
+            None,
+            {q: safe_div(qe(q,'inventarios')*3, qv(q,'costos')) for q in [1,2,3,4]},
+            safe_div(esf_last['inventarios']*12, cos_aa), es_ratio=True),
+        build_ind('Rotación de Activos (entre 1,5 a 2 veces al año)', '1.5-2x',
+            None,
+            {q: safe_div(qv(q,'ingresos'), qe(q,'tot_activos')) for q in [1,2,3,4]},
+            safe_div(ing_aa, esf_last['tot_activos']), es_ratio=True),
+        build_ind('Rentabilidad de Activos (ROA) (5% a 15%)', '5%-15%',
+            None,
+            {q: safe_div(qe(q,'res_ejercicio'), qe(q,'tot_activos')) for q in [1,2,3,4]},
+            safe_div(esf_last['res_ejercicio'], esf_last['tot_activos']), es_pct=True),
+        build_ind('Período de cobro (30 a 60 días max)', '30-60 días',
+            None,
+            {q: safe_div(qe(q,'cxc')*90, qv(q,'ingresos')) for q in [1,2,3,4]},
+            safe_div(esf_last['cxc']*365, ing_aa), es_ratio=True),
+        build_ind('Ratio Corriente (entre 1,5 y 2)', '1.5-2',
+            None,
+            {q: safe_div(qe(q,'act_corr'), qe(q,'pas_corr')) for q in [1,2,3,4]},
+            safe_div(esf_last['act_corr'], esf_last['pas_corr']), es_ratio=True),
+        build_ind('Ratio Endeudamiento (entre 0,4 y 0,6)', '0.4-0.6',
+            None,
+            {q: safe_div(qe(q,'tot_pas'), qe(q,'patrimonio')) for q in [1,2,3,4]},
+            safe_div(esf_last['tot_pas'], esf_last['patrimonio']), es_ratio=True),
+        build_ind('Prueba Ácida (entre 0,8 y 1)', '0.8-1',
+            None,
+            {q: safe_div(qe(q,'act_corr')-qe(q,'inventarios'), qe(q,'pas_corr')) for q in [1,2,3,4]},
+            safe_div(esf_last['act_corr']-esf_last['inventarios'], esf_last['pas_corr']), es_ratio=True),
+        build_ind('Prueba Defensiva (entre 0,5 Y 0,7)', '0.5-0.7',
+            None,
+            {q: safe_div(qe(q,'efectivo'), qe(q,'pas_corr')) for q in [1,2,3,4]},
+            safe_div(esf_last['efectivo'], esf_last['pas_corr']), es_ratio=True),
+    ]
+    return indicadores
+
+
 def compute_indicadores(db, year, unit='', ingresos=0.0, util_neta=0.0):
     """
-    Calcula indicadores financieros combinando datos de ESF + EERR.
-    Retorna dict con indicadores: ROE, ROA, Ratio Corriente, Prueba Ácida,
-    Prueba Defensiva, Ratio Endeudamiento, Rotación Inventarios,
-    Rotación Activos, Período Cobro.
+    Calcula indicadores financieros combinando datos de ESF + EERR (original para Dashboard).
     """
-    # Obtener datos ESF del último quarter disponible
     result_quarters, quarters_available = compute_esf(db, year, unit)
     if not quarters_available:
         return None
@@ -2705,15 +2955,15 @@ def compute_indicadores(db, year, unit='', ingresos=0.0, util_neta=0.0):
         return round(a / b, 2) if b != 0 else None
 
     return {
-        'roe':              safe_div(util_neta, tot_pat),      # % (multiplicar x100 en frontend)
-        'roa':              safe_div(util_neta, tot_activos),  # %
+        'roe':              safe_div(util_neta, tot_pat),
+        'roa':              safe_div(util_neta, tot_activos),
         'ratio_corriente':  safe_div(tot_ac, tot_pc),
         'prueba_acida':     safe_div(tot_ac - tot_inv, tot_pc),
         'prueba_defensiva': safe_div(tot_ef, tot_pc),
         'ratio_endeud':     safe_div(tot_pas, tot_pat),
-        'rotacion_inv':     safe_div(tot_inv * 3, cos_q) if cos_q else None,  # meses
-        'rotacion_activos': safe_div(ing_q, tot_activos),      # veces/trimestre → x4 para anual
-        'periodo_cobro':    safe_div(tot_cxc * 90, ing_q) if ing_q else None,  # días
+        'rotacion_inv':     safe_div(tot_inv * 3, cos_q) if cos_q else None,
+        'rotacion_activos': safe_div(ing_q, tot_activos),
+        'periodo_cobro':    safe_div(tot_cxc * 90, ing_q) if ing_q else None,
     }
 
 
@@ -2814,7 +3064,7 @@ def get_indicadores():
     unit = request.args.get('unit', '')
     db   = get_db()
 
-    indicadores = compute_indicadores(db, year, unit)
+    indicadores = compute_indicadores_v2(db, year)
     if not indicadores:
         return jsonify({'error': 'Sin datos ESF para calcular indicadores'}), 404
 
