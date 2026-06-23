@@ -406,16 +406,16 @@ class ExcelExporter:
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
 
-        HDR_FILL  = PatternFill('solid', start_color='000000')  # Negro - título y headers
-        SUB_FILL  = PatternFill('solid', start_color='000000')  # Negro - encabezado columnas
-        SEC_FILL  = PatternFill('solid', start_color='FFFFFF')  # Blanco - subtotales
-        WHITE_FILL= PatternFill('solid', start_color='FFFFFF')  # Blanco - partidas hoja
-        ACUM_FILL = PatternFill('solid', start_color='FFFF00')  # Amarillo - acumulados
-        VAR_FILL  = PatternFill('solid', start_color='FFFF00')  # Amarillo - variaciones
-        WHITE_FONT= Font(name='Arial', bold=True, color='FFFFFF', size=10)  # Blanco sobre negro
-        DARK_FONT = Font(name='Arial', bold=True, color='000000', size=10)  # Negro sobre blanco
+        HDR_FILL  = PatternFill('solid', start_color='1F3864')  # Azul oscuro - título
+        SUB_FILL  = PatternFill('solid', start_color='D6DCE4')  # Gris claro - header columnas
+        SEC_FILL  = PatternFill('solid', start_color='F2F2F2')  # Gris suave - subtotales
+        WHITE_FILL= PatternFill('solid', start_color='FFFFFF')  # Blanco - partidas
+        ACUM_FILL = PatternFill('solid', start_color='FFFFFF')  # Blanco - acumulados
+        VAR_FILL  = PatternFill('solid', start_color='FFFFFF')  # Blanco - variaciones
+        WHITE_FONT= Font(name='Arial', bold=True, color='FFFFFF', size=10)  # Blanco sobre azul
+        DARK_FONT = Font(name='Arial', bold=True, color='000000', size=10)  # Negro sobre gris
         NORM_FONT = Font(name='Arial', size=9)
-        TEAL_FILL = PatternFill('solid', start_color='6AD9E8')  # Turquesa - totales principales
+        TEAL_FILL = PatternFill('solid', start_color='D6DCE4')  # Gris claro - totales principales
         NUM_FMT   = '#,##0.00;(#,##0.00);"-"'
         PCT_FMT   = '0.0%;(0.0%);"-"'
         thin      = Side(style='thin', color='D9D9D9')  # Borde gris suave
@@ -611,8 +611,8 @@ class ExcelExporter:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
 
-        HDR_FILL  = PatternFill('solid', start_color='000000')
-        SEC_FILL  = PatternFill('solid', start_color='E2EFDA')
+        HDR_FILL  = PatternFill('solid', start_color='1F3864')
+        SEC_FILL  = PatternFill('solid', start_color='F2F2F2')
         WHITE_FILL= PatternFill('solid', start_color='FFFFFF')
         WHITE_FONT= Font(name='Arial', bold=True, color='FFFFFF', size=10)
         DARK_FONT = Font(name='Arial', bold=True, color='000000', size=10)
@@ -654,26 +654,34 @@ class ExcelExporter:
 
         if engine_unit:
             rows = conn.execute(
-                '''SELECT odoo_code, odoo_name, partida, month, amount_sign
-                   FROM financials_detail
-                   WHERE year=? AND unit=? AND report_type='eerr'
-                   ORDER BY partida, odoo_code, month''',
+                '''SELECT fd.odoo_code, fd.odoo_name,
+                          COALESCE(mg.group_name, fd.partida) as group_name,
+                          fd.month, fd.amount_sign
+                   FROM financials_detail fd
+                   LEFT JOIN mapping_groups_v2 mg
+                          ON fd.odoo_code = mg.odoo_code AND mg.report_type='eerr'
+                   WHERE fd.year=? AND fd.unit=? AND fd.report_type='eerr'
+                   ORDER BY group_name, fd.odoo_code, fd.month''',
                 (self.year, engine_unit)
             ).fetchall()
         else:
             rows = conn.execute(
-                '''SELECT odoo_code, odoo_name, partida, month, SUM(amount_sign) as amount_sign
-                   FROM financials_detail
-                   WHERE year=? AND report_type='eerr'
-                   GROUP BY odoo_code, odoo_name, partida, month
-                   ORDER BY partida, odoo_code, month''',
+                '''SELECT fd.odoo_code, fd.odoo_name,
+                          COALESCE(mg.group_name, fd.partida) as group_name,
+                          fd.month, SUM(fd.amount_sign) as amount_sign
+                   FROM financials_detail fd
+                   LEFT JOIN mapping_groups_v2 mg
+                          ON fd.odoo_code = mg.odoo_code AND mg.report_type='eerr'
+                   WHERE fd.year=? AND fd.report_type='eerr'
+                   GROUP BY fd.odoo_code, fd.odoo_name, group_name, fd.month
+                   ORDER BY group_name, fd.odoo_code, fd.month''',
                 (self.year,)
             ).fetchall()
 
         data = defaultdict(lambda: defaultdict(lambda: {'name': '', 'meses': {}}))
         for r in rows:
-            data[r['partida']][r['odoo_code']]['name'] = r['odoo_name']
-            data[r['partida']][r['odoo_code']]['meses'][r['month']] = r['amount_sign']
+            data[r['group_name']][r['odoo_code']]['name'] = r['odoo_name']
+            data[r['group_name']][r['odoo_code']]['meses'][r['month']] = r['amount_sign']
 
         # mapa retornado: {partida: {month: [row_nums en hoja Notas]}}
         partida_month_rows = defaultdict(lambda: defaultdict(list))
@@ -747,16 +755,16 @@ class ESFExporter:
         wb.remove(wb.active)
 
         HDR_FILL  = PatternFill('solid', start_color='1F3864')
-        SUB_FILL  = PatternFill('solid', start_color='2E75B6')
-        SEC_FILL  = PatternFill('solid', start_color='BDD7EE')
+        SUB_FILL  = PatternFill('solid', start_color='D6DCE4')
+        SEC_FILL  = PatternFill('solid', start_color='F2F2F2')
         WHITE_FILL= PatternFill('solid', start_color='FFFFFF')
-        VAR_FILL  = PatternFill('solid', start_color='FFF2CC')
+        VAR_FILL  = PatternFill('solid', start_color='FFFFFF')
         WHITE_FONT= Font(name='Arial', bold=True, color='FFFFFF', size=10)
-        DARK_FONT = Font(name='Arial', bold=True, color='1F3864', size=10)
+        DARK_FONT = Font(name='Arial', bold=True, color='000000', size=10)
         NORM_FONT = Font(name='Arial', size=9)
         NUM_FMT   = '#,##0.00;(#,##0.00);"-"'
         PCT_FMT   = '0.0%;(0.0%);"-"'
-        thin      = Side(style='thin', color='BDD7EE')
+        thin      = Side(style='thin', color='D6DCE4')
         border    = Border(left=thin, right=thin, top=thin, bottom=thin)
 
         TOTALES = {
@@ -894,13 +902,13 @@ class ESFExporter:
         conn.row_factory = sqlite3.Row
 
         HDR_FILL  = PatternFill('solid', start_color='1F3864')
-        SEC_FILL  = PatternFill('solid', start_color='BDD7EE')
+        SEC_FILL  = PatternFill('solid', start_color='F2F2F2')
         WHITE_FILL= PatternFill('solid', start_color='FFFFFF')
         WHITE_FONT= Font(name='Arial', bold=True, color='FFFFFF', size=10)
-        DARK_FONT = Font(name='Arial', bold=True, color='1F3864', size=10)
+        DARK_FONT = Font(name='Arial', bold=True, color='000000', size=10)
         NORM_FONT = Font(name='Arial', size=9)
         NUM_FMT   = '#,##0.00;(#,##0.00);"-"'
-        thin      = Side(style='thin', color='BDD7EE')
+        thin      = Side(style='thin', color='D6DCE4')
         border    = Border(left=thin, right=thin, top=thin, bottom=thin)
 
         ws = wb.create_sheet(f'N ESF {unit}')
@@ -933,31 +941,39 @@ class ESFExporter:
         # Orden de partidas desde ESF_STRUCTURE
         partidas_order = [item[0] for item in ESF_STRUCTURE if not item[1]]
 
-        # Query detalle
+        # Query detalle con JOIN para resolver group_name
         if engine_unit:
             rows = conn.execute(
-                '''SELECT odoo_code, odoo_name, partida, quarter, amount_sign
-                   FROM financials_detail
-                   WHERE year=? AND unit=? AND report_type='esf'
-                   ORDER BY partida, odoo_code, quarter''',
+                '''SELECT fd.odoo_code, fd.odoo_name,
+                          COALESCE(mg.group_name, fd.partida) as group_name,
+                          fd.quarter, fd.amount_sign
+                   FROM financials_detail fd
+                   LEFT JOIN mapping_groups_v2 mg
+                          ON fd.odoo_code = mg.odoo_code AND mg.report_type='esf'
+                   WHERE fd.year=? AND fd.unit=? AND fd.report_type='esf'
+                   ORDER BY group_name, fd.odoo_code, fd.quarter''',
                 (self.year, engine_unit)
             ).fetchall()
         else:
             rows = conn.execute(
-                '''SELECT odoo_code, odoo_name, partida, quarter, SUM(amount_sign) as amount_sign
-                   FROM financials_detail
-                   WHERE year=? AND report_type='esf'
-                   GROUP BY odoo_code, odoo_name, partida, quarter
-                   ORDER BY partida, odoo_code, quarter''',
+                '''SELECT fd.odoo_code, fd.odoo_name,
+                          COALESCE(mg.group_name, fd.partida) as group_name,
+                          fd.quarter, SUM(fd.amount_sign) as amount_sign
+                   FROM financials_detail fd
+                   LEFT JOIN mapping_groups_v2 mg
+                          ON fd.odoo_code = mg.odoo_code AND mg.report_type='esf'
+                   WHERE fd.year=? AND fd.report_type='esf'
+                   GROUP BY fd.odoo_code, fd.odoo_name, group_name, fd.quarter
+                   ORDER BY group_name, fd.odoo_code, fd.quarter''',
                 (self.year,)
             ).fetchall()
 
-        # Agrupar por partida → cuenta → trimestre
+        # Agrupar por group_name → cuenta → trimestre
         from collections import defaultdict
         data = defaultdict(lambda: defaultdict(lambda: {'name': '', 'quarters': {}}))
         for r in rows:
-            data[r['partida']][r['odoo_code']]['name'] = r['odoo_name']
-            data[r['partida']][r['odoo_code']]['quarters'][r['quarter']] = r['amount_sign']
+            data[r['group_name']][r['odoo_code']]['name'] = r['odoo_name']
+            data[r['group_name']][r['odoo_code']]['quarters'][r['quarter']] = r['amount_sign']
 
         row_num = 3
         for partida in partidas_order:
