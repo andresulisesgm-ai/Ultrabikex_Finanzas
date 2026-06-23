@@ -523,6 +523,29 @@ def get_mapping_sin_clasificar():
         'accounts': unclassified
     })
 
+@app.route('/api/mapping/sin-clasificar-esf', methods=['GET'])
+def get_mapping_sin_clasificar_esf():
+    from engine import ESF_STRUCTURE_V2
+    esf_leaves = set(item[0].lower().strip() for item in ESF_STRUCTURE_V2 if not item[1])
+    db = get_db()
+    rows = db.execute('''
+        SELECT m.odoo_code, m.odoo_name, m.partida, m.sign, m.income_type
+        FROM mapping m
+        LEFT JOIN mapping_groups_v2 mg ON m.odoo_code = mg.odoo_code
+            AND mg.report_type = 'esf'
+        WHERE (m.odoo_code LIKE '1%' OR m.odoo_code LIKE '2%' OR m.odoo_code LIKE '3%')
+          AND mg.odoo_code IS NULL
+    ''').fetchall()
+    unclassified = []
+    for r in rows:
+        partida = r['partida'].lower().strip()
+        if partida in esf_leaves:
+            unclassified.append(dict(r))
+    return jsonify({
+        'count': len(unclassified),
+        'accounts': unclassified
+    })
+
 @app.route('/api/eerr_nodes/overrides', methods=['GET'])
 def get_eerr_nodes_overrides():
     from engine import EERR_STRUCTURE, build_effective_structure
