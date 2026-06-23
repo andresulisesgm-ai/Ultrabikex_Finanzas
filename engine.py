@@ -1359,14 +1359,17 @@ def esf_engine(year, unit):
         
     detail_rows_raw = cursor.execute(f'''
         SELECT fd.quarter, mg.group_name, fd.odoo_code, fd.odoo_name,
-               SUM(fd.amount_sign) as total
+               fd.amount_sign as total
         FROM financials_detail fd
         JOIN mapping_groups_v2 mg ON fd.odoo_code = mg.odoo_code
         WHERE fd.year = ? AND fd.report_type = "esf"
           AND mg.report_type = "esf"
+          AND fd.month IN (
+              CASE fd.quarter WHEN 1 THEN 'MAR' WHEN 2 THEN 'JUN'
+                              WHEN 3 THEN 'SEPT' WHEN 4 THEN 'DIC' END
+          )
+          AND fd.amount_sign != 0
           {detail_unit_clause}
-        GROUP BY fd.quarter, mg.group_name, fd.odoo_code, fd.odoo_name
-        HAVING SUM(fd.amount_sign) != 0
     ''', detail_args).fetchall()
     
     detail_by_group = {}
