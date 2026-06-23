@@ -510,6 +510,7 @@ def get_mapping_sin_clasificar():
         LEFT JOIN mapping_groups_v2 mg ON m.odoo_code = mg.odoo_code
         WHERE (m.odoo_code LIKE '4%' OR m.odoo_code LIKE '5%' OR m.odoo_code LIKE '6%')
           AND mg.odoo_code IS NULL
+          AND (length(m.odoo_code) - length(replace(m.odoo_code, '.', ''))) = 4
     ''').fetchall()
     
     unclassified = []
@@ -535,6 +536,7 @@ def get_mapping_sin_clasificar_esf():
             AND mg.report_type = 'esf'
         WHERE (m.odoo_code LIKE '1%' OR m.odoo_code LIKE '2%' OR m.odoo_code LIKE '3%')
           AND mg.odoo_code IS NULL
+          AND (length(m.odoo_code) - length(replace(m.odoo_code, '.', ''))) = 4
     ''').fetchall()
     unclassified = []
     for r in rows:
