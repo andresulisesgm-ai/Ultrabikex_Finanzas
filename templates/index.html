@@ -500,7 +500,7 @@ input[type=file]{display:none;}
 #traza-panel .tp-loading { color: #888; padding: 8px 0; }
 </style>
 </head>
-<body>
+<body data-role="{{ user.role if user else 'visitor' }}">
 
 <nav class="sidebar">
   <div class="logo">
@@ -940,13 +940,32 @@ input[type=file]{display:none;}
   <!-- DATOS -->
   <div class="page" id="page-datos">
     <div class="card fullpage">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:11px"><div style="font-size:12px;font-weight:700">Datos Registrados</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:11px">
+        <div style="font-size:12px;font-weight:700">Datos Registrados</div>
         <div style="display:flex;gap:6px">
-          <select class="csel" id="d-unit" onchange="loadData()" style="padding:5px 8px"><option value="">Todas</option>{% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}</select>
-          <select class="csel" id="d-year" onchange="loadData()" style="padding:5px 8px"><option value="2026">2026</option><option value="2025">2025</option></select>
+          <select class="csel" id="d-unit" onchange="loadData()" style="padding:5px 8px">
+            <option value="">Todas</option>{% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
+          </select>
+          <select class="csel" id="d-year" onchange="loadData()" style="padding:5px 8px">
+            <option value="2026">2026</option><option value="2025">2025</option>
+          </select>
+          <select class="csel" id="d-month" onchange="loadData()" style="padding:5px 8px">
+            <option value="">Todos los meses</option>
+            {% for m in months %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+          </select>
+          <select class="csel" id="d-report" onchange="loadData()" style="padding:5px 8px">
+            <option value="">EERR + ESF</option>
+            <option value="eerr">EERR</option>
+            <option value="esf">ESF</option>
+          </select>
         </div>
       </div>
-      <div class="tw"><table><thead><tr><th>Año</th><th>Mes</th><th>Unidad</th><th>Partida</th><th style="text-align:right">Monto</th></tr></thead><tbody id="dbody"></tbody></table></div>
+      <div class="tw"><table><thead><tr>
+        <th>Año</th><th>Mes</th><th>Unidad</th>
+        <th>Código Odoo</th><th>Nombre Cuenta</th><th>Partida</th><th>Módulo</th>
+        <th style="text-align:right">Monto</th>
+        <th id="th-acciones" style="text-align:center;display:none">Acciones</th>
+      </tr></thead><tbody id="dbody"></tbody></table></div>
     </div>
   </div>
 
@@ -3575,6 +3594,11 @@ function initDivisaToggle(){
 async function loadERRDivisa(){
   const year=G('err-divisa-year').value, unit=G('err-divisa-unit').value;
   const r=await fetch(`/api/eerr/divisa_real?year=${year}&unit=${encodeURIComponent(unit)}`);
+  if(!r.ok){
+    const err=await r.json();
+    G('err-divisa-body').innerHTML=`<div style="padding:30px;text-align:center;color:var(--red)">⚠️ No se puede calcular el EERR Divisa Real.<br><br>${err.error||'Error desconocido'}<br><br><span style="color:var(--mu);font-size:11px">Carga las tasas faltantes en Configuración → Tasas de Cambio.</span></div>`;
+    return;
+  }
   const d=await r.json();
 
   const hStyle='font-size:8px;font-weight:700;text-align:center;padding:7px 4px;color:var(--mu);border:1px solid var(--bd)';
@@ -4160,7 +4184,55 @@ async function delMap(code){
 }
 
 // ── DATOS ─────────────────────────────────────────────────────────────────
-async function loadData(){const y=G('d-year').value,u=G('d-unit').value;const r=await fetch(`/api/data?year=${y}&unit=${u}`);const data=await r.json();G('dbody').innerHTML=data.map(row=>`<tr><td>${row.year}</td><td>${row.month}</td><td><span class="chip chb">${row.unit}</span></td><td style="color:var(--mu)">${row.partida}</td><td style="text-align:right;font-weight:600;font-family:'DM Mono'">${fmt(row.amount)}</td></tr>`).join('');}
+async function loadData(){
+  const y=G('d-year').value, u=G('d-unit').value, m=G('d-month').value, rpt=G('d-report').value;
+  let url=`/api/data?year=${y}`;
+  if(u)   url+=`&unit=${u}`;
+  if(m)   url+=`&month=${m}`;
+  if(rpt) url+=`&report_type=${rpt}`;
+  const r=await fetch(url); const data=await r.json();
+  const isAdmin=document.body.dataset.role==='admin';
+  G('th-acciones').style.display=isAdmin?'':'none';
+  G('dbody').innerHTML=data.map(row=>{
+    const overrideBadge=row.has_override
+      ?`<span title="Modificado: ${row.override_last.timestamp} | Anterior: ${fmt(row.override_last.valor_anterior)}" style="margin-left:4px;color:var(--amber);font-size:10px;cursor:help">✎</span>`
+      :'';
+    const acciones=isAdmin?`<td style="text-align:center;white-space:nowrap">
+      <button class="btnm" style="padding:2px 7px;font-size:11px" onclick="editarOverride('${row.year}','${row.month}','${row.unit}','${row.odoo_code}',${row.amount_sign})">Editar</button>
+      ${row.has_override?`<button class="btnm" style="padding:2px 7px;font-size:11px;margin-left:3px;background:var(--amber-l);color:var(--amber)" onclick="deshacerOverride('${row.year}','${row.month}','${row.unit}','${row.odoo_code}')">Deshacer</button>`:''}
+    </td>`:'';
+    return `<tr ${row.has_override?'style="background:var(--amber-l)"':''}>
+      <td>${row.year}</td>
+      <td>${row.month}</td>
+      <td><span class="chip chb">${row.unit}</span></td>
+      <td style="font-family:'DM Mono';font-size:11px">${row.odoo_code}</td>
+      <td style="color:var(--mu)">${row.odoo_name||''}</td>
+      <td style="color:var(--mu)">${row.partida}</td>
+      <td><span class="chip" style="background:${row.report_type==='eerr'?'var(--blue-l)':'var(--green-l)'};color:${row.report_type==='eerr'?'var(--blue)':'var(--green)'}">${row.report_type.toUpperCase()}</span></td>
+      <td style="text-align:right;font-weight:600;font-family:'DM Mono'">${fmt(row.amount_sign)}${overrideBadge}</td>
+      ${acciones}
+    </tr>`;
+  }).join('');
+}
+
+async function editarOverride(year,month,unit,odoo_code,amount_actual){
+  const nuevo=prompt(`Valor actual: ${fmt(amount_actual)}\nIngresa el nuevo valor:`, amount_actual);
+  if(nuevo===null||nuevo==='') return;
+  const valor_nuevo=parseFloat(nuevo.replace(',','.'));
+  if(isNaN(valor_nuevo)){alert('Valor inválido'); return;}
+  const r=await fetch('/api/data/override',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({year,month,unit,odoo_code,valor_nuevo})});
+  const d=await r.json();
+  if(d.ok){loadData();}else{alert('Error: '+(d.error||'desconocido'));}
+}
+
+async function deshacerOverride(year,month,unit,odoo_code){
+  if(!confirm('¿Deshacer el último cambio manual en esta cuenta?')) return;
+  const r=await fetch('/api/data/override/undo',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({year,month,unit,odoo_code})});
+  const d=await r.json();
+  if(d.ok){loadData();}else{alert('Error: '+(d.error||'desconocido'));}
+}
 
 // ── EXCEL ─────────────────────────────────────────────────────────────────
 function openExcelModal(){G('ex-year').value=G('dash-year').value;G('ex-unit').value=G('dash-unit').value==='TODAS'?'':G('dash-unit').value;G('exmod').classList.add('show');}
