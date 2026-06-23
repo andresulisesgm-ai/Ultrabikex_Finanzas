@@ -2622,63 +2622,45 @@ def compute_esf(db, year, unit=''):
     Calcula el Estado de Situación Financiera por quarter (consolidando unidades
     cuando unit está vacío). Devuelve (result_quarters, quarters_available).
     """
+    from engine import esf_engine
+    
     uc = f"AND unit='{unit}'" if unit else ''
-    rows = db.execute(
-        f'SELECT quarter, unit, partida, SUM(amount) amount FROM esf_data WHERE year=? {uc} GROUP BY quarter, unit, partida',
-        [year]
-    ).fetchall()
-
-    by_quarter = {}
-    for r in rows:
-        q = r['quarter']
-        by_quarter.setdefault(q, {})
-        p = r['partida']
-        by_quarter[q][p] = by_quarter[q].get(p, 0) + r['amount']
-
-    quarters_available = sorted(by_quarter.keys())
-    sections = _esf_sections()
-
-    result_quarters = {}
+    rows_q = db.execute(f'SELECT DISTINCT quarter FROM esf_data WHERE year=? {uc}', [year]).fetchall()
+    quarters_available = sorted([r['quarter'] for r in rows_q])
+    
+    res = esf_engine(year, unit)
+    
+    result_quarters = {
+        1: {'totales': {}, 'partidas': {}},
+        2: {'totales': {}, 'partidas': {}},
+        3: {'totales': {}, 'partidas': {}},
+        4: {'totales': {}, 'partidas': {}}
+    }
+    for row in res.get('rows', []):
+        partida = row.get('partida')
+        quarters_val = row.get('quarters', {})
+        for q in [1, 2, 3, 4]:
+            val = quarters_val.get(q, 0.0)
+            result_quarters[q]['totales'][partida] = val
+            result_quarters[q]['partidas'][partida] = val
+            
+    # Mapeo de compatibilidad de nomenclaturas de Totales del Balance (Fase 4 - ESF)
     for q in [1, 2, 3, 4]:
-        data_q = by_quarter.get(q, {})
-
-        tot_ef    = sum(data_q.get(p, 0) for p in ['Efectivo en caja','Efectivo en bancos nacional','Efectivo en bancos exterior','Efectivo en criptomonedas'])
-        tot_cxc   = sum(data_q.get(p, 0) for p in ['Cuentas por cobrar clientes','Cuentas por cobrar empleados','Cuentas por cobrar accionistas','Otras cuentas por cobrar','Provisión para cuentas incobrables'])
-        tot_inv   = sum(data_q.get(p, 0) for p in ['Inventario de mercancías','Inventario de materia prima','Inventario de suministros'])
-        tot_oac   = sum(data_q.get(p, 0) for p in ['Gastos pagados por anticipado','Seguros pagados por anticipado','IVA crédito fiscal','Retenciones de IVA por recuperar','Anticipos a proveedores'])
-        tot_ac    = tot_ef + tot_cxc + tot_inv + tot_oac
-        tot_anc   = sum(data_q.get(p, 0) for p in sections['activo_no_corriente'])
-        tot_activos = tot_ac + tot_anc
-
-        tot_cxp   = sum(data_q.get(p, 0) for p in ['Cuentas por pagar proveedores','Cuentas por pagar accionistas','Otras cuentas por pagar'])
-        tot_lab_c = sum(data_q.get(p, 0) for p in ['Pasivos laborales corrientes','Prestaciones sociales por pagar'])
-        tot_opc   = sum(data_q.get(p, 0) for p in ['IVA débito fiscal','Retenciones de IVA por enterar','ISLR por pagar','Aportes patronales por pagar','Préstamos bancarios corto plazo','Porción corriente préstamos LP','Anticipos de clientes','Ingresos diferidos'])
-        tot_pc    = tot_cxp + tot_lab_c + tot_opc
-        tot_pnc   = sum(data_q.get(p, 0) for p in sections['pasivo_no_corriente'])
-        tot_pas   = tot_pc + tot_pnc
-        tot_pat   = sum(data_q.get(p, 0) for p in sections['patrimonio'])
-        tot_pas_pat = tot_pas + tot_pat
-
-        result_quarters[q] = {
-            'partidas': {p: round(v, 2) for p, v in data_q.items()},
-            'totales': {
-                'Total Efectivo y Equivalentes':    round(tot_ef, 2),
-                'Total Cuentas por Cobrar (neto)':  round(tot_cxc, 2),
-                'Total Inventarios':                round(tot_inv, 2),
-                'Total Otros Activos Corrientes':   round(tot_oac, 2),
-                'ACTIVOS CORRIENTES':               round(tot_ac, 2),
-                'Total Activos No Corrientes':      round(tot_anc, 2),
-                'TOTAL ACTIVOS':                    round(tot_activos, 2),
-                'Total Cuentas por Pagar':          round(tot_cxp, 2),
-                'Total Pasivos Laborales Corrientes':round(tot_lab_c, 2),
-                'Total Otros Pasivos Corrientes':   round(tot_opc, 2),
-                'TOTAL PASIVOS CORRIENTES':         round(tot_pc, 2),
-                'TOTAL PASIVOS NO CORRIENTES':      round(tot_pnc, 2),
-                'TOTAL PASIVOS':                    round(tot_pas, 2),
-                'TOTAL PATRIMONIO':                 round(tot_pat, 2),
-                'TOTAL PASIVOS Y PATRIMONIO':       round(tot_pas_pat, 2),
-            }
-        }
+        tot = result_quarters[q]['totales']
+        tot['Total Efectivo y Equivalentes']   = tot.get('Efectivo y Equivalentes', 0.0)
+        tot['Total Cuentas por Cobrar (neto)'] = tot.get('Cuentas por Cobrar', 0.0)
+        tot['Total Inventarios']               = tot.get('Inventarios', 0.0)
+        tot['ACTIVOS CORRIENTES']              = tot.get('ACTIVOS CORRIENTES', 0.0)
+        tot['Total Activos No Corrientes']     = tot.get('Total Activos No Corrientes', 0.0) or tot.get('ACTIVOS NO CORRIENTES', 0.0)
+        tot['TOTAL ACTIVOS']                   = tot.get('TOTAL ACTIVOS', 0.0)
+        
+        tot['Total Cuentas por Pagar']         = tot.get('Cuentas por Pagar', 0.0)
+        tot['TOTAL PASIVOS CORRIENTES']        = tot.get('TOTAL PASIVOS CORRIENTES', 0.0) or tot.get('Total Pasivos Corrientes', 0.0) or tot.get('PASIVOS CORRIENTES', 0.0)
+        tot['TOTAL PASIVOS NO CORRIENTES']     = tot.get('TOTAL PASIVOS NO CORRIENTES', 0.0) or tot.get('Total Pasivos No Corrientes', 0.0) or tot.get('PASIVOS NO CORRIENTES', 0.0)
+        tot['TOTAL PASIVOS']                   = tot.get('TOTAL PASIVOS', 0.0)
+        tot['TOTAL PATRIMONIO']                = tot.get('TOTAL PATRIMONIO', 0.0) or tot.get('Total Patrimonio', 0.0) or tot.get('PATRIMONIO', 0.0)
+        tot['TOTAL PASIVOS Y PATRIMONIO']      = tot.get('TOTAL PASIVOS Y PATRIMONIO', 0.0)
+        
     return result_quarters, quarters_available
 
 
@@ -4328,12 +4310,148 @@ def export_pdf():
 
 @app.route('/api/data', methods=['GET'])
 def get_data():
-    year = request.args.get('year', str(datetime.now().year))
-    unit = request.args.get('unit', '')
-    db   = get_db()
-    q    = 'SELECT * FROM financials WHERE year=?'; params = [year]
-    if unit: q += ' AND unit=?'; params.append(unit)
-    return jsonify([dict(r) for r in db.execute(q + ' ORDER BY unit, month, partida', params).fetchall()])
+    year        = request.args.get('year', str(datetime.now().year))
+    unit        = request.args.get('unit', '')
+    report_type = request.args.get('report_type', '')
+    db          = get_db()
+    q      = 'SELECT * FROM financials_detail WHERE year=?'
+    params = [year]
+    if unit:        q += ' AND unit=?';        params.append(unit)
+    if report_type: q += ' AND report_type=?'; params.append(report_type)
+    rows = db.execute(q + ' ORDER BY unit, month, odoo_code', params).fetchall()
+    # Marcar filas que tienen historial de override
+    result = []
+    for r in rows:
+        row = dict(r)
+        log = db.execute(
+            '''SELECT valor_anterior, valor_nuevo, timestamp
+               FROM financials_override_log
+               WHERE year=? AND month=? AND unit=? AND odoo_code=?
+               ORDER BY id DESC LIMIT 1''',
+            (row['year'], row['month'], row['unit'], row['odoo_code'])
+        ).fetchone()
+        row['has_override'] = log is not None
+        row['override_last'] = dict(log) if log else None
+        result.append(row)
+    return jsonify(result)
+
+
+@app.route('/api/data/override', methods=['POST'])
+@admin_required
+def data_override():
+    body        = request.get_json()
+    year        = body.get('year')
+    month       = body.get('month')
+    unit        = body.get('unit')
+    odoo_code   = body.get('odoo_code')
+    valor_nuevo = body.get('valor_nuevo')
+    if None in (year, month, unit, odoo_code, valor_nuevo):
+        return jsonify({'error': 'Faltan campos obligatorios'}), 400
+    db = get_db()
+    # Leer valor actual
+    row = db.execute(
+        'SELECT amount_sign, report_type, partida FROM financials_detail WHERE year=? AND month=? AND unit=? AND odoo_code=?',
+        (year, month, unit, odoo_code)
+    ).fetchone()
+    if not row:
+        return jsonify({'error': 'Registro no encontrado'}), 404
+    valor_anterior = row['amount_sign']
+    report_type    = row['report_type']
+    partida        = row['partida']
+    # Actualizar financials_detail
+    db.execute(
+        'UPDATE financials_detail SET amount_sign=? WHERE year=? AND month=? AND unit=? AND odoo_code=?',
+        (valor_nuevo, year, month, unit, odoo_code)
+    )
+    # Actualizar en cascada financials o esf_data
+    if report_type == 'eerr':
+        db.execute(
+            '''UPDATE financials SET amount=(
+                SELECT SUM(amount_sign) FROM financials_detail
+                WHERE year=? AND month=? AND unit=? AND partida=? AND report_type='eerr'
+               ) WHERE year=? AND month=? AND unit=? AND partida=?''',
+            (year, month, unit, partida, year, month, unit, partida)
+        )
+    else:
+        row_esf = db.execute(
+            'SELECT quarter FROM financials_detail WHERE year=? AND month=? AND unit=? AND odoo_code=?',
+            (year, month, unit, odoo_code)
+        ).fetchone()
+        if row_esf:
+            quarter = row_esf['quarter']
+            db.execute(
+                '''UPDATE esf_data SET amount=(
+                    SELECT SUM(amount_sign) FROM financials_detail
+                    WHERE year=? AND unit=? AND partida=? AND report_type='esf' AND quarter=?
+                   ) WHERE year=? AND quarter=? AND unit=? AND partida=?''',
+                (year, unit, partida, quarter, year, quarter, unit, partida)
+            )
+    # Guardar en log
+    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    db.execute(
+        '''INSERT INTO financials_override_log (year, month, unit, odoo_code, report_type, valor_anterior, valor_nuevo, timestamp)
+           VALUES (?,?,?,?,?,?,?,?)''',
+        (year, month, unit, odoo_code, report_type, valor_anterior, valor_nuevo, ts)
+    )
+    db.commit()
+    return jsonify({'ok': True, 'valor_anterior': valor_anterior, 'valor_nuevo': valor_nuevo})
+
+
+@app.route('/api/data/override/undo', methods=['POST'])
+@admin_required
+def data_override_undo():
+    body      = request.get_json()
+    year      = body.get('year')
+    month     = body.get('month')
+    unit      = body.get('unit')
+    odoo_code = body.get('odoo_code')
+    if None in (year, month, unit, odoo_code):
+        return jsonify({'error': 'Faltan campos obligatorios'}), 400
+    db = get_db()
+    # Último registro del log
+    log = db.execute(
+        '''SELECT id, valor_anterior, report_type FROM financials_override_log
+           WHERE year=? AND month=? AND unit=? AND odoo_code=?
+           ORDER BY id DESC LIMIT 1''',
+        (year, month, unit, odoo_code)
+    ).fetchone()
+    if not log:
+        return jsonify({'error': 'No hay override que deshacer'}), 404
+    valor_revertido = log['valor_anterior']
+    report_type     = log['report_type']
+    # Leer partida
+    row = db.execute(
+        'SELECT partida, quarter FROM financials_detail WHERE year=? AND month=? AND unit=? AND odoo_code=?',
+        (year, month, unit, odoo_code)
+    ).fetchone()
+    partida = row['partida']
+    quarter = row['quarter']
+    # Revertir financials_detail
+    db.execute(
+        'UPDATE financials_detail SET amount_sign=? WHERE year=? AND month=? AND unit=? AND odoo_code=?',
+        (valor_revertido, year, month, unit, odoo_code)
+    )
+    # Revertir en cascada
+    if report_type == 'eerr':
+        db.execute(
+            '''UPDATE financials SET amount=(
+                SELECT SUM(amount_sign) FROM financials_detail
+                WHERE year=? AND month=? AND unit=? AND partida=? AND report_type='eerr'
+               ) WHERE year=? AND month=? AND unit=? AND partida=?''',
+            (year, month, unit, partida, year, month, unit, partida)
+        )
+    else:
+        db.execute(
+            '''UPDATE esf_data SET amount=(
+                SELECT SUM(amount_sign) FROM financials_detail
+                WHERE year=? AND unit=? AND partida=? AND report_type='esf' AND quarter=?
+               ) WHERE year=? AND quarter=? AND unit=? AND partida=?''',
+            (year, unit, partida, quarter, year, quarter, unit, partida)
+        )
+    # Eliminar el log revertido
+    db.execute('DELETE FROM financials_override_log WHERE id=?', (log['id'],))
+    db.commit()
+    return jsonify({'ok': True, 'valor_revertido': valor_revertido})
 
 @app.route('/api/years', methods=['GET'])
 def get_years():
