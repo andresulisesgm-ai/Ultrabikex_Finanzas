@@ -2714,77 +2714,67 @@ def compute_indicadores_v2(db, year):
         return val
 
     def calc_eerr_quarter(year_str, months):
-        """Suma financials de los meses del trimestre y calcula subtotales EERR."""
-        uc = ''
-        placeholders = ','.join('?' * len(months))
-        rows = db.execute(
-            f'SELECT partida, month, SUM(amount) amount FROM financials WHERE year=? AND month IN ({placeholders}) GROUP BY partida, month',
-            [year_str] + months
-        ).fetchall()
-        by_partida = {}
-        for r in rows:
-            by_partida.setdefault(r['partida'], 0)
-            by_partida[r['partida']] += r['amount']
+        """
+        Extrae subtotales EERR para un conjunto de meses usando eerr_completo_v2_ui_adapter.
+        Suma los valores mensuales de los nodos clave para el trimestre.
+        """
+        adapter = eerr_completo_v2_ui_adapter(year_str, '')
+        rows = adapter.get('rows', [])
 
-        # Calcular subtotales jerárquicos usando groups_v2
-        subtotales = {}
-        for node in effective:
-            name = node['partida_name']
-            if node['is_header']:
-                subtotales[name] = sum(
-                    by_partida.get(p, 0) for p in groups_v2.get(name, [])
-                )
-
-        def get_val(name):
-            if name in subtotales:
-                return subtotales[name]
-            return get_subtotal(name, by_partida)
-
-        ing    = get_val('Total Ingresos')
-        cos    = get_val('Total Costo de Ventas ')
-        ut_br  = ing - cos
-        gas_op = get_val('Total Gastos Operacionales')
-        ut_op  = ut_br - gas_op
-        ot_ing = get_val('Otros Ingresos no Operacionales')
-        ot_gas = get_val('Otros Gastos no Operacionales')
-        otros  = ot_ing - ot_gas
-        ut_ai  = ut_op + otros
-        islr   = get_val('ISLR')
-        ut_net = ut_ai - islr
-
-        return {
-            'ingresos':  ing,
-            'costos':    cos,
-            'ut_bruta':  ut_br,
-            'gas_op':    gas_op,
-            'ut_op':     ut_op,
-            'otros_nop': otros,
-            'ut_ai':     ut_ai,
-            'islr':      islr,
-            'ut_neta':   ut_net,
-            'margen_bruto': safe_div(ut_br, ing),
-            'margen_neto':  safe_div(ut_net, ing),
+        NODOS = {
+            'Total Ingresos': 'ingresos',
+            'Total Costo de Ventas': 'costos',
+            'Utilidad Bruta': 'ut_bruta',
+            'Total Gastos Operacionales': 'gas_op',
+            'Utilidad Neta Operacional': 'ut_op',
+            'Otros Ingresos no Operacionales': 'ot_ing',
+            'Otros Gastos no Operacionales': 'ot_gas',
+            'ISLR': 'islr',
+            'Utilidad Neta despues de ISLR': 'ut_neta',
         }
+
+        result = {v: 0.0 for v in NODOS.values()}
+        result['ot_ing'] = 0.0
+        result['ot_gas'] = 0.0
+
+        for row in rows:
+            partida = row.get('partida', '')
+            if partida not in NODOS:
+                continue
+            key = NODOS[partida]
+            for idx, mes_data in enumerate(row.get('meses', [])):
+                if idx < len(MONTHS) and MONTHS[idx] in months:
+                    result[key] += mes_data.get('ejecutado', {}).get('valor', 0) or 0
+
+        # Calcular derivados
+        result['ut_bruta'] = result['ingresos'] - result['costos']
+        result['ut_op']    = result['ut_bruta'] - result['gas_op']
+        result['otros_nop'] = result['ot_ing'] - result['ot_gas']
+        result['ut_ai']    = result['ut_op'] + result['otros_nop']
+        result['ut_neta']  = result['ut_ai'] - result['islr']
+        result['margen_bruto'] = safe_div(result['ut_bruta'], result['ingresos'])
+        result['margen_neto']  = safe_div(result['ut_neta'], result['ingresos'])
+        return result
 
     # ── ESF: cargar por trimestre ──────────────────────────────────────────────
     def get_esf_quarter(q):
         from engine import esf_engine
         res = esf_engine(year, '')
-        nodes = {n['partida']: n.get('quarters', {}).get(q) or n.get('valor', 0)
-                 for n in res.get('nodes', [])}
-        # Intentar desde compute_esf también
+        # esf_engine devuelve quarters con claves enteras
+        rows_esf = {n['partida']: n.get('quarters', {}).get(q, 0) or 0
+                    for n in res.get('rows', [])}
         result_quarters, _ = compute_esf(db, year, '')
         tot = result_quarters.get(q, {}).get('totales', {})
         return {
-            'tot_activos': tot.get('TOTAL ACTIVOS', 0),
-            'act_corr':    tot.get('ACTIVOS CORRIENTES', 0),
-            'pas_corr':    tot.get('TOTAL PASIVOS CORRIENTES', 0) or tot.get('PASIVOS CORRIENTES', 0),
-            'tot_pas':     tot.get('TOTAL PASIVOS', 0),
-            'patrimonio':  tot.get('TOTAL PATRIMONIO', 0) or tot.get('PATRIMONIO', 0),
-            'efectivo':    tot.get('Total Efectivo y Equivalentes', 0),
-            'inventarios': tot.get('Total Inventarios', 0),
-            'cxc':         tot.get('Total Cuentas por Cobrar (neto)', 0),
-            'res_ejercicio': nodes.get('Resultados del ejercicio', 0),
+            'tot_activos':   tot.get('TOTAL ACTIVOS', 0),
+            'act_corr':      tot.get('ACTIVOS CORRIENTES', 0),
+            'pas_corr':      tot.get('TOTAL PASIVOS CORRIENTES', 0) or tot.get('PASIVOS CORRIENTES', 0),
+            'tot_pas':       tot.get('TOTAL PASIVOS', 0),
+            'patrimonio':    tot.get('TOTAL PATRIMONIO', 0) or tot.get('PATRIMONIO', 0),
+            'efectivo':      tot.get('Total Efectivo y Equivalentes', 0),
+            'inventarios':   tot.get('Total Inventarios', 0),
+            'cxc':           tot.get('Total Cuentas por Cobrar (neto)', 0),
+            'res_ejercicio': rows_esf.get('Resultados del ejercicio', 0),
         }
 
     # ── Año anterior (acumulado anual) ─────────────────────────────────────────
