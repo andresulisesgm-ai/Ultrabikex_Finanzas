@@ -1,1 +1,19 @@
 .aider*
+
+# Logs
+flask_server.log
+integrity_guard.log
+
+# Archivos temporales Office
+~$*.xlsx
+
+# Archivos de agentes IA
+.aiexclude
+.antigravityignore
+.geminiignore
+# Datos operativos
+uploads/
+
+# Python cache
+__pycache__/
+*.pyc
