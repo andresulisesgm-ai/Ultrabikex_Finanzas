@@ -3217,23 +3217,38 @@ def copiar_metodo_pago():
     from_m = data.get('from_month')
     to_y   = data.get('to_year')
     to_m   = data.get('to_month')
+    units  = data.get('units')  # lista de unidades; None = todas
 
     if not all([from_y, from_m, to_y, to_m]):
         return jsonify({'error': 'Faltan parámetros'}), 400
 
     db = get_db()
 
-    # Leer configuración origen
-    rows = db.execute(
-        'SELECT unit, odoo_code, pct_cash FROM metodo_pago_cuenta WHERE year=? AND month=?',
-        (from_y, from_m)
-    ).fetchall()
+    # Leer configuración origen (filtrado por unidades si se especifica)
+    if units:
+        placeholders = ','.join('?' * len(units))
+        rows = db.execute(
+            'SELECT unit, odoo_code, pct_cash FROM metodo_pago_cuenta WHERE year=? AND month=? AND unit IN (' + placeholders + ')',
+            [from_y, from_m] + list(units)
+        ).fetchall()
+    else:
+        rows = db.execute(
+            'SELECT unit, odoo_code, pct_cash FROM metodo_pago_cuenta WHERE year=? AND month=?',
+            (from_y, from_m)
+        ).fetchall()
 
     if not rows:
         return jsonify({'error': 'No hay configuración en el período origen'}), 404
 
-    # Borrar destino si existe
-    db.execute('DELETE FROM metodo_pago_cuenta WHERE year=? AND month=?', (to_y, to_m))
+    # Borrar destino solo para las unidades afectadas
+    if units:
+        placeholders = ','.join('?' * len(units))
+        db.execute(
+            'DELETE FROM metodo_pago_cuenta WHERE year=? AND month=? AND unit IN (' + placeholders + ')',
+            [to_y, to_m] + list(units)
+        )
+    else:
+        db.execute('DELETE FROM metodo_pago_cuenta WHERE year=? AND month=?', (to_y, to_m))
 
     # Insertar en destino
     for r in rows:

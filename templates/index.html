@@ -1028,7 +1028,22 @@ input[type=file]{display:none;}
             <select id="metodos-month" style="padding:6px 10px;font-size:11px;border-radius:6px;background:var(--sf2);border:1px solid var(--bd);color:var(--tx)" onchange="cargarMetodosPago()">
               {% for m in ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC'] %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
             </select>
-            <button class="btns" onclick="copiarMetodosMesAnterior()">Copiar del mes anterior</button>
+            <div style="position:relative;display:inline-block" id="copiar-dropdown-wrap">
+              <button class="btns" onclick="toggleCopiarDropdown()" id="copiar-dropdown-btn">Copiar del mes anterior</button>
+              <div id="copiar-dropdown" style="display:none;position:absolute;right:0;top:110%;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:10px;min-width:200px;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,0.1)">
+                <div style="font-size:10px;font-weight:600;color:var(--mu2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Unidades a copiar</div>
+                <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--tx);padding:4px 0;cursor:pointer;border-bottom:0.5px solid var(--bd);margin-bottom:4px">
+                  <input type="checkbox" id="cop-unit-all" onchange="toggleCopiarTodas(this)"> Todas las unidades
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--tx);padding:4px 0;cursor:pointer"><input type="checkbox" class="cop-unit" value="Rodeo" onchange="actualizarBtnCopiar()"> Rodeo</label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--tx);padding:4px 0;cursor:pointer"><input type="checkbox" class="cop-unit" value="Barinas" onchange="actualizarBtnCopiar()"> Barinas</label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--tx);padding:4px 0;cursor:pointer"><input type="checkbox" class="cop-unit" value="Los Naranjos" onchange="actualizarBtnCopiar()"> Los Naranjos</label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--tx);padding:4px 0;cursor:pointer"><input type="checkbox" class="cop-unit" value="Piedemonte" onchange="actualizarBtnCopiar()"> Piedemonte</label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--tx);padding:4px 0;cursor:pointer"><input type="checkbox" class="cop-unit" value="Terracota" onchange="actualizarBtnCopiar()"> Terracota</label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--tx);padding:4px 0;cursor:pointer"><input type="checkbox" class="cop-unit" value="UCafe" onchange="actualizarBtnCopiar()"> UCafe</label>
+                <button class="btnm" id="copiar-confirmar-btn" onclick="ejecutarCopiarMetodos()" disabled style="width:100%;margin-top:10px;font-size:11px;opacity:0.4;cursor:not-allowed">Confirmar copia</button>
+              </div>
+            </div>
           </div>
           <button class="btnm" onclick="guardarMetodos()">Guardar</button>
         </div>
@@ -3677,18 +3692,59 @@ async function guardarMetodos(){
   else{showA('al-tasas-er','❌ '+d.error);}
 }
 
-async function copiarMetodosMesAnterior(){
-  if(!confirm('¿Copiar configuración del mes anterior como base?'))return;
+function toggleCopiarDropdown(){
+  const dd=G('copiar-dropdown');
+  if(!dd)return;
+  dd.style.display=dd.style.display==='none'?'block':'none';
+}
+
+function toggleCopiarTodas(el){
+  document.querySelectorAll('.cop-unit').forEach(c=>c.checked=el.checked);
+  actualizarBtnCopiar();
+}
+
+function actualizarBtnCopiar(){
+  const selected=Array.from(document.querySelectorAll('.cop-unit:checked'));
+  const allCb=G('cop-unit-all');
+  const allUnits=document.querySelectorAll('.cop-unit');
+  if(allCb)allCb.checked=selected.length===allUnits.length&&allUnits.length>0;
+  const btn=G('copiar-confirmar-btn');
+  if(!btn)return;
+  if(selected.length>0){
+    btn.disabled=false;btn.style.opacity='1';btn.style.cursor='pointer';
+  } else {
+    btn.disabled=true;btn.style.opacity='0.4';btn.style.cursor='not-allowed';
+  }
+}
+
+document.addEventListener('click',function(e){
+  const wrap=G('copiar-dropdown-wrap');
+  if(wrap&&!wrap.contains(e.target)){
+    const dd=G('copiar-dropdown');
+    if(dd)dd.style.display='none';
+  }
+});
+
+async function ejecutarCopiarMetodos(){
+  const selected=Array.from(document.querySelectorAll('.cop-unit:checked')).map(c=>c.value);
+  if(!selected.length){showA('al-tasas-er','Selecciona al menos una unidad.');return;}
+  const allUnits=document.querySelectorAll('.cop-unit');
+  const esTotal=selected.length===allUnits.length;
   const year=G('metodos-year').value, month=G('metodos-month').value;
   const MONTHS=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC'];
   const idx=MONTHS.indexOf(month);
   let from_month,from_year;
   if(idx===0){from_month='DIC';from_year=String(parseInt(year)-1);}
   else{from_month=MONTHS[idx-1];from_year=year;}
-
-  const r=await fetch('/api/metodo_pago/copiar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from_year,from_month,to_year:year,to_month:month})});
+  const unitsLabel=esTotal?'todas las unidades':selected.join(', ');
+  if(!confirm('¿Copiar configuración de '+from_month+' '+from_year+' para '+unitsLabel+'? Esto sobreescribirá los valores actuales.'))return;
+  const body={from_year,from_month,to_year:year,to_month:month};
+  if(!esTotal)body.units=selected;
+  const r=await fetch('/api/metodo_pago/copiar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const d=await r.json();
-  if(d.ok){showA('al-tasas-ok',`✅ ${d.copied} métodos copiados desde ${from_month} ${from_year}`);cargarMetodosPago();}
+  const dd=G('copiar-dropdown');
+  if(dd)dd.style.display='none';
+  if(d.ok){showA('al-tasas-ok','✅ '+d.copied+' métodos copiados desde '+from_month+' '+from_year+' para '+unitsLabel);cargarMetodosPago();}
   else{showA('al-tasas-er','❌ '+d.error);}
 }
 
