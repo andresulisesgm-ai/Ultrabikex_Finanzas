@@ -41,7 +41,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);overf
 .nav-item{display:flex;align-items:center;gap:8px;margin:1px 7px;padding:8px 10px;border-radius:7px;color:var(--mu);cursor:pointer;transition:all .15s;font-size:12px;font-weight:500;user-select:none;}
 .nav-item:hover{background:var(--sf3);color:var(--tx2);}
 .nav-item.active{background:var(--blue-l);color:var(--blue);font-weight:600;}
-.nav-icon{font-size:12px;width:14px;text-align:center;}
+.nav-icon{font-size:16px;width:18px;text-align:center;display:inline-flex;align-items:center;justify-content:center;}
 .sidebar-footer{margin-top:auto;padding:10px 14px;border-top:1px solid var(--bd);font-size:10px;color:var(--mu2);}
 .sidebar{transition:width .2s ease;}
 .sidebar.collapsed{width:42px;overflow:hidden;}
@@ -499,6 +499,7 @@ input[type=file]{display:none;}
 #traza-panel .tp-neg { color: #A32D2D; }
 #traza-panel .tp-loading { color: #888; padding: 8px 0; }
 </style>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 </head>
 <body data-role="{{ user.role if user else 'visitor' }}">
 
@@ -508,24 +509,24 @@ input[type=file]{display:none;}
     <p>Financial Intelligence</p>
   </div>
   <div class="nav-sec">Principal</div>
-  <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">▦</span>Dashboard</div>
-  <div class="nav-item" onclick="showPage('eerr',this)"><span class="nav-icon">📊</span>Estados de Resultados (EERR)</div>
-  <div class="nav-item" onclick="showPage('err_divisa',this)"><span class="nav-icon">💵</span>EERR Divisa Real</div>
-  <div class="nav-item" onclick="showPage('eerrdet',this)" style="display:none"><span class="nav-icon">≣</span>ERR Detallado</div>
-  <div class="nav-item" onclick="showPage('indicadores',this)"><span class="nav-icon">📈</span>Indicadores Financieros</div>
-  <div class="nav-item" onclick="showPage('esf',this)"><span class="nav-icon">⊟</span>Estado de Situación Financiera (ESF)</div>
-  <div class="nav-item" onclick="showPage('presupuesto',this)" style="display:none"><span class="nav-icon">◎</span>Presupuesto vs Real</div>
-  <div class="nav-item" onclick="showPage('comparativa',this)"><span class="nav-icon">⇅</span>Comparativas</div>
+  <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon"><i class="ph ph-squares-four"></i></span>Dashboard</div>
+  <div class="nav-item" onclick="showPage('eerr',this)"><span class="nav-icon"><i class="ph ph-file-text"></i></span>Estados de Resultados (EERR)</div>
+  <div class="nav-item" onclick="showPage('err_divisa',this)"><span class="nav-icon"><i class="ph ph-currency-dollar"></i></span>EERR Divisa Real</div>
+  <div class="nav-item" onclick="showPage('eerrdet',this)" style="display:none"><span class="nav-icon"><i class="ph ph-list"></i></span>ERR Detallado</div>
+  <div class="nav-item" onclick="showPage('indicadores',this)"><span class="nav-icon"><i class="ph ph-chart-line"></i></span>Indicadores Financieros</div>
+  <div class="nav-item" onclick="showPage('esf',this)"><span class="nav-icon"><i class="ph ph-scales"></i></span>Estado de Situación Financiera (ESF)</div>
+  <div class="nav-item" onclick="showPage('presupuesto',this)" style="display:none"><span class="nav-icon"><i class="ph ph-target"></i></span>Presupuesto vs Real</div>
+  <div class="nav-item" onclick="showPage('comparativa',this)"><span class="nav-icon"><i class="ph ph-arrows-down-up"></i></span>Comparativas</div>
   <div class="nav-sec">Configuración</div>
-  <div class="nav-item" onclick="showPage('carga',this)"><span class="nav-icon">↑</span>Cargar Reportes</div>
-  <div class="nav-item" onclick="showPage('mapping',this)"><span class="nav-icon">⇄</span>Mapeo de Cuentas</div>
-  <div class="nav-item" onclick="showPage('config_tasas',this)"><span class="nav-icon">💱</span>Configuración de Tasas</div>
-  <div class="nav-item" onclick="showPage('historial',this)"><span class="nav-icon">◷</span>Historial</div>
-  <div class="nav-item" onclick="showPage('datos',this)"><span class="nav-icon">≡</span>Ver Datos</div>
+  <div class="nav-item" onclick="showPage('carga',this)"><span class="nav-icon"><i class="ph ph-upload-simple"></i></span>Cargar Reportes</div>
+  <div class="nav-item" onclick="showPage('mapping',this)"><span class="nav-icon"><i class="ph ph-arrows-left-right"></i></span>Mapeo de Cuentas</div>
+  <div class="nav-item" onclick="showPage('config_tasas',this)"><span class="nav-icon"><i class="ph ph-sliders"></i></span>Configuración de Tasas</div>
+  <div class="nav-item" onclick="showPage('historial',this)"><span class="nav-icon"><i class="ph ph-clock-countdown"></i></span>Historial</div>
+  <div class="nav-item" onclick="showPage('datos',this)"><span class="nav-icon"><i class="ph ph-table"></i></span>Ver Datos</div>
   <div class="nav-sec">Sistema</div>
-  <div class="nav-item" onclick="showPage('export_ai',this)"><span class="nav-icon">🤖</span>Exportar Briefing IA</div>
-  <div class="nav-item" onclick="showPage('backup',this)"><span class="nav-icon">⊞</span>Backup / Restaurar</div>
-  <div class="nav-item" onclick="doPdfExport()"><span class="nav-icon">📄</span>Exportar PDF</div>
+  <div class="nav-item" onclick="showPage('export_ai',this)"><span class="nav-icon"><i class="ph ph-sparkle"></i></span>Exportar Briefing IA</div>
+  <div class="nav-item" onclick="showPage('backup',this)"><span class="nav-icon"><i class="ph ph-archive"></i></span>Backup / Restaurar</div>
+  <div class="nav-item" onclick="doPdfExport()"><span class="nav-icon"><i class="ph ph-file-arrow-down"></i></span>Exportar PDF</div>
   <div class="sidebar-footer">
     <div id="userInfo"></div>
     <div class="footer-actions">
