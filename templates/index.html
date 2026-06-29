@@ -523,6 +523,7 @@ input[type=file]{display:none;}
   <div class="nav-item" onclick="showPage('historial',this)"><span class="nav-icon">◷</span>Historial</div>
   <div class="nav-item" onclick="showPage('datos',this)"><span class="nav-icon">≡</span>Ver Datos</div>
   <div class="nav-sec">Sistema</div>
+  <div class="nav-item" onclick="showPage('export_ai',this)"><span class="nav-icon">🤖</span>Exportar Briefing IA</div>
   <div class="nav-item" onclick="showPage('backup',this)"><span class="nav-icon">⊞</span>Backup / Restaurar</div>
   <div class="nav-item" onclick="doPdfExport()"><span class="nav-icon">📄</span>Exportar PDF</div>
   <div class="sidebar-footer">
@@ -685,7 +686,69 @@ input[type=file]{display:none;}
     </div>
   </div>
 
-  <!-- EERR DETALLADO -->
+  <!-- EXPORTAR BRIEFING IA -->
+<div class="page" id="page-export_ai">
+  <div class="tbar">
+    <div style="font-size:12px;font-weight:700">Exportar Briefing IA — Análisis CFO</div>
+  </div>
+  <div style="padding:24px;max-width:600px">
+    <div style="margin-bottom:20px">
+      <label style="font-size:11px;font-weight:600;display:block;margin-bottom:6px">Tipo de reporte</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btns" id="ai-tipo-eerr" onclick="setAiTipo('eerr',this)" style="font-size:11px">EERR</button>
+        <button class="btns" id="ai-tipo-eerr_divisa" onclick="setAiTipo('eerr_divisa',this)" style="font-size:11px">EERR Divisa Real</button>
+        <button class="btns" id="ai-tipo-esf" onclick="setAiTipo('esf',this)" style="font-size:11px">ESF</button>
+        <button class="btns" id="ai-tipo-completo" onclick="setAiTipo('completo',this)" style="font-size:11px">Completo</button>
+      </div>
+    </div>
+    <div style="margin-bottom:20px">
+      <label style="font-size:11px;font-weight:600;display:block;margin-bottom:6px">Alcance</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="ai-unit" style="font-size:11px;padding:4px 8px;border:1px solid var(--bd);border-radius:4px;background:var(--bg)">
+          <option value="">Consolidado grupo</option>
+          <option value="Rodeo">Rodeo</option>
+          <option value="Barinas">Barinas</option>
+          <option value="Los Naranjos">Los Naranjos</option>
+          <option value="Piedemonte">Piedemonte</option>
+          <option value="Terracota">Terracota</option>
+          <option value="UCafe">UCafe</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:20px">
+      <label style="font-size:11px;font-weight:600;display:block;margin-bottom:6px">Período</label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select id="ai-year" style="font-size:11px;padding:4px 8px;border:1px solid var(--bd);border-radius:4px;background:var(--bg)">
+          <option value="2026">2026</option>
+          <option value="2025">2025</option>
+        </select>
+        <select id="ai-month" style="font-size:11px;padding:4px 8px;border:1px solid var(--bd);border-radius:4px;background:var(--bg)">
+          <option value="">Año completo</option>
+          <option value="ENE">Enero</option>
+          <option value="FEB">Febrero</option>
+          <option value="MAR">Marzo</option>
+          <option value="ABR">Abril</option>
+          <option value="MAY">Mayo</option>
+          <option value="JUN">Junio</option>
+          <option value="JUL">Julio</option>
+          <option value="AGO">Agosto</option>
+          <option value="SEPT">Septiembre</option>
+          <option value="OCT">Octubre</option>
+          <option value="NOV">Noviembre</option>
+          <option value="DIC">Diciembre</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:8px;font-size:10px;color:var(--mu2)">
+      El archivo generado incluye el prompt CFO y los datos financieros listos para pegar en cualquier modelo de IA.
+    </div>
+    <button class="btns" onclick="downloadAiBriefing()" style="font-size:12px;font-weight:700;padding:10px 20px">
+      ⬇ Exportar Briefing IA
+    </button>
+  </div>
+</div>
+
+<!-- EERR DETALLADO -->
   <div class="page" id="page-eerrdet">
     <div class="card fullpage">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -4538,6 +4601,42 @@ async function closeApp(){
   if(!confirm('¿Cerrar ULTRAX? Esto detendrá el servidor.'))return;
   try{await fetch('/api/shutdown',{method:'POST'});}catch{}
   document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:DM Sans,sans-serif;color:#64748b;flex-direction:column;gap:10px"><div style="font-size:32px">⏻</div><div style="font-weight:600">Servidor detenido.</div><div style="font-size:12px">Puedes cerrar esta ventana.</div></div>';
+}
+
+// ── EXPORTAR BRIEFING IA ─────────────────────────────────────────────────────
+let aiTipoActual = 'eerr';
+
+function setAiTipo(tipo, el) {
+  aiTipoActual = tipo;
+  document.querySelectorAll('[id^="ai-tipo-"]').forEach(b => b.style.fontWeight = '400');
+  el.style.fontWeight = '700';
+}
+
+async function downloadAiBriefing() {
+  const year  = document.getElementById('ai-year').value;
+  const month = document.getElementById('ai-month').value;
+  const unit  = document.getElementById('ai-unit').value;
+  const tipo  = aiTipoActual;
+
+  const params = new URLSearchParams({ year, month, unit, tipo });
+  const url = '/api/export/ai?' + params.toString();
+
+  try {
+    const r = await fetch(url);
+    if (!r.ok) { alert('Error al generar el briefing. Verifica los datos seleccionados.'); return; }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const cd = r.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename="([^"]+)"/);
+    a.download = match ? match[1] : 'ultrax_briefing.md';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  } catch(e) {
+    alert('Error de conexion al generar el briefing.');
+  }
 }
 
 // ── EERR DETALLADO ───────────────────────────────────────────────────────────
