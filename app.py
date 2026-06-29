@@ -4780,10 +4780,12 @@ def calcular_subtotales_jerarquicos_v2(eerr_structure, by_partida, month, ing_p,
         subtotales[partida_name] = total
     return subtotales
 
+# DEAD CODE — sin llamador confirmado. Frontend usa /api/eerr/completo. Pendiente eliminar.
 @app.route('/api/eerr/completo_v2', methods=['GET'])
 def eerr_completo_v2():
     """
-    Versión 2 del EERR: Basada íntegramente en la Matriz Maestra (mapping_groups_v2).
+    DEAD CODE — Versión 2 del EERR: Basada íntegramente en la Matriz Maestra (mapping_groups_v2).
+    Sin llamador confirmado. Frontend usa /api/eerr/completo. Pendiente eliminar en sesión dedicada.
     """
     year = request.args.get('year', str(datetime.now().year))
     unit = request.args.get('unit', '')
