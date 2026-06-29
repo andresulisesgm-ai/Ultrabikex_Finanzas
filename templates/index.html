@@ -295,7 +295,7 @@ input[type=file]{display:none;}
 .btns:hover{color:var(--tx2);}
 .btnd{background:var(--red-l);border:1px solid rgba(220,38,38,.2);color:var(--red);padding:4px 9px;border-radius:6px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;}
 .al{padding:9px 12px;border-radius:7px;margin-bottom:10px;font-size:12px;display:none;font-weight:500;}
-.al.show{display:block;position:fixed;bottom:20px;right:20px;max-width:320px;z-index:9999;margin-bottom:0;box-shadow:0 4px 12px rgba(0,0,0,.15);}
+.al.show{display:block;position:fixed;top:20px;right:20px;max-width:320px;z-index:9999;margin-bottom:0;box-shadow:0 4px 12px rgba(0,0,0,.15);}
 .al-ok{background:var(--green-l);color:var(--green);border:1px solid rgba(5,150,105,.2);}
 .al-er{background:var(--red-l);color:var(--red);border:1px solid rgba(220,38,38,.2);}
 .umbox{background:var(--amber-l);border:1px solid rgba(217,119,6,.2);border-radius:9px;padding:12px;margin-top:10px;display:none;}
@@ -1045,6 +1045,7 @@ input[type=file]{display:none;}
               </div>
             </div>
           </div>
+          <div class="al al-ok" id="al-metodos-ok"></div><div class="al al-er" id="al-metodos-er"></div>
           <button class="btnm" onclick="guardarMetodos()">Guardar</button>
         </div>
       </div>
@@ -3688,8 +3689,8 @@ async function guardarMetodos(){
   }
   const r=await fetch('/api/metodo_pago',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({year,month,metodos})});
   const d=await r.json();
-  if(d.ok){showA('al-tasas-ok',`✅ ${d.inserted} configuraciones guardadas`);}
-  else{showA('al-tasas-er','❌ '+d.error);}
+  if(d.ok){showA('al-metodos-ok',`✅ ${d.inserted} configuraciones guardadas`);}
+  else{showA('al-metodos-er','❌ '+d.error);}
 }
 
 function toggleCopiarDropdown(){
@@ -3727,7 +3728,7 @@ document.addEventListener('click',function(e){
 
 async function ejecutarCopiarMetodos(){
   const selected=Array.from(document.querySelectorAll('.cop-unit:checked')).map(c=>c.value);
-  if(!selected.length){showA('al-tasas-er','Selecciona al menos una unidad.');return;}
+  if(!selected.length){showA('al-metodos-er','Selecciona al menos una unidad.');return;}
   const allUnits=document.querySelectorAll('.cop-unit');
   const esTotal=selected.length===allUnits.length;
   const year=G('metodos-year').value, month=G('metodos-month').value;
@@ -3744,8 +3745,8 @@ async function ejecutarCopiarMetodos(){
   const d=await r.json();
   const dd=G('copiar-dropdown');
   if(dd)dd.style.display='none';
-  if(d.ok){showA('al-tasas-ok','✅ '+d.copied+' métodos copiados desde '+from_month+' '+from_year+' para '+unitsLabel);cargarMetodosPago();}
-  else{showA('al-tasas-er','❌ '+d.error);}
+  if(d.ok){showA('al-metodos-ok','✅ '+d.copied+' métodos copiados desde '+from_month+' '+from_year+' para '+unitsLabel);cargarMetodosPago();}
+  else{showA('al-metodos-er','❌ '+d.error);}
 }
 
 // ── TOGGLE MODO DIVISA ───────────────────────────────────────────────────
