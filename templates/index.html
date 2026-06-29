@@ -689,22 +689,41 @@ input[type=file]{display:none;}
   <!-- EXPORTAR BRIEFING IA -->
 <div class="page" id="page-export_ai">
   <div class="tbar">
-    <div style="font-size:12px;font-weight:700">Exportar Briefing IA — Análisis CFO</div>
+    <div style="font-size:12px;font-weight:700">Exportar Briefing IA</div>
   </div>
-  <div style="padding:24px;max-width:600px">
-    <div style="margin-bottom:20px">
-      <label style="font-size:11px;font-weight:600;display:block;margin-bottom:6px">Tipo de reporte</label>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btns" id="ai-tipo-eerr" onclick="setAiTipo('eerr',this)" style="font-size:11px">EERR</button>
-        <button class="btns" id="ai-tipo-eerr_divisa" onclick="setAiTipo('eerr_divisa',this)" style="font-size:11px">EERR Divisa Real</button>
-        <button class="btns" id="ai-tipo-esf" onclick="setAiTipo('esf',this)" style="font-size:11px">ESF</button>
-        <button class="btns" id="ai-tipo-completo" onclick="setAiTipo('completo',this)" style="font-size:11px">Completo</button>
+  <div style="padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px">
+
+    <!-- columna izquierda: configuracion -->
+    <div style="background:var(--bg);border:0.5px solid var(--bd);border-radius:12px;padding:20px">
+      <div style="font-size:10px;font-weight:600;color:var(--mu2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px">Configuración</div>
+
+      <div style="margin-bottom:16px">
+        <label style="font-size:11px;color:var(--mu);display:block;margin-bottom:8px">Tipo de reporte</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button id="ai-tipo-eerr" onclick="setAiTipo('eerr',this)" style="background:var(--bg2);border:1px solid var(--ac);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer">
+            <span style="font-size:12px;font-weight:600;color:var(--ac);display:block">EERR</span>
+            <span style="font-size:10px;color:var(--mu);display:block;margin-top:2px;line-height:1.4">Estado de resultados en bolívares</span>
+          </button>
+          <button id="ai-tipo-eerr_divisa" onclick="setAiTipo('eerr_divisa',this)" style="background:var(--bg);border:0.5px solid var(--bd);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer">
+            <span style="font-size:12px;font-weight:600;color:var(--tx);display:block">EERR Divisa Real</span>
+            <span style="font-size:10px;color:var(--mu);display:block;margin-top:2px;line-height:1.4">EERR ajustado a dólares reales</span>
+          </button>
+          <button id="ai-tipo-esf" onclick="setAiTipo('esf',this)" style="background:var(--bg);border:0.5px solid var(--bd);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer">
+            <span style="font-size:12px;font-weight:600;color:var(--tx);display:block">ESF</span>
+            <span style="font-size:10px;color:var(--mu);display:block;margin-top:2px;line-height:1.4">Balance general consolidado</span>
+          </button>
+          <button id="ai-tipo-completo" onclick="setAiTipo('completo',this)" style="background:var(--bg);border:0.5px solid var(--bd);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer">
+            <span style="font-size:12px;font-weight:600;color:var(--tx);display:block">Completo</span>
+            <span style="font-size:10px;color:var(--mu);display:block;margin-top:2px;line-height:1.4">EERR + ESF en un solo archivo</span>
+          </button>
+        </div>
       </div>
-    </div>
-    <div style="margin-bottom:20px">
-      <label style="font-size:11px;font-weight:600;display:block;margin-bottom:6px">Alcance</label>
-      <div style="display:flex;gap:8px;align-items:center">
-        <select id="ai-unit" style="font-size:11px;padding:4px 8px;border:1px solid var(--bd);border-radius:4px;background:var(--bg)">
+
+      <div style="border-top:0.5px solid var(--bd);margin:16px 0"></div>
+
+      <div style="margin-bottom:16px">
+        <label style="font-size:11px;color:var(--mu);display:block;margin-bottom:6px">Alcance</label>
+        <select id="ai-unit" onchange="updateAiBriefingPreview()" style="width:100%;font-size:12px;padding:6px 10px;border:0.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);height:34px">
           <option value="">Consolidado grupo</option>
           <option value="Rodeo">Rodeo</option>
           <option value="Barinas">Barinas</option>
@@ -714,37 +733,74 @@ input[type=file]{display:none;}
           <option value="UCafe">UCafe</option>
         </select>
       </div>
-    </div>
-    <div style="margin-bottom:20px">
-      <label style="font-size:11px;font-weight:600;display:block;margin-bottom:6px">Período</label>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <select id="ai-year" style="font-size:11px;padding:4px 8px;border:1px solid var(--bd);border-radius:4px;background:var(--bg)">
-          <option value="2026">2026</option>
-          <option value="2025">2025</option>
-        </select>
-        <select id="ai-month" style="font-size:11px;padding:4px 8px;border:1px solid var(--bd);border-radius:4px;background:var(--bg)">
-          <option value="">Año completo</option>
-          <option value="ENE">Enero</option>
-          <option value="FEB">Febrero</option>
-          <option value="MAR">Marzo</option>
-          <option value="ABR">Abril</option>
-          <option value="MAY">Mayo</option>
-          <option value="JUN">Junio</option>
-          <option value="JUL">Julio</option>
-          <option value="AGO">Agosto</option>
-          <option value="SEPT">Septiembre</option>
-          <option value="OCT">Octubre</option>
-          <option value="NOV">Noviembre</option>
-          <option value="DIC">Diciembre</option>
-        </select>
+
+      <div>
+        <label style="font-size:11px;color:var(--mu);display:block;margin-bottom:6px">Período</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <select id="ai-year" onchange="updateAiBriefingPreview()" style="font-size:12px;padding:6px 10px;border:0.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);height:34px">
+            <option value="2026">2026</option>
+            <option value="2025">2025</option>
+          </select>
+          <select id="ai-month" onchange="updateAiBriefingPreview()" style="font-size:12px;padding:6px 10px;border:0.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);height:34px">
+            <option value="">Año completo</option>
+            <option value="ENE">Enero</option>
+            <option value="FEB">Febrero</option>
+            <option value="MAR">Marzo</option>
+            <option value="ABR">Abril</option>
+            <option value="MAY">Mayo</option>
+            <option value="JUN">Junio</option>
+            <option value="JUL">Julio</option>
+            <option value="AGO">Agosto</option>
+            <option value="SEPT">Septiembre</option>
+            <option value="OCT">Octubre</option>
+            <option value="NOV">Noviembre</option>
+            <option value="DIC">Diciembre</option>
+          </select>
+        </div>
       </div>
     </div>
-    <div style="margin-bottom:8px;font-size:10px;color:var(--mu2)">
-      El archivo generado incluye el prompt CFO y los datos financieros listos para pegar en cualquier modelo de IA.
+
+    <!-- columna derecha: resumen y exportar -->
+    <div style="background:var(--bg);border:0.5px solid var(--bd);border-radius:12px;padding:20px;display:flex;flex-direction:column">
+      <div style="font-size:10px;font-weight:600;color:var(--mu2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px">Resumen del briefing</div>
+
+      <div id="ai-prompt-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--bg-ok, #f0fdf4);border:0.5px solid var(--bd-ok, #86efac);border-radius:6px;padding:6px 10px;font-size:11px;color:var(--tx-ok, #166534);margin-bottom:14px">
+        ✦ <span id="ai-prompt-label">Prompt: CFO consolidado — análisis de portafolio</span>
+      </div>
+
+      <div style="background:var(--bg2, #f8f8f8);border:0.5px solid var(--bd);border-radius:6px;padding:12px;flex:1">
+        <div style="font-size:10px;font-weight:600;color:var(--mu2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">El archivo incluirá</div>
+        <div id="ai-preview-lines" style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--mu)">
+            <span style="color:var(--tx-ok,#166534);flex-shrink:0">✓</span>
+            <span>Prompt con identidad y marco analítico CFO</span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--mu)">
+            <span style="color:var(--tx-ok,#166534);flex-shrink:0">✓</span>
+            <span id="ai-preview-data">EERR 2026 — Consolidado grupo, año completo</span>
+          </div>
+          <div style="margin:8px 0 4px;padding:8px 10px;background:var(--bg);border-left:2px solid var(--green);border-radius:0 4px 4px 0;font-size:11px;color:var(--mu);line-height:1.5" id="ai-preview-desc">
+            Foco: rentabilidad operativa, estructura de costos y evolución de márgenes. El CFO revisará el desempeño anual del grupo como portafolio, comparando unidades y detectando concentración de riesgo.
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--mu)">
+            <span style="color:var(--tx-ok,#166534);flex-shrink:0">✓</span>
+            <span>Tasas BCV y paralela del período</span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--mu)">
+            <span style="color:var(--tx-ok,#166534);flex-shrink:0">✓</span>
+            <span>Instrucciones de uso para el modelo IA</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px">
+        <button onclick="downloadAiBriefing()" style="width:100%;height:40px;background:var(--tx);color:var(--bg);border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+          ⬇ Exportar Briefing IA
+        </button>
+        <div style="font-size:10px;color:var(--mu);text-align:center;margin-top:6px">Archivo .md listo para pegar en cualquier modelo de IA</div>
+      </div>
     </div>
-    <button class="btns" onclick="downloadAiBriefing()" style="font-size:12px;font-weight:700;padding:10px 20px">
-      ⬇ Exportar Briefing IA
-    </button>
+
   </div>
 </div>
 
@@ -4606,10 +4662,96 @@ async function closeApp(){
 // ── EXPORTAR BRIEFING IA ─────────────────────────────────────────────────────
 let aiTipoActual = 'eerr';
 
+const AI_TIPO_META = {
+  eerr:        { label: 'EERR',            desc: 'Estado de resultados en bolívares' },
+  eerr_divisa: { label: 'EERR Divisa Real', desc: 'EERR ajustado a dólares reales' },
+  esf:         { label: 'ESF',             desc: 'Balance general consolidado' },
+  completo:    { label: 'Completo',         desc: 'EERR + ESF en un solo archivo' }
+};
+
+const AI_MONTH_LABELS = {
+  '':'año completo','ENE':'Enero','FEB':'Febrero','MAR':'Marzo','ABR':'Abril',
+  'MAY':'Mayo','JUN':'Junio','JUL':'Julio','AGO':'Agosto',
+  'SEPT':'Septiembre','OCT':'Octubre','NOV':'Noviembre','DIC':'Diciembre'
+};
+
 function setAiTipo(tipo, el) {
   aiTipoActual = tipo;
-  document.querySelectorAll('[id^="ai-tipo-"]').forEach(b => b.style.fontWeight = '400');
-  el.style.fontWeight = '700';
+  document.querySelectorAll('[id^="ai-tipo-"]').forEach(b => {
+    b.style.background = 'var(--bg)';
+    b.style.border = '0.5px solid var(--bd)';
+    b.style.borderRadius = '6px';
+    const lbl = b.querySelector('span:first-child');
+    if (lbl) lbl.style.color = 'var(--tx)';
+  });
+  el.style.background = 'var(--green-l)';
+  el.style.border = '1.5px solid var(--green)';
+  el.style.borderRadius = '6px';
+  const lbl = el.querySelector('span:first-child');
+  if (lbl) lbl.style.color = 'var(--green)';
+  const unitSel = document.getElementById('ai-unit');
+  if (unitSel) {
+    if (tipo === 'esf') {
+      unitSel.value = '';
+      unitSel.disabled = true;
+      unitSel.style.opacity = '0.4';
+      unitSel.style.cursor = 'not-allowed';
+    } else {
+      unitSel.disabled = false;
+      unitSel.style.opacity = '1';
+      unitSel.style.cursor = 'pointer';
+    }
+  }
+  updateAiBriefingPreview();
+}
+
+function updateAiBriefingPreview() {
+  const tipo  = aiTipoActual;
+  const unit  = document.getElementById('ai-unit') ? document.getElementById('ai-unit').value : '';
+  const year  = document.getElementById('ai-year') ? document.getElementById('ai-year').value : '2026';
+  const month = document.getElementById('ai-month') ? document.getElementById('ai-month').value : '';
+
+  const unitLabel  = unit || 'Consolidado grupo';
+  const monthLabel = AI_MONTH_LABELS[month] || month;
+  const tipoLabel  = AI_TIPO_META[tipo] ? AI_TIPO_META[tipo].label : tipo;
+
+  const TIPO_FOCO = {
+    eerr:        'rentabilidad operativa, estructura de costos y evolución de márgenes',
+    eerr_divisa: 'impacto cambiario sobre el resultado, ajuste por diferencial BCV/paralela y poder adquisitivo real',
+    esf:         'posición patrimonial, estructura de activos y nivel de endeudamiento',
+    completo:    'visión integral: resultado operativo, posición de balance y coherencia entre ambos estados'
+  };
+
+  const foco = TIPO_FOCO[tipo] || tipo;
+
+  let promptLabel, contexto;
+  if (!unit) {
+    promptLabel = 'CFO consolidado — análisis de portafolio';
+    if (!month) {
+      contexto = 'El CFO revisará el desempeño anual del grupo como portafolio, comparando unidades y detectando concentración de riesgo.';
+    } else {
+      contexto = 'El CFO analizará ' + monthLabel + ' dentro del contexto acumulado del grupo, con foco en señales tempranas de desviación.';
+    }
+  } else if (month) {
+    promptLabel = 'CFO unidad/mes — análisis quirúrgico';
+    contexto = 'El CFO hará un análisis quirúrgico de ' + unit + ' en ' + monthLabel + ', identificando causas raíz de variaciones puntuales.';
+  } else {
+    promptLabel = 'CFO anual — cierre y posición estructural';
+    contexto = 'El CFO hará el cierre anual de ' + unit + ', evaluando posición estructural y sostenibilidad del margen.';
+  }
+
+  const badge = document.getElementById('ai-prompt-label');
+  if (badge) badge.textContent = 'Prompt: ' + promptLabel;
+
+  const dataLine = document.getElementById('ai-preview-data');
+  if (dataLine) dataLine.textContent = tipoLabel + ' ' + year + ' — ' + unitLabel + (month ? ', ' + monthLabel : ', año completo');
+
+  const desc = document.getElementById('ai-preview-desc');
+  let descText = 'Foco: ' + foco + '. ' + contexto;
+  if (tipo === 'completo' && unit) {
+    descText += ' Nota: el ESF incluido es siempre consolidado del grupo, independientemente de la unidad seleccionada.';
+  }
+  if (desc) desc.textContent = descText;
 }
 
 async function downloadAiBriefing() {
