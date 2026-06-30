@@ -2713,30 +2713,21 @@ def compute_indicadores_v2(db, year):
                     return v
         return val
 
-    def calc_eerr_quarter(year_str, months):
-        """
-        Extrae subtotales EERR para un conjunto de meses usando eerr_completo_v2_ui_adapter.
-        Suma los valores mensuales de los nodos clave para el trimestre.
-        """
-        adapter = eerr_completo_v2_ui_adapter(year_str, '')
-        rows = adapter.get('rows', [])
+    NODOS = {
+        'Total Ingresos': 'ingresos',
+        'Total Costo de Ventas': 'costos',
+        'Utilidad Bruta': 'ut_bruta',
+        'Total Gastos Operacionales': 'gas_op',
+        'Utilidad Neta Operacional': 'ut_op',
+        'Otros Ingresos no Operacionales': 'ot_ing',
+        'Otros Gastos no Operacionales': 'ot_gas',
+        'ISLR': 'islr',
+        'Utilidad Neta despues de ISLR': 'ut_neta',
+    }
 
-        NODOS = {
-            'Total Ingresos': 'ingresos',
-            'Total Costo de Ventas': 'costos',
-            'Utilidad Bruta': 'ut_bruta',
-            'Total Gastos Operacionales': 'gas_op',
-            'Utilidad Neta Operacional': 'ut_op',
-            'Otros Ingresos no Operacionales': 'ot_ing',
-            'Otros Gastos no Operacionales': 'ot_gas',
-            'ISLR': 'islr',
-            'Utilidad Neta despues de ISLR': 'ut_neta',
-        }
-
+    def _extract_eerr(rows, months):
+        """Extrae subtotales EERR de rows ya cargados, filtrando por meses."""
         result = {v: 0.0 for v in NODOS.values()}
-        result['ot_ing'] = 0.0
-        result['ot_gas'] = 0.0
-
         for row in rows:
             partida = row.get('partida', '')
             if partida not in NODOS:
@@ -2745,8 +2736,6 @@ def compute_indicadores_v2(db, year):
             for idx, mes_data in enumerate(row.get('meses', [])):
                 if idx < len(MONTHS) and MONTHS[idx] in months:
                     result[key] += mes_data.get('ejecutado', {}).get('valor', 0) or 0
-
-        # Calcular derivados
         result['ut_bruta'] = result['ingresos'] - result['costos']
         result['ut_op']    = result['ut_bruta'] - result['gas_op']
         result['otros_nop'] = result['ot_ing'] - result['ot_gas']
@@ -2756,15 +2745,23 @@ def compute_indicadores_v2(db, year):
         result['margen_neto']  = safe_div(result['ut_neta'], result['ingresos'])
         return result
 
-    # ── ESF: cargar por trimestre ──────────────────────────────────────────────
+    # ── Cache único EERR y ESF ─────────────────────────────────────────────────
+    from engine import esf_engine
+    all_months = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC']
+    year_prev = str(int(year) - 1)
+
+    # EERR: una sola llamada por año
+    _rows_curr = eerr_completo_v2_ui_adapter(year, '').get('rows', [])
+    _rows_prev = eerr_completo_v2_ui_adapter(year_prev, '').get('rows', [])
+
+    # ESF: una sola llamada para el año actual
+    _esf_res = esf_engine(year, '')
+    _esf_rows = {n['partida']: n.get('quarters', {}) for n in _esf_res.get('rows', [])}
+    _result_quarters, _ = compute_esf(db, year, '')
+
     def get_esf_quarter(q):
-        from engine import esf_engine
-        res = esf_engine(year, '')
-        # esf_engine devuelve quarters con claves enteras
-        rows_esf = {n['partida']: n.get('quarters', {}).get(q, 0) or 0
-                    for n in res.get('rows', [])}
-        result_quarters, _ = compute_esf(db, year, '')
-        tot = result_quarters.get(q, {}).get('totales', {})
+        rows_esf = {p: qs.get(q, 0) or 0 for p, qs in _esf_rows.items()}
+        tot = _result_quarters.get(q, {}).get('totales', {})
         return {
             'tot_activos':   tot.get('TOTAL ACTIVOS', 0),
             'act_corr':      tot.get('ACTIVOS CORRIENTES', 0),
@@ -2778,10 +2775,8 @@ def compute_indicadores_v2(db, year):
         }
 
     # ── Año anterior (acumulado anual) ─────────────────────────────────────────
-    year_prev = str(int(year) - 1)
-    all_months = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC']
-    prev_eerr = calc_eerr_quarter(year_prev, all_months)
-    prev_esf  = get_esf_quarter(4) if False else {  # sin datos año prev → zeros
+    prev_eerr = _extract_eerr(_rows_prev, all_months)
+    prev_esf  = {
         'tot_activos':0,'act_corr':0,'pas_corr':0,'tot_pas':0,
         'patrimonio':0,'efectivo':0,'inventarios':0,'cxc':0,'res_ejercicio':0
     }
@@ -2791,7 +2786,7 @@ def compute_indicadores_v2(db, year):
     acum_eerr = {k: 0 for k in ['ingresos','costos','ut_bruta','gas_op','ut_op','otros_nop','ut_ai','islr','ut_neta']}
     for q in [1, 2, 3, 4]:
         months = QUARTER_MONTHS[q]
-        eerr_q = calc_eerr_quarter(year, months)
+        eerr_q = _extract_eerr(_rows_curr, months)
         esf_q  = get_esf_quarter(q)
         for k in acum_eerr:
             acum_eerr[k] += eerr_q.get(k, 0) or 0
