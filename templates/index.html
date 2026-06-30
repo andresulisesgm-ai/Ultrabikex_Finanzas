@@ -606,6 +606,11 @@ input[type=file]{display:none;}
   <!-- DASHBOARD -->
   <div class="page" id="page-dashboard">
     <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px;align-items:center">
+      <div class="toggle-divisa" onclick="toggleDivisaMode()" title="Cambiar entre modo BCV normal y modo Divisa Real">
+        <span class="toggle-label">Normal</span>
+        <div id="toggle-switch" class="toggle-switch"><div class="toggle-slider"></div></div>
+        <span class="toggle-label">Divisa Real</span>
+      </div>
       <select class="csel" id="dash-unit" onchange="loadDash()" style="padding:5px 8px">
         <option value="TODAS">Todas las Unidades</option>
         {% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
@@ -2555,7 +2560,7 @@ function showPage(name,el){
   const T={dashboard:'Dashboard Financiero',carga:'Cargar Reportes',historial:'Historial de Cargas',mapping:'Mapeo de Cuentas',datos:'Ver Datos',backup:'Backup y Restaurar',comparativa:'Comparativas',eerr:'Estados de Resultados (EERR)',eerrdet:'ERR Detallado',esf:'Estado de Situación Financiera (ESF)',presupuesto:'Presupuesto vs Real',config_tasas:'Configuración de Tasas',err_divisa:'Estados de Resultados Divisa Real (EERR)'};
   const S={dashboard:'Estado de resultados consolidado',carga:'Importar XLS de Odoo',historial:'Auditoría y reversión',mapping:'Configuración de cuentas contables',datos:'Explorador de datos',backup:'Gestión de copias de seguridad',comparativa:'Mismo período vs año anterior',eerr:'P&L estructurado por partida',eerrdet:'Desglose por tipo de ingreso + ACUM EJEC',esf:'Balance trimestral Q1–Q4',presupuesto:'Real vs valores presupuestados',config_tasas:'Tasas BCV/Paralela y métodos de pago por cuenta'};
   G('ptitle').textContent=T[name]||''; G('psub').textContent=S[name]||'';
-  if(name==='dashboard') loadDash();
+  if(name==='dashboard'){ initDivisaToggle(); loadDash(); }
   if(name==='historial') loadHist();
   if(name==='mapping')   loadMap();
   if(name==='datos')     loadData();
@@ -3758,7 +3763,15 @@ function toggleDivisaMode(){
   if(toggle){
     if(modoDivisaReal){
       toggle.parentElement.classList.add('active');
-      if(msel)msel.style.display='block';
+      if(msel){
+        msel.style.display='block';
+        if(!msel.value){
+          const mesesAbrev=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC'];
+          const mesActual=mesesAbrev[new Date().getMonth()];
+          const opcionExiste=Array.from(msel.options).some(o=>o.value===mesActual);
+          if(opcionExiste) msel.value=mesActual;
+        }
+      }
     }else{
       toggle.parentElement.classList.remove('active');
       if(msel)msel.style.display='none';
