@@ -163,7 +163,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);overf
 .pe-lbls{display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--mu2);}
 
 /* ── MASONRY WIDGETS ── */
-#wcon{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start;grid-auto-rows:8px;grid-auto-flow:row dense;}
+#wcon{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:start;grid-auto-rows:8px;grid-auto-flow:row dense;opacity:0;transition:opacity .15s ease;}
+#wcon.wcon-ready{opacity:1;}
 .ww{grid-column:span 2;}
 @media(max-width:1100px){.ww{grid-column:span 1;}}
 .wcard{background:var(--sf);border:1px solid var(--bd);border-radius:11px;padding:14px;box-shadow:var(--sh);transition:box-shadow .2s,opacity .2s;position:relative;}
@@ -2432,7 +2433,7 @@ function renderDashboardWidgets() {
   renderKPIs();
   initClose();
   initDrag();
-  scheduleMasonry();
+  layoutMasonry();
 }
 
 function renderKPIs() {
@@ -2623,7 +2624,8 @@ function chkBar(){
 // ── MASONRY (layout puzzle: encaja las tarjetas sin huecos verticales) ──────
 let _mtTimer=null;
 function layoutMasonry(){
-  const con=G('wcon'); if(!con||!con.offsetParent) return;   // omite si el dashboard está oculto
+  const con=G('wcon'); if(!con) return;
+  if(!con.offsetParent){con.classList.remove('wcon-ready');return;}   // omite si el dashboard está oculto
   const ROW=8, GAP=12;
   con.querySelectorAll('.wcard').forEach(card=>{
     if(card.classList.contains('whidden')){card.style.gridRowEnd='';return;}
@@ -2631,6 +2633,7 @@ function layoutMasonry(){
     const span=Math.max(1,Math.ceil((h+GAP)/(ROW+GAP)));
     card.style.gridRowEnd='span '+span;
   });
+  con.classList.add('wcon-ready');
 }
 function scheduleMasonry(){clearTimeout(_mtTimer);_mtTimer=setTimeout(layoutMasonry,90);}
 window.addEventListener('resize',scheduleMasonry);
