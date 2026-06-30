@@ -221,6 +221,24 @@ def upload():
     if not all([file, unit, month]):
         return jsonify({'error': 'Faltan parámetros'}), 400
 
+    force = request.form.get('force', 'false').lower() == 'true'
+
+    if not force:
+        db = get_db()
+        if is_esf:
+            quarter_check = MONTH_TO_QUARTER.get(month, 1)
+            existing = db.execute(
+                'SELECT COUNT(*) FROM esf_data WHERE year=? AND quarter=? AND unit=?',
+                (year, quarter_check, 'CONSOLIDADO')
+            ).fetchone()[0]
+        else:
+            existing = db.execute(
+                'SELECT COUNT(*) FROM financials WHERE year=? AND month=? AND unit=?',
+                (year, month, unit)
+            ).fetchone()[0]
+        if existing > 0:
+            return jsonify({'exists': True}), 200
+
     path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
     file.save(path)
 
@@ -241,6 +259,16 @@ def upload():
             db.execute(
                 'DELETE FROM financials_detail WHERE year=? AND quarter=? AND unit=? AND report_type=\'esf\'',
                 (year, quarter, unit)
+            )
+            db.commit()
+        else:
+            db.execute(
+                'DELETE FROM financials WHERE year=? AND month=? AND unit=?',
+                (year, month, unit)
+            )
+            db.execute(
+                'DELETE FROM financials_detail WHERE year=? AND month=? AND unit=? AND report_type=\'eerr\'',
+                (year, month, unit)
             )
             db.commit()
 
@@ -310,11 +338,36 @@ def upload():
                 skipped += 1
 
         db.commit()
-        db.execute(
-            'INSERT INTO history (year, month, unit, inserted, is_esf) VALUES (?,?,?,?,?)',
-            (year, month, unit, inserted_fin + inserted_esf, 1 if is_esf else 0)
-        )
-        db.commit()
+        # Marcar entrada anterior como sustituida si es un reemplazo
+        if force:
+            prev = db.execute(
+                '''SELECT id FROM history WHERE year=? AND month=? AND unit=? AND is_esf=?
+                   AND superseded_by IS NULL ORDER BY created_at DESC LIMIT 1''',
+                (year, month, unit, 1 if is_esf else 0)
+            ).fetchone()
+            if prev:
+                new_entry = db.execute(
+                    'INSERT INTO history (year, month, unit, inserted, is_esf) VALUES (?,?,?,?,?)',
+                    (year, month, unit, inserted_fin + inserted_esf, 1 if is_esf else 0)
+                )
+                new_id = new_entry.lastrowid
+                db.execute(
+                    'UPDATE history SET superseded_by=?, superseded_at=datetime(\'now\',\'localtime\') WHERE id=?',
+                    (new_id, prev['id'])
+                )
+                db.commit()
+            else:
+                db.execute(
+                    'INSERT INTO history (year, month, unit, inserted, is_esf) VALUES (?,?,?,?,?)',
+                    (year, month, unit, inserted_fin + inserted_esf, 1 if is_esf else 0)
+                )
+                db.commit()
+        else:
+            db.execute(
+                'INSERT INTO history (year, month, unit, inserted, is_esf) VALUES (?,?,?,?,?)',
+                (year, month, unit, inserted_fin + inserted_esf, 1 if is_esf else 0)
+            )
+            db.commit()
 
         # Conciliación (solo cuentas de resultado)
         total_odoo = sum(abs(v) for c, v in accounts.items() if not OdooParser.is_balance_account(c))

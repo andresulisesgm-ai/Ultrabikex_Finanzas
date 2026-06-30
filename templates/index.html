@@ -310,6 +310,7 @@ input[type=file]{display:none;}
 .hi{background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:10px 14px;margin-bottom:7px;display:flex;align-items:center;gap:12px;}
 .hdot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0;}
 .hdot.rev{background:var(--red);}
+.hdot.sup{background:var(--mu);}
 .hinf{flex:1;}
 .htit{font-size:12px;font-weight:600;}
 .hsub{font-size:10px;color:var(--mu);margin-top:1px;}
@@ -3484,7 +3485,12 @@ async function doUploadERR(){
   if(!sFileERR)return;const btn=G('btnup-err');btn.disabled=true;btn.textContent='Procesando...';
   const fd=new FormData();fd.append('file',sFileERR);fd.append('unit',G('up-unit-err').value);fd.append('month',G('up-month-err').value);fd.append('year',G('up-year-err').value);fd.append('is_esf','false');
   try{const r=await fetch('/api/upload',{method:'POST',body:fd});const d=await r.json();
-    if(d.error)showA('al-er','❌ '+d.error);
+    if(d.exists){
+      const ok=confirm(`Ya existe una carga para ${fd.get('unit')} ${fd.get('month')} ${fd.get('year')}. ¿Deseas reemplazarla?`);
+      if(ok){fd.append('force','true');const r2=await fetch('/api/upload',{method:'POST',body:fd});const d2=await r2.json();if(d2.error)showA('al-er','❌ '+d2.error);else{const c=d2.conciliacion;const cMsg=c?(c.ok?' ✅ Conciliado':` ⚠️ Diferencia: $${c.diferencia.toLocaleString('es-VE',{minimumFractionDigits:2})}`):'';const fin=d2.inserted_financials||0;showA('al-ok',`✅ ${fin} cuentas de ERR importadas. Sin mapear: ${d2.skipped}.${cMsg}`);fillYears();if(d2.unmapped&&d2.unmapped.length){G('umbox-eerr').style.display='block';G('umitems-eerr').innerHTML=d2.unmapped.map(u=>`<div class="umi"><span><strong>${u.code}</strong> — ${u.name}</span><span>${fmt(u.amount)}</span></div>`).join('');}else{G('umbox-eerr').style.display='none';}}}
+      else showA('al-er','❌ Carga cancelada.');
+    }
+    else if(d.error)showA('al-er','❌ '+d.error);
     else{
       const c=d.conciliacion;
       const cMsg=c?(c.ok?' ✅ Conciliado':` ⚠️ Diferencia: $${c.diferencia.toLocaleString('es-VE',{minimumFractionDigits:2})}`):'';
@@ -3515,7 +3521,13 @@ async function doUploadESF(){
   const MONTH_MAP={'1':'MAR','2':'JUN','3':'SEPT','4':'DIC'};  // Quarter → último mes
   const fd=new FormData();fd.append('file',sFileESF);fd.append('unit','CONSOLIDADO');fd.append('month',MONTH_MAP[G('up-quarter-esf').value]);fd.append('year',G('up-year-esf').value);fd.append('is_esf','true');
   try{const r=await fetch('/api/upload',{method:'POST',body:fd});const d=await r.json();
-    if(d.error)showA('al-er','❌ '+d.error);
+    if(d.exists){
+      const qLabel=G('up-quarter-esf').value;
+      const ok=confirm(`Ya existe una carga para ESF Q${qLabel} ${G('up-year-esf').value}. ¿Deseas reemplazarla?`);
+      if(ok){fd.append('force','true');const r2=await fetch('/api/upload',{method:'POST',body:fd});const d2=await r2.json();if(d2.error)showA('al-er','❌ '+d2.error);else{const esf=d2.inserted_esf||0;showA('al-ok',`✅ ${esf} cuentas de ESF importadas. Sin mapear: ${d2.skipped}.`);fillYears();if(d2.unmapped&&d2.unmapped.length){G('umbox-esf').style.display='block';G('umitems-esf').innerHTML=d2.unmapped.map(u=>`<div class="umi"><span><strong>${u.code}</strong> — ${u.name}</span><span>${fmt(u.amount)}</span></div>`).join('');}else{G('umbox-esf').style.display='none';}}}
+      else showA('al-er','❌ Carga cancelada.');
+    }
+    else if(d.error)showA('al-er','❌ '+d.error);
     else{
       const esf=d.inserted_esf||0;
       showA('al-ok',`✅ ${esf} cuentas de ESF importadas. Sin mapear: ${d.skipped}.`);
@@ -4022,7 +4034,14 @@ async function loadERRDivisa(){
 async function loadHist(){
   const res=await fetch('/api/history');const data=await res.json();
   if(!data.length){G('histlist').innerHTML='<p style="color:var(--mu);font-size:12px;padding:12px 0">No hay cargas.</p>';return;}
-  G('histlist').innerHTML=data.map(h=>`<div class="hi"><div class="hdot ${h.reverted?'rev':''}"></div><div class="hinf"><div class="htit">${h.unit} — ${h.month} ${h.year} <span style="font-weight:400;color:var(--mu)">(${h.inserted} cuentas)</span></div><div class="hsub">${h.reverted?'⚠️ Revertida — ':''} ${h.created_at}</div></div><div>${!h.reverted?`<button class="btnd" onclick="revert(${h.id})">↩ Revertir</button>`:'<span style="color:var(--red);font-size:11px;font-weight:600">Revertida</span>'}</div></div>`).join('');
+  G('histlist').innerHTML=data.map(h=>{
+    const sustituida=h.superseded_by!=null;
+    const dot=h.reverted?'rev':sustituida?'sup':'';
+    const sustituidaPor=sustituida?data.find(x=>x.id===h.superseded_by):null;
+    const subLabel=h.reverted?'⚠️ Revertida — ':sustituida?`🔄 Sustituida por ${sustituidaPor?sustituidaPor.unit+' — '+sustituidaPor.month+' '+sustituidaPor.year:''} el ${h.superseded_at} — `:'';
+    const accion=h.reverted?'<span style="color:var(--red);font-size:11px;font-weight:600">Revertida</span>':sustituida?'<span style="color:var(--mu);font-size:11px;font-weight:600">Sustituida</span>':`<button class="btnd" onclick="revert(${h.id})">↩ Revertir</button>`;
+    return `<div class="hi"><div class="hdot ${dot}"></div><div class="hinf"><div class="htit">${h.unit} — ${h.month} ${h.year} <span style="font-weight:400;color:var(--mu)">(${h.inserted} cuentas)</span></div><div class="hsub">${subLabel}${h.created_at}</div></div><div>${accion}</div></div>`;
+  }).join('');
 }
 async function revert(id){if(!confirm('¿Revertir esta carga?'))return;const r=await fetch(`/api/history/${id}/revert`,{method:'POST'});const d=await r.json();if(d.ok)loadHist();else alert('Error: '+d.error);}
 
