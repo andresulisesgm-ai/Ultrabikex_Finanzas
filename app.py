@@ -3290,7 +3290,10 @@ def aplicar_factor_divisa(amount, pct_cash, diferencial):
 def dashboard_divisa_real():
     """
     Dashboard con montos ajustados por factores de divisa real.
-    Parámetros: year, month, unit (opcional)
+    Reutiliza el motor central _calcular_eerr_divisa_real (mismo usado por
+    /api/eerr/divisa_real) para evitar calculo paralelo y garantizar
+    consistencia de cifras entre el Dashboard y la pagina EERR Divisa Real.
+    Parametros: year, month, unit (opcional)
     """
     year  = request.args.get('year', str(datetime.now().year))
     month = request.args.get('month')
@@ -3298,9 +3301,8 @@ def dashboard_divisa_real():
     db    = get_db()
 
     if not month:
-        return jsonify({'error': 'Se requiere mes específico para divisa real'}), 400
+        return jsonify({'error': 'Se requiere mes especifico para divisa real'}), 400
 
-    # Obtener tasas del período
     tasas_row = db.execute(
         'SELECT tasa_bcv_promedio, tasa_paralela_promedio FROM tasas_periodo WHERE year=? AND month=?',
         (year, month)
@@ -3312,99 +3314,28 @@ def dashboard_divisa_real():
     bcv = tasas_row['tasa_bcv_promedio']
     paralela = tasas_row['tasa_paralela_promedio']
 
-    # Validación de tasas
     if bcv is None or bcv <= 0:
-        return jsonify({'error': f"Tasa BCV promedio inválida o cero para el mes {month} {year}"}), 400
+        return jsonify({'error': f"Tasa BCV promedio invalida o cero para el mes {month} {year}"}), 400
     if paralela is None or paralela <= 0:
-        return jsonify({'error': f"Tasa paralela promedio inválida o cero para el mes {month} {year}"}), 400
+        return jsonify({'error': f"Tasa paralela promedio invalida o cero para el mes {month} {year}"}), 400
 
     diferencial = paralela / bcv
 
-    # Obtener métodos de pago del período
-    metodos_rows = db.execute(
-        'SELECT unit, odoo_code, pct_cash FROM metodo_pago_cuenta WHERE year=? AND month=?',
-        (year, month)
-    ).fetchall()
+    eerr_unit_param = '' if unit == 'TODAS' else unit
+    eerr_data = _calcular_eerr_divisa_real(year, eerr_unit_param)
 
-    # Dict: (unit, odoo_code) -> pct_cash
-    metodos_map = {(r['unit'], r['odoo_code']): r['pct_cash'] for r in metodos_rows}
+    def get_mes_valor(partida_name):
+        row = next((r for r in eerr_data['rows'] if r['partida'] == partida_name), None)
+        if not row:
+            return 0.0
+        mes_data = next((m for m in row['meses'] if m['month'] == month), None)
+        return mes_data['ejecutado']['valor'] if mes_data else 0.0
 
-    # ── PASO 2: OBTENER UN SOLO odoo_code REPRESENTATIVO POR PARTIDA ──
-    # Si una partida tiene varios mapping (relación 1:N), tomamos el de menor rowid para evitar duplicación.
-    mapping_rows = db.execute(
-        'SELECT partida, odoo_code, sign, MIN(rowid) FROM mapping GROUP BY partida'
-    ).fetchall()
-    partida_to_mapping = {r['partida']: (r['odoo_code'], r['sign']) for r in mapping_rows}
-
-    # ── PASO 1: LEER DATOS REALES DE financials ──
-    uc_no_prefix = '' if unit == 'TODAS' else f"AND unit='{unit}'"
-    rows = db.execute(
-        f'''SELECT unit, partida, amount FROM financials
-            WHERE year=? AND month=? {uc_no_prefix}''',
-        (year, month)
-    ).fetchall()
-
-    # Aplicar factores según % Cash/BCV
-    def aplicar_factor(amount, unit, odoo_code, sign):
-        """Aplica factor según % Cash / % BCV."""
-        if not odoo_code:
-            return amount
-
-        pct_cash = metodos_map.get((unit, odoo_code))
-
-        if pct_cash is None:
-            # FALLBACK EXPLÍCITO: Si no hay configuración para la cuenta/unidad, asumir 100% Cash (factor = 1)
-            pct_cash = 100.0
-
-        # % BCV = 100 - % Cash
-        pct_bcv = 100 - pct_cash
-
-        # Componente Cash: sin ajuste (factor 1)
-        cash_component = amount * (pct_cash / 100)
-
-        # Componente BCV: ajustar por diferencial
-        bcv_component = amount * (pct_bcv / 100) / diferencial
-
-        return cash_component + bcv_component
-
-    # Calcular montos ajustados
-    data_ajustado = {}
-    data_literal = {}
-
-    for r in rows:
-        partida = r['partida']
-        amount_literal = r['amount']
-        
-        mapping_info = partida_to_mapping.get(partida)
-        if mapping_info:
-            odoo_code, sign = mapping_info
-        else:
-            odoo_code, sign = None, None
-
-        amount_ajustado = aplicar_factor(amount_literal, r['unit'], odoo_code, sign)
-
-        data_literal[partida] = data_literal.get(partida, 0) + amount_literal
-        data_ajustado[partida] = data_ajustado.get(partida, 0) + amount_ajustado
-
-    # Clasificar partidas
-    ing_p, cos_p, gas_p = get_clasificacion(db)
-
-    def total(codes, data_dict):
-        return sum(data_dict.get(p, 0) for p in codes)
-
-    # Literal (BCV)
-    ing_lit = total(ing_p, data_literal)
-    cos_lit = total(cos_p, data_literal)
-    gas_lit = total(gas_p, data_literal)
-    ub_lit  = ing_lit - cos_lit
-    un_lit  = ub_lit - gas_lit
-
-    # Ajustado (Divisa Real)
-    ing_real = total(ing_p, data_ajustado)
-    cos_real = total(cos_p, data_ajustado)
-    gas_real = total(gas_p, data_ajustado)
-    ub_real  = ing_real - cos_real
-    un_real  = ub_real - gas_real
+    ing_real = get_mes_valor('Total Ingresos')
+    cos_real = get_mes_valor('Total Costo de Ventas')
+    gas_real = get_mes_valor('Total Gastos Operacionales y No Operacionales')
+    ub_real  = get_mes_valor('Utilidad Bruta')
+    un_real  = get_mes_valor('Utilidad Neta')
 
     return jsonify({
         'year': year,
@@ -3415,27 +3346,12 @@ def dashboard_divisa_real():
             'paralela': paralela,
             'diferencial': diferencial
         },
-        'literal_bcv': {
-            'ingresos': round(ing_lit, 2),
-            'costos': round(cos_lit, 2),
-            'gastos': round(gas_lit, 2),
-            'utilidad_bruta': round(ub_lit, 2),
-            'utilidad_neta': round(un_lit, 2),
-        },
         'divisa_real': {
             'ingresos': round(ing_real, 2),
             'costos': round(cos_real, 2),
             'gastos': round(gas_real, 2),
             'utilidad_bruta': round(ub_real, 2),
             'utilidad_neta': round(un_real, 2),
-        },
-        'diferencias': {
-            'ingresos': round(ing_real - ing_lit, 2),
-            'costos': round(cos_real - cos_lit, 2),
-            'gastos': round(gas_real - gas_lit, 2),
-            'utilidad_bruta': round(ub_real - ub_lit, 2),
-            'utilidad_neta': round(un_real - un_lit, 2),
-            'utilidad_distribuible': round(un_real, 2),
         }
     })
 @app.route('/api/divisa_real/resumen', methods=['GET'])
@@ -3551,19 +3467,18 @@ def divisa_real_resumen():
     })
 
 
-@app.route('/api/eerr/divisa_real', methods=['GET'])
-@login_required
-def eerr_divisa_real():
+def _calcular_eerr_divisa_real(year, unit):
     """
-    Estado de Resultados COMPLETO con ajuste de divisa real.
+    Calcula el Estado de Resultados COMPLETO con ajuste de divisa real.
     Misma estructura que /api/eerr/completo (119 partidas, tipos A/B/C/D/E)
     pero con montos ajustados por factor diferencial según % Cash/BCV.
+    Función interna reutilizable - no es vista Flask. Usada por
+    /api/eerr/divisa_real y /api/dashboard_divisa_real.
     Parámetros: year, unit
+    Retorna: dict con year, year_prev, unit, rows
     """
     from engine import EERR_STRUCTURE, build_effective_structure
 
-    year = request.args.get('year', str(datetime.now().year))
-    unit = request.args.get('unit', '')
     db = get_db()
 
     year_prev = str(int(year) - 1)
@@ -4041,12 +3956,20 @@ def eerr_divisa_real():
             'meses': meses_data,
         })
 
-    return jsonify({
+    return {
         'year': year,
         'year_prev': year_prev,
         'unit': unit,
         'rows': rows,
-    })
+    }
+
+
+@app.route('/api/eerr/divisa_real', methods=['GET'])
+@login_required
+def eerr_divisa_real():
+    year = request.args.get('year', str(datetime.now().year))
+    unit = request.args.get('unit', '')
+    return jsonify(_calcular_eerr_divisa_real(year, unit))
 
 
 # ── Presupuesto ───────────────────────────────────────────────────────────────
