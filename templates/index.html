@@ -295,6 +295,8 @@ input[type=file]{display:none;}
 .btns{background:var(--sf2);border:1px solid var(--bd);color:var(--mu);padding:4px 9px;border-radius:6px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;}
 .btns:hover{color:var(--tx2);}
 .btnd{background:var(--red-l);border:1px solid rgba(220,38,38,.2);color:var(--red);padding:4px 9px;border-radius:6px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;}
+.btnm-sm{background:var(--blue);color:#fff;border:none;padding:4px 9px;border-radius:6px;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.btnm-sm:hover{background:#1d4ed8;}
 .al{padding:9px 12px;border-radius:7px;margin-bottom:10px;font-size:12px;display:none;font-weight:500;}
 .al.show{display:block;position:fixed;top:20px;right:20px;max-width:320px;z-index:9999;margin-bottom:0;box-shadow:0 4px 12px rgba(0,0,0,.15);}
 .al-ok{background:var(--green-l);color:var(--green);border:1px solid rgba(5,150,105,.2);}
@@ -3666,7 +3668,17 @@ async function guardarTasas(){
 async function cargarTasas(){
   const year=G('tasas-year').value, month=G('tasas-month').value;
   const r=await fetch(`/api/tasas?year=${year}&month=${month}`);
-  if(!r.ok){showA('al-tasas-er','⚠️ No hay tasas guardadas para este período');return;}
+  if(!r.ok){
+    const meses=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC'];
+    const hoy=new Date();
+    const yearActual=String(hoy.getFullYear());
+    const mesActualIdx=hoy.getMonth();
+    const esPasado=(year<yearActual)||(year===yearActual&&meses.indexOf(month)<mesActualIdx);
+    if(esPasado){
+      showA('al-tasas-er',`⚠️ No hay tasa registrada para ${month} ${year}`);
+    }
+    return;
+  }
   const d=await r.json();
   G('tasas-bcv-ini').value=d.tasa_bcv_inicio||'';
   G('tasas-bcv-fin').value=d.tasa_bcv_fin||'';
@@ -3698,7 +3710,7 @@ async function cargarHistorialTasas() {
         <td>${t.tasa_paralela_promedio.toFixed(4)}</td>
         <td>${t.factor_diferencial.toFixed(4)}</td>
         <td>
-          <button class="btnm" onclick="editarTasa('${t.year}','${t.month}')">✏ Editar</button>
+          <button class="btnm-sm" onclick="editarTasa('${t.year}','${t.month}')">✏ Editar</button>
           <button class="btnd" onclick="eliminarTasa(${t.id})">🗑 Borrar</button>
         </td>
       </tr>
@@ -3751,7 +3763,7 @@ async function cargarMetodosPago(){
     for(const u of units){
       const key=`${u}_${c.odoo_code}`;
       const pct=metMap[key]!=null?metMap[key]:100;
-      html+=`<td><input type="number" class="pct-input" data-unit="${u}" data-code="${c.odoo_code}" value="${pct}" min="0" max="100" step="1" style="font-size:10px;padding:3px 5px;width:60px;text-align:right">%</td>`;
+      html+=`<td><input type="number" class="pct-input" data-unit="${u}" data-code="${c.odoo_code}" value="${pct}" min="0" max="100" step="0.01" style="font-size:10px;padding:3px 5px;width:60px;text-align:right">%</td>`;
     }
     html+='</tr>';
   }

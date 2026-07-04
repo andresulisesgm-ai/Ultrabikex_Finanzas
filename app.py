@@ -3491,9 +3491,15 @@ def divisa_real_resumen():
     tasas_by_month = {r['month']: {'bcv': r['tasa_bcv_promedio'], 'paralela': r['tasa_paralela_promedio']} for r in tasas_rows}
     meses_con_tasas = list(tasas_by_month.keys())
 
-    # Mapping partida → odoo_code
-    mapping_rows = db.execute('SELECT partida, odoo_code, sign, MIN(rowid) FROM mapping GROUP BY partida').fetchall()
-    partida_to_mapping = {r['partida']: (r['odoo_code'], r['sign']) for r in mapping_rows}
+    # Mapping partida → (odoo_code, sign) (tomando el código más específico)
+    mapping_rows = db.execute('SELECT partida, odoo_code, sign FROM mapping').fetchall()
+    partida_to_mapping = {}
+    for r in mapping_rows:
+        p = r['partida']
+        code = r['odoo_code']
+        sign = r['sign']
+        if p not in partida_to_mapping or len(code.split('.')) > len(partida_to_mapping[p][0].split('.')):
+            partida_to_mapping[p] = (code, sign)
 
     ing_p, cos_p, gas_p = get_clasificacion(db)
 
@@ -3630,11 +3636,15 @@ def _calcular_eerr_divisa_real(year, unit):
             return jsonify({'error': f"Faltan tasas de cambio (tasas_periodo) para el periodo {year}/{m}"}), 400
 
     # ── PASO 2: OBTENER UN SOLO odoo_code REPRESENTATIVO POR PARTIDA ──
-    # Si una partida tiene varios mapping (relación 1:N), tomamos el de menor rowid para evitar duplicación.
     mapping_rows = db.execute(
-        'SELECT partida, odoo_code, MIN(rowid) FROM mapping GROUP BY partida'
+        'SELECT partida, odoo_code FROM mapping'
     ).fetchall()
-    partida_to_code = {r['partida']: r['odoo_code'] for r in mapping_rows}
+    partida_to_code = {}
+    for r in mapping_rows:
+        p = r['partida']
+        code = r['odoo_code']
+        if p not in partida_to_code or len(code.split('.')) > len(partida_to_code[p].split('.')):
+            partida_to_code[p] = code
 
     # ── PASO 3: CARGAR CONFIGURACIÓN DE % Cash/BCV ──
     metodos_rows = db.execute(
