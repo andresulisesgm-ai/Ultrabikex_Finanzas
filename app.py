@@ -4886,9 +4886,24 @@ def reset_mapping_endpoint():
 @admin_required
 def get_briefing_prompt():
     tipo = request.args.get('tipo', '')
+    default_flag = request.args.get('default', '0') == '1'
     tipos_validos = {'consolidado', 'unidad_mes', 'anual', 'comparativo_mes', 'comparativo_anual'}
     if tipo not in tipos_validos:
         return jsonify({'error': 'tipo_reporte inválido'}), 400
+
+    if default_flag:
+        from db import (
+            PROMPT_CONSOLIDADO_DEFAULT, PROMPT_UNIDAD_MES_DEFAULT, PROMPT_ANUAL_DEFAULT,
+            PROMPT_COMPARATIVO_MES_DEFAULT, PROMPT_COMPARATIVO_ANUAL_DEFAULT
+        )
+        fallbacks = {
+            'consolidado': PROMPT_CONSOLIDADO_DEFAULT,
+            'unidad_mes': PROMPT_UNIDAD_MES_DEFAULT,
+            'anual': PROMPT_ANUAL_DEFAULT,
+            'comparativo_mes': PROMPT_COMPARATIVO_MES_DEFAULT,
+            'comparativo_anual': PROMPT_COMPARATIVO_ANUAL_DEFAULT
+        }
+        return jsonify({'tipo_reporte': tipo, 'prompt_text': fallbacks.get(tipo, '')})
 
     db = get_db()
     row = db.execute(

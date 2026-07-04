@@ -701,113 +701,135 @@ input[type=file]{display:none;}
   <div class="tbar">
     <div style="font-size:12px;font-weight:700">Exportar Briefing IA</div>
   </div>
-  <div style="padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px">
+  <div style="padding:24px;display:grid;grid-template-columns:1fr 1.2fr;gap:16px;max-width:1150px">
 
-    <!-- columna izquierda: configuracion -->
-    <div style="background:var(--bg);border:0.5px solid var(--bd);border-radius:12px;padding:20px">
-      <div style="font-size:10px;font-weight:600;color:var(--mu2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px">Configuración</div>
+    <!-- columna izquierda: configuracion + resumen -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <!-- panel de configuracion -->
+      <div style="background:var(--bg);border:0.5px solid var(--bd);border-radius:12px;padding:20px">
+        <div style="font-size:10px;font-weight:600;color:var(--mu2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px">Configuración</div>
 
-      <div style="margin-bottom:16px">
-        <label style="font-size:11px;color:var(--mu);display:block;margin-bottom:8px">Tipo de reporte</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <button id="ai-tipo-eerr" onclick="setAiTipo('eerr',this)" style="background:var(--bg2);border:1px solid var(--ac);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer">
-            <span style="font-size:12px;font-weight:600;color:var(--ac);display:block">EERR</span>
-            <span style="font-size:10px;color:var(--mu);display:block;margin-top:2px;line-height:1.4">Estado de resultados en bolívares</span>
-          </button>
-          <button id="ai-tipo-eerr_divisa" onclick="setAiTipo('eerr_divisa',this)" style="background:var(--bg);border:0.5px solid var(--bd);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer">
-            <span style="font-size:12px;font-weight:600;color:var(--tx);display:block">EERR Divisa Real</span>
-            <span style="font-size:10px;color:var(--mu);display:block;margin-top:2px;line-height:1.4">EERR ajustado a dólares reales</span>
-          </button>
-          <button id="ai-tipo-esf" onclick="setAiTipo('esf',this)" style="background:var(--bg);border:0.5px solid var(--bd);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer">
-            <span style="font-size:12px;font-weight:600;color:var(--tx);display:block">ESF</span>
-            <span style="font-size:10px;color:var(--mu);display:block;margin-top:2px;line-height:1.4">Balance general consolidado</span>
-          </button>
-          <button id="ai-tipo-completo" onclick="setAiTipo('completo',this)" style="background:var(--bg);border:0.5px solid var(--bd);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer">
-            <span style="font-size:12px;font-weight:600;color:var(--tx);display:block">Completo</span>
-            <span style="font-size:10px;color:var(--mu);display:block;margin-top:2px;line-height:1.4">EERR + ESF en un solo archivo</span>
-          </button>
+        <div style="margin-bottom:16px">
+          <label style="font-size:11px;color:var(--mu);display:block;margin-bottom:8px">Tipo de reporte</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <button id="ai-tipo-eerr" onclick="setAiTipo('eerr',this)" style="background:var(--bg2);border:1px solid var(--ac);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer">
+              <span style="font-size:12px;font-weight:600;color:var(--ac);display:block">EERR</span>
+              <span style="font-size:10px;color:var(--mu);display:block;margin-top:2px;line-height:1.4">Estado de resultados en bolívares</span>
+            </button>
+            <button id="ai-tipo-eerr_divisa" onclick="setAiTipo('eerr_divisa',this)" style="background:var(--bg);border:0.5px solid var(--bd);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer">
+              <span style="font-size:12px;font-weight:600;color:var(--tx);display:block">EERR Divisa Real</span>
+              <span style="font-size:10px;color:var(--mu);display:block;margin-top:2px;line-height:1.4">EERR ajustado a dólares reales</span>
+            </button>
+            <button id="ai-tipo-esf" onclick="setAiTipo('esf',this)" style="background:var(--bg);border:0.5px solid var(--bd);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer">
+              <span style="font-size:12px;font-weight:600;color:var(--tx);display:block">ESF</span>
+              <span style="font-size:10px;color:var(--mu);display:block;margin-top:2px;line-height:1.4">Balance general consolidado</span>
+            </button>
+            <button id="ai-tipo-completo" onclick="setAiTipo('completo',this)" style="background:var(--bg);border:0.5px solid var(--bd);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer">
+              <span style="font-size:12px;font-weight:600;color:var(--tx);display:block">Completo</span>
+              <span style="font-size:10px;color:var(--mu);display:block;margin-top:2px;line-height:1.4">EERR + ESF en un solo archivo</span>
+            </button>
+            <button id="ai-tipo-comparativa" onclick="setAiTipo('comparativa',this)" style="background:var(--bg);border:0.5px solid var(--bd);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer;grid-column:span 2">
+              <span style="font-size:12px;font-weight:600;color:var(--tx);display:block">Comparativa</span>
+              <span style="font-size:10px;color:var(--mu);display:block;margin-top:2px;line-height:1.4">Comparación de unidades del grupo</span>
+            </button>
+          </div>
+        </div>
+
+        <div style="border-top:0.5px solid var(--bd);margin:16px 0"></div>
+
+        <div style="margin-bottom:16px">
+          <label style="font-size:11px;color:var(--mu);display:block;margin-bottom:6px">Alcance</label>
+          <select id="ai-unit" onchange="updateAiBriefingPreview()" style="width:100%;font-size:12px;padding:6px 10px;border:0.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);height:34px">
+            <option value="">Consolidado grupo</option>
+            <option value="Rodeo">Rodeo</option>
+            <option value="Barinas">Barinas</option>
+            <option value="Naranjos">Naranjos</option>
+            <option value="PiedeMonte">PiedeMonte</option>
+            <option value="Terracota">Terracota</option>
+            <option value="Ucafe">Ucafe</option>
+          </select>
+        </div>
+
+        <div>
+          <label style="font-size:11px;color:var(--mu);display:block;margin-bottom:6px">Período</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <select id="ai-year" onchange="updateAiBriefingPreview()" style="font-size:12px;padding:6px 10px;border:0.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);height:34px">
+              <option value="2026">2026</option>
+              <option value="2025">2025</option>
+            </select>
+            <select id="ai-month" onchange="updateAiBriefingPreview()" style="font-size:12px;padding:6px 10px;border:0.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);height:34px">
+              <option value="">Año completo</option>
+              <option value="ENE">Enero</option>
+              <option value="FEB">Febrero</option>
+              <option value="MAR">Marzo</option>
+              <option value="ABR">Abril</option>
+              <option value="MAY">Mayo</option>
+              <option value="JUN">Junio</option>
+              <option value="JUL">Julio</option>
+              <option value="AGO">Agosto</option>
+              <option value="SEPT">Septiembre</option>
+              <option value="OCT">Octubre</option>
+              <option value="NOV">Noviembre</option>
+              <option value="DIC">Diciembre</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      <div style="border-top:0.5px solid var(--bd);margin:16px 0"></div>
+      <!-- panel de resumen y exportar -->
+      <div style="background:var(--bg);border:0.5px solid var(--bd);border-radius:12px;padding:20px;display:flex;flex-direction:column">
+        <div style="font-size:10px;font-weight:600;color:var(--mu2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px">Resumen del briefing</div>
 
-      <div style="margin-bottom:16px">
-        <label style="font-size:11px;color:var(--mu);display:block;margin-bottom:6px">Alcance</label>
-        <select id="ai-unit" onchange="updateAiBriefingPreview()" style="width:100%;font-size:12px;padding:6px 10px;border:0.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);height:34px">
-          <option value="">Consolidado grupo</option>
-          <option value="Rodeo">Rodeo</option>
-          <option value="Barinas">Barinas</option>
-          <option value="Naranjos">Naranjos</option>
-          <option value="PiedeMonte">PiedeMonte</option>
-          <option value="Terracota">Terracota</option>
-          <option value="Ucafe">Ucafe</option>
-        </select>
-      </div>
+        <div id="ai-prompt-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--bg-ok, #f0fdf4);border:0.5px solid var(--bd-ok, #86efac);border-radius:6px;padding:6px 10px;font-size:11px;color:var(--tx-ok, #166534);margin-bottom:14px">
+          ✦ <span id="ai-prompt-label">Prompt: CFO consolidado — análisis de portafolio</span>
+        </div>
 
-      <div>
-        <label style="font-size:11px;color:var(--mu);display:block;margin-bottom:6px">Período</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <select id="ai-year" onchange="updateAiBriefingPreview()" style="font-size:12px;padding:6px 10px;border:0.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);height:34px">
-            <option value="2026">2026</option>
-            <option value="2025">2025</option>
-          </select>
-          <select id="ai-month" onchange="updateAiBriefingPreview()" style="font-size:12px;padding:6px 10px;border:0.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);height:34px">
-            <option value="">Año completo</option>
-            <option value="ENE">Enero</option>
-            <option value="FEB">Febrero</option>
-            <option value="MAR">Marzo</option>
-            <option value="ABR">Abril</option>
-            <option value="MAY">Mayo</option>
-            <option value="JUN">Junio</option>
-            <option value="JUL">Julio</option>
-            <option value="AGO">Agosto</option>
-            <option value="SEPT">Septiembre</option>
-            <option value="OCT">Octubre</option>
-            <option value="NOV">Noviembre</option>
-            <option value="DIC">Diciembre</option>
-          </select>
+        <div style="background:var(--bg2, #f8f8f8);border:0.5px solid var(--bd);border-radius:6px;padding:12px;flex:1">
+          <div style="font-size:10px;font-weight:600;color:var(--mu2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">El archivo incluirá</div>
+          <div id="ai-preview-lines" style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--mu)">
+              <span style="color:var(--tx-ok,#166534);flex-shrink:0">✓</span>
+              <span>Prompt con identidad y marco analítico CFO</span>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--mu)">
+              <span style="color:var(--tx-ok,#166534);flex-shrink:0">✓</span>
+              <span id="ai-preview-data">EERR 2026 — Consolidado grupo, año completo</span>
+            </div>
+            <div style="margin:8px 0 4px;padding:8px 10px;background:var(--bg);border-left:2px solid var(--green);border-radius:0 4px 4px 0;font-size:11px;color:var(--mu);line-height:1.5" id="ai-preview-desc">
+              Foco: rentabilidad operativa, estructura de costos y evolución de márgenes. El CFO revisará el desempeño anual del grupo como portafolio, comparando unidades y detectando concentración de riesgo.
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--mu)">
+              <span style="color:var(--tx-ok,#166534);flex-shrink:0">✓</span>
+              <span>Tasas BCV y paralela del período</span>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--mu)">
+              <span style="color:var(--tx-ok,#166534);flex-shrink:0">✓</span>
+              <span>Instrucciones de uso para el modelo IA</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px">
+          <button onclick="downloadAiBriefing()" style="width:100%;height:40px;background:var(--tx);color:var(--bg);border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+            ⬇ Exportar Briefing IA
+          </button>
+          <div style="font-size:10px;color:var(--mu);text-align:center;margin-top:6px">Archivo .md listo para pegar en cualquier modelo de IA</div>
         </div>
       </div>
     </div>
 
-    <!-- columna derecha: resumen y exportar -->
-    <div style="background:var(--bg);border:0.5px solid var(--bd);border-radius:12px;padding:20px;display:flex;flex-direction:column">
-      <div style="font-size:10px;font-weight:600;color:var(--mu2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px">Resumen del briefing</div>
-
-      <div id="ai-prompt-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--bg-ok, #f0fdf4);border:0.5px solid var(--bd-ok, #86efac);border-radius:6px;padding:6px 10px;font-size:11px;color:var(--tx-ok, #166534);margin-bottom:14px">
-        ✦ <span id="ai-prompt-label">Prompt: CFO consolidado — análisis de portafolio</span>
+    <!-- columna derecha: editor de prompt -->
+    <div style="background:var(--bg);border:0.5px solid var(--bd);border-radius:12px;padding:20px;display:flex;flex-direction:column;min-height:550px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-size:10px;font-weight:600;color:var(--mu2);text-transform:uppercase;letter-spacing:0.05em">Editor del Prompt de la IA</div>
+        <div id="ai-last-saved" style="font-size:10px;color:var(--mu)"></div>
       </div>
-
-      <div style="background:var(--bg2, #f8f8f8);border:0.5px solid var(--bd);border-radius:6px;padding:12px;flex:1">
-        <div style="font-size:10px;font-weight:600;color:var(--mu2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">El archivo incluirá</div>
-        <div id="ai-preview-lines" style="display:flex;flex-direction:column;gap:6px">
-          <div style="display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--mu)">
-            <span style="color:var(--tx-ok,#166534);flex-shrink:0">✓</span>
-            <span>Prompt con identidad y marco analítico CFO</span>
-          </div>
-          <div style="display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--mu)">
-            <span style="color:var(--tx-ok,#166534);flex-shrink:0">✓</span>
-            <span id="ai-preview-data">EERR 2026 — Consolidado grupo, año completo</span>
-          </div>
-          <div style="margin:8px 0 4px;padding:8px 10px;background:var(--bg);border-left:2px solid var(--green);border-radius:0 4px 4px 0;font-size:11px;color:var(--mu);line-height:1.5" id="ai-preview-desc">
-            Foco: rentabilidad operativa, estructura de costos y evolución de márgenes. El CFO revisará el desempeño anual del grupo como portafolio, comparando unidades y detectando concentración de riesgo.
-          </div>
-          <div style="display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--mu)">
-            <span style="color:var(--tx-ok,#166534);flex-shrink:0">✓</span>
-            <span>Tasas BCV y paralela del período</span>
-          </div>
-          <div style="display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--mu)">
-            <span style="color:var(--tx-ok,#166534);flex-shrink:0">✓</span>
-            <span>Instrucciones de uso para el modelo IA</span>
-          </div>
-        </div>
+      <div style="flex:1;position:relative;margin-bottom:16px;display:flex;flex-direction:column">
+        <textarea id="ai-prompt-editor" style="width:100%;flex:1;min-height:420px;font-family:'DM Mono',Consolas,monospace;font-size:11px;line-height:1.6;padding:12px;border:0.5px solid var(--bd);border-radius:6px;background:var(--bg2);color:var(--tx);resize:vertical;outline:none"></textarea>
       </div>
-
-      <div style="margin-top:16px">
-        <button onclick="downloadAiBriefing()" style="width:100%;height:40px;background:var(--tx);color:var(--bg);border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
-          ⬇ Exportar Briefing IA
-        </button>
-        <div style="font-size:10px;color:var(--mu);text-align:center;margin-top:6px">Archivo .md listo para pegar en cualquier modelo de IA</div>
+      <div style="display:flex;gap:8px">
+        <button class="btnm" onclick="guardarPromptDefault()" style="flex:1;height:34px;font-size:11px">💾 Guardar como Predeterminado</button>
+        <button class="btns" onclick="restablecerPromptDefault()" style="height:34px;font-size:11px;padding:0 12px">🔄 Restablecer</button>
       </div>
     </div>
 
@@ -4841,7 +4863,8 @@ const AI_TIPO_META = {
   eerr:        { label: 'EERR',            desc: 'Estado de resultados en bolívares' },
   eerr_divisa: { label: 'EERR Divisa Real', desc: 'EERR ajustado a dólares reales' },
   esf:         { label: 'ESF',             desc: 'Balance general consolidado' },
-  completo:    { label: 'Completo',         desc: 'EERR + ESF en un solo archivo' }
+  completo:    { label: 'Completo',         desc: 'EERR + ESF en un solo archivo' },
+  comparativa: { label: 'Comparativa',      desc: 'Comparación de unidades del grupo' }
 };
 
 const AI_MONTH_LABELS = {
@@ -4866,7 +4889,7 @@ function setAiTipo(tipo, el) {
   if (lbl) lbl.style.color = 'var(--green)';
   const unitSel = document.getElementById('ai-unit');
   if (unitSel) {
-    if (tipo === 'esf') {
+    if (tipo === 'esf' || tipo === 'comparativa') {
       unitSel.value = '';
       unitSel.disabled = true;
       unitSel.style.opacity = '0.4';
@@ -4894,25 +4917,35 @@ function updateAiBriefingPreview() {
     eerr:        'rentabilidad operativa, estructura de costos y evolución de márgenes',
     eerr_divisa: 'impacto cambiario sobre el resultado, ajuste por diferencial BCV/paralela y poder adquisitivo real',
     esf:         'posición patrimonial, estructura de activos y nivel de endeudamiento',
-    completo:    'visión integral: resultado operativo, posición de balance y coherencia entre ambos estados'
+    completo:    'visión integral: resultado operativo, posición de balance y coherencia entre ambos estados',
+    comparativa: 'descomposición de brechas operativas y cambiarias entre las distintas unidades del grupo'
   };
 
   const foco = TIPO_FOCO[tipo] || tipo;
 
   let promptLabel, contexto;
-  if (!unit) {
-    promptLabel = 'CFO consolidado — análisis de portafolio';
+  if (tipo === 'comparativa') {
+    promptLabel = 'CFO comparativo — brechas de portafolio';
     if (!month) {
-      contexto = 'El CFO revisará el desempeño anual del grupo como portafolio, comparando unidades y detectando concentración de riesgo.';
+      contexto = 'El CFO analizará la trayectoria anual comparada entre las unidades del grupo, evaluando cambios estructurales y consistencia.';
     } else {
-      contexto = 'El CFO analizará ' + monthLabel + ' dentro del contexto acumulado del grupo, con foco en señales tempranas de desviación.';
+      contexto = 'El CFO realizará una descomposición de brechas operativas y cambiarias entre las unidades para el mes seleccionado.';
     }
-  } else if (month) {
-    promptLabel = 'CFO unidad/mes — análisis quirúrgico';
-    contexto = 'El CFO hará un análisis quirúrgico de ' + unit + ' en ' + monthLabel + ', identificando causas raíz de variaciones puntuales.';
   } else {
-    promptLabel = 'CFO anual — cierre y posición estructural';
-    contexto = 'El CFO hará el cierre anual de ' + unit + ', evaluando posición estructural y sostenibilidad del margen.';
+    if (!unit) {
+      promptLabel = 'CFO consolidado — análisis de portafolio';
+      if (!month) {
+        contexto = 'El CFO revisará el desempeño anual del grupo como portafolio, comparando unidades y detectando concentración de riesgo.';
+      } else {
+        contexto = 'El CFO analizará ' + monthLabel + ' dentro del contexto acumulado del grupo, con foco en señales tempranas de desviación.';
+      }
+    } else if (month) {
+      promptLabel = 'CFO unidad/mes — análisis quirúrgico';
+      contexto = 'El CFO hará un análisis quirúrgico de ' + unit + ' en ' + monthLabel + ', identificando causas raíz de variaciones puntuales.';
+    } else {
+      promptLabel = 'CFO anual — cierre y posición estructural';
+      contexto = 'El CFO hará el cierre anual de ' + unit + ', evaluando posición estructural y sostenibilidad del margen.';
+    }
   }
 
   const badge = document.getElementById('ai-prompt-label');
@@ -4927,6 +4960,37 @@ function updateAiBriefingPreview() {
     descText += ' Nota: el ESF incluido es siempre consolidado del grupo, independientemente de la unidad seleccionada.';
   }
   if (desc) desc.textContent = descText;
+
+  cargarPromptConfigurado();
+}
+
+async function cargarPromptConfigurado() {
+  const unit = document.getElementById('ai-unit') ? document.getElementById('ai-unit').value : '';
+  const month = document.getElementById('ai-month') ? document.getElementById('ai-month').value : '';
+  const tipo = aiTipoActual;
+
+  let tipo_prompt = '';
+  if (tipo === 'comparativa') {
+    tipo_prompt = (month === '') ? 'comparativo_anual' : 'comparativo_mes';
+  } else {
+    if (unit === '') {
+      tipo_prompt = 'consolidado';
+    } else if (month === '') {
+      tipo_prompt = 'anual';
+    } else {
+      tipo_prompt = 'unidad_mes';
+    }
+  }
+
+  try {
+    const r = await fetch(`/api/briefing-prompt?tipo=${tipo_prompt}`);
+    if (r.ok) {
+      const d = await r.json();
+      document.getElementById('ai-prompt-editor').value = d.prompt_text;
+    }
+  } catch (e) {
+    console.error('Error al cargar el prompt:', e);
+  }
 }
 
 async function downloadAiBriefing() {
@@ -4934,12 +4998,16 @@ async function downloadAiBriefing() {
   const month = document.getElementById('ai-month').value;
   const unit  = document.getElementById('ai-unit').value;
   const tipo  = aiTipoActual;
-
-  const params = new URLSearchParams({ year, month, unit, tipo });
-  const url = '/api/export/ai?' + params.toString();
+  const prompt_text = document.getElementById('ai-prompt-editor').value;
 
   try {
-    const r = await fetch(url);
+    const r = await fetch('/api/export/ai', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ year, month, unit, tipo, prompt_text })
+    });
     if (!r.ok) { alert('Error al generar el briefing. Verifica los datos seleccionados.'); return; }
     const blob = await r.blob();
     const a = document.createElement('a');
@@ -4953,6 +5021,84 @@ async function downloadAiBriefing() {
     URL.revokeObjectURL(a.href);
   } catch(e) {
     alert('Error de conexion al generar el briefing.');
+  }
+}
+
+async function guardarPromptDefault() {
+  const unit = document.getElementById('ai-unit') ? document.getElementById('ai-unit').value : '';
+  const month = document.getElementById('ai-month') ? document.getElementById('ai-month').value : '';
+  const tipo = aiTipoActual;
+
+  let tipo_prompt = '';
+  if (tipo === 'comparativa') {
+    tipo_prompt = (month === '') ? 'comparativo_anual' : 'comparativo_mes';
+  } else {
+    if (unit === '') {
+      tipo_prompt = 'consolidado';
+    } else if (month === '') {
+      tipo_prompt = 'anual';
+    } else {
+      tipo_prompt = 'unidad_mes';
+    }
+  }
+
+  const prompt_text = document.getElementById('ai-prompt-editor').value;
+
+  try {
+    const r = await fetch('/api/briefing-prompt', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ tipo_reporte: tipo_prompt, prompt_text: prompt_text })
+    });
+    if (r.ok) {
+      const savedDiv = document.getElementById('ai-last-saved');
+      if (savedDiv) {
+        const now = new Date();
+        savedDiv.textContent = 'Guardado: ' + now.toLocaleTimeString();
+      }
+      alert('✅ Prompt guardado como predeterminado para este tipo de reporte.');
+    } else {
+      alert('⚠️ Error al guardar el prompt.');
+    }
+  } catch (e) {
+    alert('⚠️ Error de conexión al guardar.');
+  }
+}
+
+async function restablecerPromptDefault() {
+  if (!confirm('¿Restablecer este prompt a los valores de fábrica de UltraBikeX?')) return;
+
+  const unit = document.getElementById('ai-unit') ? document.getElementById('ai-unit').value : '';
+  const month = document.getElementById('ai-month') ? document.getElementById('ai-month').value : '';
+  const tipo = aiTipoActual;
+
+  let tipo_prompt = '';
+  if (tipo === 'comparativa') {
+    tipo_prompt = (month === '') ? 'comparativo_anual' : 'comparativo_mes';
+  } else {
+    if (unit === '') {
+      tipo_prompt = 'consolidado';
+    } else if (month === '') {
+      tipo_prompt = 'anual';
+    } else {
+      tipo_prompt = 'unidad_mes';
+    }
+  }
+
+  try {
+    const r = await fetch(`/api/briefing-prompt?tipo=${tipo_prompt}&default=1`);
+    if (r.ok) {
+      const d = await r.json();
+      document.getElementById('ai-prompt-editor').value = d.prompt_text;
+      const savedDiv = document.getElementById('ai-last-saved');
+      if (savedDiv) savedDiv.textContent = 'Restablecido (sin guardar)';
+    } else {
+      alert('⚠️ Error al restablecer el prompt.');
+    }
+  } catch (e) {
+    alert('⚠️ Error de conexión al restablecer.');
   }
 }
 
