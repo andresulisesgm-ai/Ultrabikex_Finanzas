@@ -194,6 +194,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);overf
 .bcl:hover{color:var(--red);background:var(--red-l);}
 .cv{position:relative;}
 .cv.h180{height:180px;}.cv.h200{height:200px;}.cv.h240{height:240px;}.cv.h280{height:280px;}
+.wcard.ws .cv{height:120px}
+.wcard.wm .cv{height:200px}
+.wcard.wl .cv{height:260px}
+.wcard.wxl .cv{height:320px}
 
 /* ── TREEMAP ── */
 .tmw{width:100%;height:185px;position:relative;overflow:hidden;border-radius:7px;}
@@ -2042,7 +2046,7 @@ const WIDGET_TEMPLATES = {
           <option value="polarArea">Área Polar</option>
         </select>
         <button class="bcl" data-w="wc-esf-estructura">✕</button></div></div>
-    <canvas id="ch-esf-est" height="200"></canvas>
+    <div class="cv"><canvas id="ch-esf-est"></canvas></div>
   `,
   'wc-ind-roe': `
     <div class="ch"><div><div class="ct">📊 ROE</div><div class="cs">Retorno sobre Patrimonio</div></div>
@@ -2123,7 +2127,7 @@ const WIDGET_TEMPLATES = {
           <option value="table">Tabla</option>
         </select>
         <button class="bcl" data-w="wc-panel-esf">✕</button></div></div>
-    <canvas id="ch-pesf" height="220"></canvas>
+    <div class="cv"><canvas id="ch-pesf"></canvas></div>
     <div id="ch-pesf-table" style="display:none"></div>
   `,
   'wc-divisa-ingr': `
@@ -3403,7 +3407,7 @@ async function loadDash(){
             if (canvas) CH['ch-pesf'] = new Chart(canvas, {
               type: realType,
               data: { labels, datasets: [{ label: 'Monto', data: valores, backgroundColor: colors }] },
-              options: { responsive:true, plugins:{ legend:{display:false} }, scales: stacked ? {x:{stacked:true},y:{stacked:true}} : {} }
+              options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{position:'bottom', labels:{font:{size:10}}} }, scales: stacked ? {x:{stacked:true},y:{stacked:true}} : {} }
             });
           }
         });
@@ -3523,7 +3527,7 @@ async function loadDash(){
                   backgroundColor: ['#2563eb','#0891b2','#dc2626','#f97316','#059669']
                 }]
               },
-              options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } }
+              options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } }
             });
           }
         });
