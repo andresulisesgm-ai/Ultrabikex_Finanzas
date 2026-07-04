@@ -322,6 +322,15 @@ def init_db():
             config_json TEXT NOT NULL,
             updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
         );
+
+        CREATE TABLE IF NOT EXISTS esf_ajuste_diferencial (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            year TEXT NOT NULL,
+            quarter INTEGER NOT NULL,
+            valor REAL NOT NULL,
+            updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+            UNIQUE(year, quarter)
+        );
     ''')
 
     # ── Migración de BDs existentes ──────────────────────────────────────────
@@ -433,6 +442,16 @@ def migrate_db():
             UNIQUE(year, month, unit, partida)
         )''')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_budget ON budget(year, month, unit)')
+
+    if 'esf_ajuste_diferencial' not in tables:
+        conn.execute('''CREATE TABLE esf_ajuste_diferencial (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            year TEXT NOT NULL,
+            quarter INTEGER NOT NULL,
+            valor REAL NOT NULL,
+            updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+            UNIQUE(year, quarter)
+        )''')
 
 
 

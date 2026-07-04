@@ -3194,6 +3194,49 @@ def delete_tasa(tasa_id):
     return jsonify({'ok': True})
 
 
+@app.route('/api/esf-divisa-real', methods=['GET'])
+def get_esf_divisa_real():
+    """Calcula ESF Divisa Real: saldo consolidado de Caja/Fondo/Bancos/Bancos en tránsito en Bs
+    revalorizado a tasa paralela de fin de mes del trimestre."""
+    year = request.args.get('year')
+    quarter = request.args.get('quarter', type=int)
+
+    if not year or not quarter:
+        return jsonify({'error': 'year y quarter son requeridos'}), 400
+
+    from engine import calcular_esf_divisa_real
+    result = calcular_esf_divisa_real(year, quarter)
+
+    if 'error' in result:
+        return jsonify(result), 404
+
+    return jsonify(result)
+
+
+@app.route('/api/esf-divisa-real/ajuste', methods=['POST'])
+def save_ajuste_diferencial():
+    """Guarda el ajuste manual por diferencial cambiario para un año/trimestre."""
+    data = request.get_json()
+    year = data.get('year')
+    quarter = data.get('quarter')
+    valor = data.get('valor')
+
+    if not year or not quarter or valor is None:
+        return jsonify({'error': 'year, quarter y valor son requeridos'}), 400
+
+    db = get_db()
+    db.execute('''
+        INSERT INTO esf_ajuste_diferencial (year, quarter, valor, updated_at)
+        VALUES (?, ?, ?, datetime('now', 'localtime'))
+        ON CONFLICT(year, quarter) DO UPDATE SET
+            valor = excluded.valor,
+            updated_at = excluded.updated_at
+    ''', (year, quarter, valor))
+    db.commit()
+
+    return jsonify({'success': True, 'year': year, 'quarter': quarter, 'valor': valor})
+
+
 @app.route('/api/metodo_pago', methods=['GET'])
 def get_metodo_pago():
     """Retorna métodos de pago para year/month dados, agrupados por odoo_code."""

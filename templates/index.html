@@ -517,6 +517,7 @@ input[type=file]{display:none;}
   <div class="nav-item" onclick="showPage('eerrdet',this)" style="display:none"><span class="nav-icon"><i class="ph ph-list"></i></span>ERR Detallado</div>
   <div class="nav-item" onclick="showPage('indicadores',this)"><span class="nav-icon"><i class="ph ph-chart-line"></i></span>Indicadores Financieros</div>
   <div class="nav-item" onclick="showPage('esf',this)"><span class="nav-icon"><i class="ph ph-scales"></i></span>Estado de Situación Financiera (ESF)</div>
+  <div class="nav-item" onclick="showPage('esf_divisa',this)"><span class="nav-icon"><i class="ph ph-currency-circle-dollar"></i></span>ESF Divisa Real</div>
   <div class="nav-item" onclick="showPage('presupuesto',this)" style="display:none"><span class="nav-icon"><i class="ph ph-target"></i></span>Presupuesto vs Real</div>
   <div class="nav-item" onclick="showPage('comparativa',this)"><span class="nav-icon"><i class="ph ph-arrows-down-up"></i></span>Comparativas</div>
   <div class="nav-sec">Configuración</div>
@@ -854,6 +855,59 @@ input[type=file]{display:none;}
         <span class="esf-qtab" data-q="0" onclick="switchESFQ(this,0)">Todos los Quarters</span>
       </div>
       <div id="esf-body"><p style="color:var(--mu);font-size:12px;padding:20px 0">Cargando...</p></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-esf_divisa">
+    <div class="al al-ok" id="al-esfdiv-ok"></div><div class="al al-er" id="al-esfdiv-er"></div>
+
+    <div class="card" style="max-width:520px;margin-bottom:16px">
+      <div class="stitle">Período</div>
+      <div class="fgrow">
+        <div class="fg"><label>Año</label><input type="number" id="esfdiv-year" value="2026" min="2020" max="2035" onchange="loadESFDivisaReal()"></div>
+        <div class="fg"><label>Trimestre</label>
+          <select id="esfdiv-quarter" onchange="loadESFDivisaReal()">
+            <option value="1">Q1 (Cierre MAR)</option>
+            <option value="2">Q2 (Cierre JUN)</option>
+            <option value="3">Q3 (Cierre SEPT)</option>
+            <option value="4">Q4 (Cierre DIC)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div id="esfdiv-loading" style="padding:20px;text-align:center;color:var(--mu)">Cargando...</div>
+    <div id="esfdiv-error" style="display:none;padding:12px;color:var(--red);font-size:12px"></div>
+
+    <div id="esfdiv-content" style="display:none">
+      <div class="card" style="max-width:520px;margin-bottom:16px">
+        <div class="stitle">Saldo Efectivo y Equivalentes en Bs</div>
+        <div class="tw">
+          <table>
+            <tbody id="esfdiv-partidas-tbody"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);font-weight:700;font-size:12px">
+          <span>Total Bs</span><span id="esfdiv-total-bs" style="font-family:'DM Mono',monospace"></span>
+        </div>
+      </div>
+
+      <div class="card" style="max-width:520px;margin-bottom:16px">
+        <div class="stitle">Revalorización a Tasa Paralela de Cierre</div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+          <span>Tasa Paralela Fin de Mes</span><span id="esfdiv-tasa" style="font-family:'DM Mono',monospace;font-weight:700;color:var(--green)"></span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px">
+          <span>Saldo Revalorizado (USD)</span><span id="esfdiv-total-usd" style="font-family:'DM Mono',monospace;font-weight:700;color:var(--green)"></span>
+        </div>
+      </div>
+
+      <div class="card" style="max-width:520px">
+        <div class="stitle">Ajuste por Diferencial Cambiario</div>
+        <div style="font-size:11px;color:var(--mu);margin-bottom:10px">Ganancia o pérdida real al comprar divisas por debajo o encima de la tasa de mercado de cierre del trimestre. Ingreso manual, consolidado, trimestral.</div>
+        <div class="fg"><label>Valor (Bs)</label><input type="number" id="esfdiv-ajuste-input" step="0.01" placeholder="Ej: 1500.00"></div>
+        <button class="btnm" onclick="saveESFAjuste()">Guardar Ajuste</button>
+      </div>
     </div>
   </div>
 
@@ -2559,8 +2613,8 @@ function showPage(name,el){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   G('page-'+name).classList.add('active');
   if(el) el.classList.add('active');
-  const T={dashboard:'Dashboard Financiero',carga:'Cargar Reportes',historial:'Historial de Cargas',mapping:'Mapeo de Cuentas',datos:'Ver Datos',backup:'Backup y Restaurar',comparativa:'Comparativas',eerr:'Estados de Resultados (EERR)',eerrdet:'ERR Detallado',esf:'Estado de Situación Financiera (ESF)',presupuesto:'Presupuesto vs Real',config_tasas:'Configuración de Tasas',err_divisa:'Estados de Resultados Divisa Real (EERR)'};
-  const S={dashboard:'Estado de resultados consolidado',carga:'Importar XLS de Odoo',historial:'Auditoría y reversión',mapping:'Configuración de cuentas contables',datos:'Explorador de datos',backup:'Gestión de copias de seguridad',comparativa:'Mismo período vs año anterior',eerr:'P&L estructurado por partida',eerrdet:'Desglose por tipo de ingreso + ACUM EJEC',esf:'Balance trimestral Q1–Q4',presupuesto:'Real vs valores presupuestados',config_tasas:'Tasas BCV/Paralela y métodos de pago por cuenta'};
+  const T={dashboard:'Dashboard Financiero',carga:'Cargar Reportes',historial:'Historial de Cargas',mapping:'Mapeo de Cuentas',datos:'Ver Datos',backup:'Backup y Restaurar',comparativa:'Comparativas',eerr:'Estados de Resultados (EERR)',eerrdet:'ERR Detallado',esf:'Estado de Situación Financiera (ESF)',presupuesto:'Presupuesto vs Real',config_tasas:'Configuración de Tasas',err_divisa:'Estados de Resultados Divisa Real (EERR)',esf_divisa:'ESF Divisa Real'};
+  const S={dashboard:'Estado de resultados consolidado',carga:'Importar XLS de Odoo',historial:'Auditoría y reversión',mapping:'Configuración de cuentas contables',datos:'Explorador de datos',backup:'Gestión de copias de seguridad',comparativa:'Mismo período vs año anterior',eerr:'P&L estructurado por partida',eerrdet:'Desglose por tipo de ingreso + ACUM EJEC',esf:'Balance trimestral Q1–Q4',presupuesto:'Real vs valores presupuestados',config_tasas:'Tasas BCV/Paralela y métodos de pago por cuenta',esf_divisa:'Revalorización trimestral de efectivo en Bs'};
   G('ptitle').textContent=T[name]||''; G('psub').textContent=S[name]||'';
   if(name==='dashboard'){ initDivisaToggle(); loadDash(); }
   if(name==='historial') loadHist();
@@ -2574,6 +2628,7 @@ function showPage(name,el){
   if(name==='err_divisa') loadERRDivisa();
   if(name==='indicadores') loadIndicadores();
   if(name==='presupuesto') loadBgt();
+  if(name==='esf_divisa') loadESFDivisaReal();
 
   const PAGES_WITH_EXCEL = ['eerr','err_divisa','esf','presupuesto','comparativa'];
   const btnExcel = document.getElementById('btn-export-excel');
@@ -5057,7 +5112,73 @@ async function loadIndicadores(){
       <thead style="position:sticky;top:0;z-index:10">${hdr}</thead>
       <tbody>${rows}</tbody>
     </table></div>`;
+async function loadESFDivisaReal(){
+  const year = G('esfdiv-year').value;
+  const quarter = G('esfdiv-quarter').value;
+  G('esfdiv-loading').style.display = 'block';
+  G('esfdiv-content').style.display = 'none';
+  G('esfdiv-error').style.display = 'none';
+  try{
+    const res = await fetch(`/api/esf-divisa-real?year=${year}&quarter=${quarter}`);
+    const data = await res.json();
+    if(!res.ok){
+      G('esfdiv-loading').style.display = 'none';
+      G('esfdiv-error').style.display = 'block';
+      G('esfdiv-error').textContent = data.error || 'Error al cargar datos.';
+      return;
+    }
+    const tbody = G('esfdiv-partidas-tbody');
+    tbody.innerHTML = '';
+    for(const [nombre, valor] of Object.entries(data.partidas)){
+      tbody.innerHTML += `<tr><td style="font-size:11px">${nombre}</td><td style="text-align:right;font-family:'DM Mono',monospace;font-size:11px">${valor.toLocaleString('es-VE',{minimumFractionDigits:2})}</td></tr>`;
+    }
+    G('esfdiv-total-bs').textContent = data.saldo_total_bs.toLocaleString('es-VE',{minimumFractionDigits:2});
+    G('esfdiv-tasa').textContent = data.tasa_paralela_fin.toLocaleString('es-VE',{minimumFractionDigits:2});
+    G('esfdiv-total-usd').textContent = '$' + data.saldo_total_usd.toLocaleString('es-VE',{minimumFractionDigits:2});
+    G('esfdiv-ajuste-input').value = data.ajuste_diferencial_cambiario !== null ? data.ajuste_diferencial_cambiario : '';
+    G('esfdiv-loading').style.display = 'none';
+    G('esfdiv-content').style.display = 'block';
+  }catch(e){
+    G('esfdiv-loading').style.display = 'none';
+    G('esfdiv-error').style.display = 'block';
+    G('esfdiv-error').textContent = 'Error de conexión.';
+  }
 }
+
+async function saveESFAjuste(){
+  const year = G('esfdiv-year').value;
+  const quarter = G('esfdiv-quarter').value;
+  const valor = parseFloat(G('esfdiv-ajuste-input').value);
+  if(isNaN(valor)){
+    G('al-esfdiv-er').textContent = 'Ingresa un valor numérico válido.';
+    G('al-esfdiv-er').style.display = 'block';
+    setTimeout(()=>G('al-esfdiv-er').style.display='none', 3000);
+    return;
+  }
+  try{
+    const res = await fetch('/api/esf-divisa-real/ajuste', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({year, quarter: parseInt(quarter), valor})
+    });
+    const data = await res.json();
+    if(!res.ok){
+      G('al-esfdiv-er').textContent = data.error || 'Error al guardar.';
+      G('al-esfdiv-er').style.display = 'block';
+      setTimeout(()=>G('al-esfdiv-er').style.display='none', 3000);
+      return;
+    }
+    G('al-esfdiv-ok').textContent = 'Ajuste guardado correctamente.';
+    G('al-esfdiv-ok').style.display = 'block';
+    setTimeout(()=>G('al-esfdiv-ok').style.display='none', 3000);
+    loadESF();
+  }catch(e){
+    G('al-esfdiv-er').textContent = 'Error de conexión.';
+    G('al-esfdiv-er').style.display = 'block';
+    setTimeout(()=>G('al-esfdiv-er').style.display='none', 3000);
+  }
+}
+
 
 async function loadESF() {
   const year = G('esf-year').value, unit = '';

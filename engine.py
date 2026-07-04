@@ -1316,6 +1316,7 @@ ESF_STRUCTURE_V2 = [
     ('Superavit por revaluacion', False, None, False, None, 2, False, 'PATRIMONIO', 2),
     ('Resultados acumulados', False, None, False, None, 2, False, 'PATRIMONIO', 2),
     ('Resultados del ejercicio', False, None, False, None, 2, False, 'PATRIMONIO', 2),
+    ('Ajuste por Diferencial Cambiario', False, None, False, None, 2, False, 'PATRIMONIO', 2),
     ('Total Patrimonio', True, None, True, None, 1, False, 'PATRIMONIO', 1),
     ('TOTAL PASIVOS Y PATRIMONIO', True, None, True, None, 0, False, None, 0),
 ]
@@ -1397,6 +1398,15 @@ def esf_engine(year, unit):
         if key not in detail_by_group[gn]:
             detail_by_group[gn][key] = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}
         detail_by_group[gn][key][r['quarter']] = round(r['total'], 2)
+
+    # Leer ajustes diferenciales desde la base de datos
+    ajustes_diferenciales = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}
+    ajuste_rows = cursor.execute(
+        'SELECT quarter, valor FROM esf_ajuste_diferencial WHERE year = ?',
+        (year,)
+    ).fetchall()
+    for ar in ajuste_rows:
+        ajustes_diferenciales[ar['quarter']] = ar['valor']
         
     conn.close()
     
@@ -1435,13 +1445,14 @@ def esf_engine(year, unit):
         for item in ESF_STRUCTURE_V2:
             quarters_data[q][item[0]] = 0.0
             
-        # Asignar Resultados del ejercicio
+        # Asignar Resultados del ejercicio y Ajuste por Diferencial Cambiario
         quarters_data[q]['Resultados del ejercicio'] = utilidad_q[q]
+        quarters_data[q]['Ajuste por Diferencial Cambiario'] = ajustes_diferenciales[q]
         
         # Asignar valores a hojas (is_header == False) excluyendo calculados
         for item in ESF_STRUCTURE_V2:
             name, is_header = item[0], item[1]
-            if not is_header and name not in ('Resultados acumulados', 'Resultados del ejercicio'):
+            if not is_header and name not in ('Resultados acumulados', 'Resultados del ejercicio', 'Ajuste por Diferencial Cambiario'):
                 partidas = groups_v2.get(name, [])
                 quarters_data[q][name] = sum(db_data.get((q, p), 0.0) for p in partidas)
                 
@@ -1486,16 +1497,17 @@ def esf_engine(year, unit):
         quarters_data[q]['TOTAL ACTIVOS'] = quarters_data[q]['Total Activos Corrientes'] + quarters_data[q]['Total Activos No Corrientes']
         quarters_data[q]['TOTAL PASIVOS'] = quarters_data[q]['Total Pasivos Corrientes'] + quarters_data[q]['Total Pasivos No Corrientes']
         
-        # Regla Especial 2: Resultados acumulados = TOTAL ACTIVOS - TOTAL PASIVOS - (Capital social + Reservas legales y estatutarias + Superavit por revaluacion + Resultados del ejercicio)
+        # Regla Especial 2: Resultados acumulados = TOTAL ACTIVOS - TOTAL PASIVOS - (Capital social + Reservas legales y estatutarias + Superavit por revaluacion + Resultados del ejercicio + Ajuste por Diferencial Cambiario)
         cap_social = quarters_data[q].get('Capital social', 0.0)
         reservas = quarters_data[q].get('Reservas legales y estatutarias', 0.0)
         superavit = quarters_data[q].get('Superavit por revaluacion', 0.0)
         res_ejer = quarters_data[q].get('Resultados del ejercicio', 0.0)
+        ajuste_dif = quarters_data[q].get('Ajuste por Diferencial Cambiario', 0.0)
         
-        res_acum = quarters_data[q]['TOTAL ACTIVOS'] - quarters_data[q]['TOTAL PASIVOS'] - cap_social - reservas - superavit - res_ejer
+        res_acum = quarters_data[q]['TOTAL ACTIVOS'] - quarters_data[q]['TOTAL PASIVOS'] - cap_social - reservas - superavit - res_ejer - ajuste_dif
         quarters_data[q]['Resultados acumulados'] = res_acum
         
-        # Total Patrimonio = Capital social + Reservas + Superavit + Resultados acumulados + Resultados del ejercicio
+        # Total Patrimonio = Capital social + Reservas + Superavit + Resultados acumulados + Resultados del ejercicio + Ajuste por Diferencial Cambiario
         level_2_patrimonio = [x[0] for x in ESF_STRUCTURE_V2 if x[5] == 2 and x[7] == 'PATRIMONIO']
         quarters_data[q]['Total Patrimonio'] = sum(quarters_data[q].get(c, 0.0) for c in level_2_patrimonio)
         quarters_data[q]['PATRIMONIO'] = quarters_data[q]['Total Patrimonio']
@@ -1528,7 +1540,7 @@ def esf_engine(year, unit):
         })
         
         # Nivel 4: cuentas individuales que componen este nodo hoja
-        if not is_header and name not in ('Resultados acumulados', 'Resultados del ejercicio'):
+        if not is_header and name not in ('Resultados acumulados', 'Resultados del ejercicio', 'Ajuste por Diferencial Cambiario'):
             for (odoo_code, odoo_name), q_vals in detail_by_group.get(name, {}).items():
                 rows.append({
                     'partida':    odoo_name,
@@ -1547,5 +1559,74 @@ def esf_engine(year, unit):
         'unit': unit,
         'rows': rows
     }
+
+
+# ── ESF Divisa Real ──────────────────────────────────────────────────────────
+PARTIDAS_ESF_DIVISA_REAL = ['Caja en Bs', 'Fondo en Bs', 'Bancos en Bs', 'Bancos en transito en Bs']
+QUARTER_MONTH_CIERRE = {1: 'MAR', 2: 'JUN', 3: 'SEPT', 4: 'DIC'}
+
+
+def calcular_esf_divisa_real(year, quarter):
+    import sqlite3
+    import os
+
+    DB_PATH = os.path.join(os.path.dirname(__file__), 'data', 'ultrax.db')
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    month = QUARTER_MONTH_CIERRE.get(quarter)
+    if not month:
+        conn.close()
+        return {'error': f'Quarter inválido: {quarter}'}
+
+    placeholders = ','.join('?' * len(PARTIDAS_ESF_DIVISA_REAL))
+    rows = cursor.execute(f'''
+        SELECT mg.group_name, SUM(fd.amount_sign) as total
+        FROM financials_detail fd
+        JOIN mapping_groups_v2 mg ON fd.odoo_code = mg.odoo_code AND mg.report_type = 'esf'
+        WHERE fd.year = ? AND fd.report_type = 'esf' AND fd.month = ?
+          AND mg.group_name IN ({placeholders})
+        GROUP BY mg.group_name
+    ''', (year, month, *PARTIDAS_ESF_DIVISA_REAL)).fetchall()
+
+    saldo_por_partida = {p: 0.0 for p in PARTIDAS_ESF_DIVISA_REAL}
+    for r in rows:
+        saldo_por_partida[r['group_name']] = r['total']
+
+    saldo_total_bs = sum(saldo_por_partida.values())
+
+    tasa_row = cursor.execute(
+        'SELECT tasa_paralela_fin FROM tasas_periodo WHERE year=? AND month=?',
+        (year, month)
+    ).fetchone()
+
+    if not tasa_row or not tasa_row['tasa_paralela_fin']:
+        conn.close()
+        return {'error': f'No hay tasa paralela fin de mes configurada para {month} {year}'}
+
+    tasa_paralela_fin = tasa_row['tasa_paralela_fin']
+
+    ajuste_row = cursor.execute(
+        'SELECT valor FROM esf_ajuste_diferencial WHERE year=? AND quarter=?',
+        (year, quarter)
+    ).fetchone()
+    ajuste_diferencial = ajuste_row['valor'] if ajuste_row else None
+
+    conn.close()
+
+    saldo_total_usd = round(saldo_total_bs / tasa_paralela_fin, 2) if tasa_paralela_fin else None
+
+    return {
+        'year': year,
+        'quarter': quarter,
+        'month_cierre': month,
+        'tasa_paralela_fin': tasa_paralela_fin,
+        'partidas': {k: round(v, 2) for k, v in saldo_por_partida.items()},
+        'saldo_total_bs': round(saldo_total_bs, 2),
+        'saldo_total_usd': saldo_total_usd,
+        'ajuste_diferencial_cambiario': ajuste_diferencial
+    }
+
 
 
