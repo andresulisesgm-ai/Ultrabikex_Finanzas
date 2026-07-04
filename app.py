@@ -5077,6 +5077,43 @@ def export_ai():
                 lines.append(f"| {clave} | {val:,.0f} |")
             lines.append('')
 
+    # ── COMPARATIVA POR UNIDAD ────────────────────────────────────────────────
+    if tipo == 'comparativa':
+        lines.append('## COMPARATIVA DE UNIDADES OPERATIVAS')
+        lines.append('')
+
+        from db import UNITS
+        ing_p, cos_p, gas_p = get_clasificacion(db)
+
+        # Filtro de mes si se especifica
+        mc = f"AND month='{month.upper()}'" if month else ''
+
+        # Encabezado tabla
+        lines.append('| Unidad | Ingresos | Costos | Gastos | Utilidad Neta | Margen Bruto | Margen Neto |')
+        lines.append('|---|---|---|---|---|---|---|')
+
+        for u in UNITS:
+            uc_u = f"AND unit='{u}'"
+            def usum(ps):
+                if not ps: return 0
+                ph = ','.join('?' * len(ps))
+                return db.execute(
+                    f'SELECT SUM(amount) FROM financials WHERE year=? AND partida IN ({ph}) {uc_u} {mc}',
+                    [year] + list(ps)
+                ).fetchone()[0] or 0
+
+            i = usum(ing_p)
+            c = usum(cos_p)
+            g = usum(gas_p)
+
+            if i or c or g:
+                ub = i - c
+                un = i - c - g
+                mb = (ub / i * 100) if i else 0
+                mn = (un / i * 100) if i else 0
+                lines.append(f"| {u} | {i:,.2f} | {c:,.2f} | {g:,.2f} | {un:,.2f} | {mb:.1f}% | {mn:.1f}% |")
+
+        lines.append('')
         lines.append('---')
         lines.append('')
 
