@@ -5046,10 +5046,10 @@ def export_ai():
                 valores = ' | '.join(
                     f"{meses_data.get(m, 0):,.0f}" for m in meses_disponibles
                 )
-                acum = row.get('acum_ejec', 0)
+                acum = sum(m.get('ejecutado', {}).get('valor', 0) for m in row.get('meses', []))
                 lines.append(f"| {prefix}{partida}{suffix} | {valores} | {acum:,.0f} |")
             else:
-                acum = row.get('acum_ejec', 0)
+                acum = sum(m.get('ejecutado', {}).get('valor', 0) for m in row.get('meses', []))
                 lines.append(f"| {prefix}{partida}{suffix} | {acum:,.0f} |")
 
         lines.append('')
@@ -5079,39 +5079,51 @@ def export_ai():
 
     # ── COMPARATIVA POR UNIDAD ────────────────────────────────────────────────
     if tipo == 'comparativa':
+        UNIDADES_COMPARABLES = {'Rodeo', 'Barinas', 'Naranjos', 'PiedeMonte', 'Terracota'}
+
+        if request.method == 'POST':
+            units = data.get('units') or []
+        else:
+            units = request.args.getlist('units')
+
+        units = [u for u in units if u in UNIDADES_COMPARABLES]
+        units = list(dict.fromkeys(units))
+
+        if len(units) < 2:
+            return jsonify({'error': 'Selecciona al menos 2 unidades válidas para comparar'}), 400
+
         lines.append('## COMPARATIVA DE UNIDADES OPERATIVAS')
         lines.append('')
+        lines.append('| Unidad | Ingresos | Costos | Gastos Operacionales | Otros | Utilidad Neta | Margen Bruto | Margen Neto |')
+        lines.append('|---|---|---|---|---|---|---|---|')
 
-        from db import UNITS
-        ing_p, cos_p, gas_p = get_clasificacion(db)
+        for u in units:
+            data_u = eerr_completo_v2_ui_adapter(year, u)
+            rows_u = data_u.get('rows', [])
 
-        # Filtro de mes si se especifica
-        mc = f"AND month='{month.upper()}'" if month else ''
+            def valor_partida(nombre_partida):
+                for row in rows_u:
+                    if row.get('partida', '').strip() == nombre_partida:
+                        if month:
+                            for m in row.get('meses', []):
+                                if m['month'] == month.upper():
+                                    return m.get('ejecutado', {}).get('valor', 0)
+                            return 0
+                        else:
+                            return sum(m.get('ejecutado', {}).get('valor', 0) for m in row.get('meses', []))
+                return 0
 
-        # Encabezado tabla
-        lines.append('| Unidad | Ingresos | Costos | Gastos | Utilidad Neta | Margen Bruto | Margen Neto |')
-        lines.append('|---|---|---|---|---|---|---|')
+            i = valor_partida('Total Ingresos')
+            c = valor_partida('Total Costo de Ventas')
+            ub = valor_partida('Utilidad Bruta')
+            g = valor_partida('Total Gastos Operacionales')
+            un = valor_partida('Utilidad Neta')
+            otros = ub - g - un
 
-        for u in UNITS:
-            uc_u = f"AND unit='{u}'"
-            def usum(ps):
-                if not ps: return 0
-                ph = ','.join('?' * len(ps))
-                return db.execute(
-                    f'SELECT SUM(amount) FROM financials WHERE year=? AND partida IN ({ph}) {uc_u} {mc}',
-                    [year] + list(ps)
-                ).fetchone()[0] or 0
+            mb = (ub / i * 100) if i else 0
+            mn = (un / i * 100) if i else 0
 
-            i = usum(ing_p)
-            c = usum(cos_p)
-            g = usum(gas_p)
-
-            if i or c or g:
-                ub = i - c
-                un = i - c - g
-                mb = (ub / i * 100) if i else 0
-                mn = (un / i * 100) if i else 0
-                lines.append(f"| {u} | {i:,.2f} | {c:,.2f} | {g:,.2f} | {un:,.2f} | {mb:.1f}% | {mn:.1f}% |")
+            lines.append(f"| {u} | {i:,.2f} | {c:,.2f} | {g:,.2f} | {otros:,.2f} | {un:,.2f} | {mb:.1f}% | {mn:.1f}% |")
 
         lines.append('')
         lines.append('---')

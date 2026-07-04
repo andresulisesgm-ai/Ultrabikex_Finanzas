@@ -698,10 +698,7 @@ input[type=file]{display:none;}
 
   <!-- EXPORTAR BRIEFING IA -->
 <div class="page" id="page-export_ai">
-  <div class="tbar">
-    <div style="font-size:12px;font-weight:700">Exportar Briefing IA</div>
-  </div>
-  <div style="padding:24px;display:grid;grid-template-columns:1fr 1.2fr;gap:16px;max-width:1150px">
+  <div style="padding:24px;display:grid;grid-template-columns:1fr 1.2fr;gap:16px;max-width:1150px;margin:0 auto">
 
     <!-- columna izquierda: configuracion + resumen -->
     <div style="display:flex;flex-direction:column;gap:16px">
@@ -739,15 +736,27 @@ input[type=file]{display:none;}
 
         <div style="margin-bottom:16px">
           <label style="font-size:11px;color:var(--mu);display:block;margin-bottom:6px">Alcance</label>
-          <select id="ai-unit" onchange="updateAiBriefingPreview()" style="width:100%;font-size:12px;padding:6px 10px;border:0.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);height:34px">
-            <option value="">Consolidado grupo</option>
-            <option value="Rodeo">Rodeo</option>
-            <option value="Barinas">Barinas</option>
-            <option value="Naranjos">Naranjos</option>
-            <option value="PiedeMonte">PiedeMonte</option>
-            <option value="Terracota">Terracota</option>
-            <option value="Ucafe">Ucafe</option>
-          </select>
+          <div id="ai-unit-wrapper">
+            <select id="ai-unit" onchange="updateAiBriefingPreview()" style="width:100%;font-size:12px;padding:6px 10px;border:0.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);height:34px">
+              <option value="">Consolidado grupo</option>
+              <option value="Rodeo">Rodeo</option>
+              <option value="Barinas">Barinas</option>
+              <option value="Naranjos">Naranjos</option>
+              <option value="PiedeMonte">PiedeMonte</option>
+              <option value="Terracota">Terracota</option>
+              <option value="Ucafe">Ucafe</option>
+            </select>
+          </div>
+          <div id="ai-units-comparativa-wrapper" style="display:none">
+            <div style="font-size:10px;color:var(--mu);margin-bottom:6px">Selecciona 2 o más unidades a comparar</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <label style="display:flex;align-items:center;gap:8px;font-size:12px"><input type="checkbox" class="ai-unit-check" value="Rodeo" onchange="updateAiBriefingPreview()"> Rodeo</label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:12px"><input type="checkbox" class="ai-unit-check" value="Barinas" onchange="updateAiBriefingPreview()"> Barinas</label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:12px"><input type="checkbox" class="ai-unit-check" value="Naranjos" onchange="updateAiBriefingPreview()"> Naranjos</label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:12px"><input type="checkbox" class="ai-unit-check" value="PiedeMonte" onchange="updateAiBriefingPreview()"> PiedeMonte</label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:12px"><input type="checkbox" class="ai-unit-check" value="Terracota" onchange="updateAiBriefingPreview()"> Terracota</label>
+            </div>
+          </div>
         </div>
 
         <div>
@@ -2637,8 +2646,8 @@ function showPage(name,el){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   G('page-'+name).classList.add('active');
   if(el) el.classList.add('active');
-  const T={dashboard:'Dashboard Financiero',carga:'Cargar Reportes',historial:'Historial de Cargas',mapping:'Mapeo de Cuentas',datos:'Ver Datos',backup:'Backup y Restaurar',comparativa:'Comparativas',eerr:'Estados de Resultados (EERR)',eerrdet:'ERR Detallado',esf:'Estado de Situación Financiera (ESF)',presupuesto:'Presupuesto vs Real',config_tasas:'Configuración de Tasas',err_divisa:'Estados de Resultados Divisa Real (EERR)',esf_divisa:'ESF Divisa Real'};
-  const S={dashboard:'Estado de resultados consolidado',carga:'Importar XLS de Odoo',historial:'Auditoría y reversión',mapping:'Configuración de cuentas contables',datos:'Explorador de datos',backup:'Gestión de copias de seguridad',comparativa:'Mismo período vs año anterior',eerr:'P&L estructurado por partida',eerrdet:'Desglose por tipo de ingreso + ACUM EJEC',esf:'Balance trimestral Q1–Q4',presupuesto:'Real vs valores presupuestados',config_tasas:'Tasas BCV/Paralela y métodos de pago por cuenta',esf_divisa:'Revalorización trimestral de efectivo en Bs'};
+  const T={dashboard:'Dashboard Financiero',carga:'Cargar Reportes',historial:'Historial de Cargas',mapping:'Mapeo de Cuentas',datos:'Ver Datos',backup:'Backup y Restaurar',comparativa:'Comparativas',eerr:'Estados de Resultados (EERR)',eerrdet:'ERR Detallado',esf:'Estado de Situación Financiera (ESF)',presupuesto:'Presupuesto vs Real',config_tasas:'Configuración de Tasas',err_divisa:'Estados de Resultados Divisa Real (EERR)',esf_divisa:'ESF Divisa Real',export_ai:'Exportar Briefing IA'};
+  const S={dashboard:'Estado de resultados consolidado',carga:'Importar XLS de Odoo',historial:'Auditoría y reversión',mapping:'Configuración de cuentas contables',datos:'Explorador de datos',backup:'Gestión de copias de seguridad',comparativa:'Mismo período vs año anterior',eerr:'P&L estructurado por partida',eerrdet:'Desglose por tipo de ingreso + ACUM EJEC',esf:'Balance trimestral Q1–Q4',presupuesto:'Real vs valores presupuestados',config_tasas:'Tasas BCV/Paralela y métodos de pago por cuenta',esf_divisa:'Revalorización trimestral de efectivo en Bs',export_ai:'Generar prompt y datos para análisis con IA'};
   G('ptitle').textContent=T[name]||''; G('psub').textContent=S[name]||'';
   if(name==='dashboard'){ initDivisaToggle(); loadDash(); }
   if(name==='historial') loadHist();
@@ -2653,6 +2662,7 @@ function showPage(name,el){
   if(name==='indicadores') loadIndicadores();
   if(name==='presupuesto') loadBgt();
   if(name==='esf_divisa') loadESFDivisaReal();
+  if(name==='export_ai') cargarPromptConfigurado();
 
   const PAGES_WITH_EXCEL = ['eerr','err_divisa','esf','presupuesto','comparativa'];
   const btnExcel = document.getElementById('btn-export-excel');
@@ -4888,16 +4898,26 @@ function setAiTipo(tipo, el) {
   const lbl = el.querySelector('span:first-child');
   if (lbl) lbl.style.color = 'var(--green)';
   const unitSel = document.getElementById('ai-unit');
-  if (unitSel) {
-    if (tipo === 'esf' || tipo === 'comparativa') {
-      unitSel.value = '';
-      unitSel.disabled = true;
-      unitSel.style.opacity = '0.4';
-      unitSel.style.cursor = 'not-allowed';
-    } else {
-      unitSel.disabled = false;
-      unitSel.style.opacity = '1';
-      unitSel.style.cursor = 'pointer';
+  const unitWrapper = document.getElementById('ai-unit-wrapper');
+  const unitsCompWrapper = document.getElementById('ai-units-comparativa-wrapper');
+
+  if (tipo === 'comparativa') {
+    if (unitWrapper) unitWrapper.style.display = 'none';
+    if (unitsCompWrapper) unitsCompWrapper.style.display = 'block';
+  } else {
+    if (unitWrapper) unitWrapper.style.display = 'block';
+    if (unitsCompWrapper) unitsCompWrapper.style.display = 'none';
+    if (unitSel) {
+      if (tipo === 'esf') {
+        unitSel.value = '';
+        unitSel.disabled = true;
+        unitSel.style.opacity = '0.4';
+        unitSel.style.cursor = 'not-allowed';
+      } else {
+        unitSel.disabled = false;
+        unitSel.style.opacity = '1';
+        unitSel.style.cursor = 'pointer';
+      }
     }
   }
   updateAiBriefingPreview();
@@ -4993,33 +5013,47 @@ async function cargarPromptConfigurado() {
   }
 }
 
+function getSelectedComparativaUnits() {
+  return Array.from(document.querySelectorAll('.ai-unit-check:checked')).map(cb => cb.value);
+}
+
 async function downloadAiBriefing() {
   const year  = document.getElementById('ai-year').value;
   const month = document.getElementById('ai-month').value;
-  const unit  = document.getElementById('ai-unit').value;
   const tipo  = aiTipoActual;
   const prompt_text = document.getElementById('ai-prompt-editor').value;
+
+  let unit = '';
+  let units = [];
+
+  if (tipo === 'comparativa') {
+    units = getSelectedComparativaUnits();
+    if (units.length < 2) {
+      alert('Selecciona al menos 2 unidades para comparar.');
+      return;
+    }
+  } else {
+    unit = document.getElementById('ai-unit').value;
+  }
 
   try {
     const r = await fetch('/api/export/ai', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ year, month, unit, tipo, prompt_text })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ year, month, unit, units, tipo, prompt_text })
     });
     if (!r.ok) { alert('Error al generar el briefing. Verifica los datos seleccionados.'); return; }
     const blob = await r.blob();
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
     const cd = r.headers.get('Content-Disposition') || '';
-    const match = cd.match(/filename="([^"]+)"/);
+    const match = cd.match(/filename="?([^"]+)"?/);
+    a.href = URL.createObjectURL(blob);
     a.download = match ? match[1] : 'ultrax_briefing.md';
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
+    a.remove();
     URL.revokeObjectURL(a.href);
-  } catch(e) {
+  } catch (e) {
     alert('Error de conexion al generar el briefing.');
   }
 }
