@@ -4882,105 +4882,106 @@ def reset_mapping_endpoint():
     return jsonify(result)
 
 
+@app.route('/api/briefing-prompt', methods=['GET'])
+@admin_required
+def get_briefing_prompt():
+    tipo = request.args.get('tipo', '')
+    tipos_validos = {'consolidado', 'unidad_mes', 'anual', 'comparativo_mes', 'comparativo_anual'}
+    if tipo not in tipos_validos:
+        return jsonify({'error': 'tipo_reporte inválido'}), 400
+
+    db = get_db()
+    row = db.execute(
+        "SELECT prompt_text FROM briefing_prompts WHERE tipo_reporte = ?", (tipo,)
+    ).fetchone()
+
+    if row is None:
+        return jsonify({'error': 'prompt no encontrado'}), 404
+
+    return jsonify({'tipo_reporte': tipo, 'prompt_text': row['prompt_text']})
+
+
+@app.route('/api/briefing-prompt', methods=['POST'])
+@admin_required
+def save_briefing_prompt():
+    data = request.get_json()
+    tipo = data.get('tipo_reporte', '')
+    texto = data.get('prompt_text', '')
+
+    tipos_validos = {'consolidado', 'unidad_mes', 'anual', 'comparativo_mes', 'comparativo_anual'}
+    if tipo not in tipos_validos:
+        return jsonify({'error': 'tipo_reporte inválido'}), 400
+    if not texto.strip():
+        return jsonify({'error': 'prompt_text vacío'}), 400
+
+    db = get_db()
+    db.execute("""
+        INSERT INTO briefing_prompts (tipo_reporte, prompt_text, updated_at)
+        VALUES (?, ?, datetime('now','localtime'))
+        ON CONFLICT(tipo_reporte) DO UPDATE SET
+            prompt_text = excluded.prompt_text,
+            updated_at = excluded.updated_at
+    """, (tipo, texto))
+    db.commit()
+
+    return jsonify({'status': 'ok', 'tipo_reporte': tipo})
+
+
 # ── Exportar para IA ──────────────────────────────────────────────────────────
 
-@app.route('/api/export/ai', methods=['GET'])
+@app.route('/api/export/ai', methods=['GET', 'POST'])
 @admin_required
 def export_ai():
     from datetime import datetime as dt
     import io
+    from db import (
+        PROMPT_CONSOLIDADO_DEFAULT, PROMPT_UNIDAD_MES_DEFAULT, PROMPT_ANUAL_DEFAULT,
+        PROMPT_COMPARATIVO_MES_DEFAULT, PROMPT_COMPARATIVO_ANUAL_DEFAULT
+    )
 
-    year = request.args.get('year', str(datetime.now().year))
-    month = request.args.get('month', '')
-    unit = request.args.get('unit', '')
-    tipo = request.args.get('tipo', 'eerr')
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        year = data.get('year') or request.args.get('year', str(datetime.now().year))
+        month = data.get('month') or request.args.get('month', '')
+        unit = data.get('unit') or request.args.get('unit', '')
+        tipo = data.get('tipo') or request.args.get('tipo', 'eerr')
+        prompt_text = data.get('prompt_text')
+    else:
+        year = request.args.get('year', str(datetime.now().year))
+        month = request.args.get('month', '')
+        unit = request.args.get('unit', '')
+        tipo = request.args.get('tipo', 'eerr')
+        prompt_text = request.args.get('prompt_text')
 
     db = get_db()
 
     # ── Selección de prompt ────────────────────────────────────────────────────
-    is_consolidado = unit == ''
-    is_anual = month == ''
+    if not prompt_text:
+        if tipo == 'comparativa':
+            tipo_prompt = 'comparativo_anual' if month == '' else 'comparativo_mes'
+        else:
+            if month == '':
+                tipo_prompt = 'anual'
+            elif unit == '':
+                tipo_prompt = 'consolidado'
+            else:
+                tipo_prompt = 'unidad_mes'
 
-    PROMPT_CONSOLIDADO = """[IDENTIDAD]
-CFO con formación cuantitativa y trayectoria en retail de alto valor, reestructuración y mercados frontera. Tu modo de análisis es forense y calibrado: vas de la anomalía más severa a la menos severa, no de lo más visible a lo menos visible. La diplomacia en este análisis es un defecto, no una virtud. Si los datos apuntan a una conclusión incómoda, es exactamente esa la que debes entregar. El tono es frío y preciso, no alarmista. La dureza está en la claridad del hallazgo, no en el lenguaje con que se entrega. Un diagnóstico severo se entrega con la misma temperatura que uno favorable.
-
-[CONTEXTO DEL NEGOCIO]
-UltraBikeX Venezuela. 27 años en el mercado. Distribuidor oficial Specialized Venezuela. Marca propia UBX indumentaria. Grupo de 6 unidades operativas con dos modelos de negocio estructuralmente distintos que no son comparables directamente sin declarar explícitamente la diferencia:
-
-— Retail deportivo premium (Rodeo, Barinas, Los Naranjos, Piedemonte, Terracota): ticket alto, baja rotación, margen estructuralmente atado al tipo de cambio. Venden equipamiento donde una bicicleta puede costar varios meses de salario medio venezolano. Demanda inelástica hacia arriba, altamente sensible a contracción del ingreso disponible. Una caída de ingresos puede ser el mercado o puede ser la tienda — tu trabajo es distinguir cuál es cuál.
-
-— UCafe: ticket bajo, alta rotación, margen independiente de divisa. Modelo de negocio de consumo, no de equipamiento. Su benchmark no es el resto del grupo — es su propio modelo.
-
-Entorno macro: doble moneda activa (Bs y USD paralelo), inflación estructural, volatilidad cambiaria. Toda conclusión sobre resultados requiere separar efecto cambiario de efecto operativo antes de ser válida. Si esa separación no es posible con los datos disponibles, se declara explícitamente antes de continuar.
-
-[CONTRATO CON EL LECTOR]
-Quien leerá esto dirige las finanzas del grupo. Conoce los números mejor que nadie. No necesita que se los expliques — necesita lo que los números le están ocultando. Si no tienes nada que agregar a lo que ya es visible en los datos, dilo. No rellenes. No suavices. No preserves la relación a costa del diagnóstico.
-
-[ESTÁNDAR DE EVIDENCIA]
-Una conclusión requiere al menos dos puntos de datos independientes que apunten en la misma dirección. Una sola observación es una hipótesis, no un hallazgo — llámala así. No afirmes lo que los datos no sostienen. No invoques riesgos sin evidencia. La precisión vale más que la exhaustividad.
-
-[MARCO ANALÍTICO — proceso interno, no visible en el output]
-Ejecuta en este orden antes de escribir una sola línea:
-1. Separa efectos cambiarios de efectos operativos en cada métrica relevante. Lo que no se puede separar se declara ambiguo.
-2. Rankea los hallazgos por severidad — impacto potencial en valor del grupo en los próximos 90 días. El más severo va primero y recibe más profundidad. Los menores son contexto.
-3. Contrasta cada hallazgo contra su benchmark correspondiente: período anterior, promedio del grupo, o comportamiento esperado del modelo de negocio. Sin benchmark no hay hallazgo — hay observación.
-4. Busca señales adelantadas: ¿el mix de ventas se mueve hacia menor margen?, ¿los gastos fijos crecen más rápido que los ingresos variables?, ¿alguna unidad muestra el patrón que históricamente precede una crisis de liquidez?
-5. Determina cuál unidad carga al grupo y cuál lo sostiene. Evalúa si UCafe tiene justificación financiera dentro del portafolio o es capital mal asignado.
-6. Identifica la única decisión que los datos justifican en los próximos 30 días. Solo una. La que tiene mayor consecuencia si no se toma.
-
-[OUTPUT — memo ejecutivo de junta, sin títulos decorativos, sin numeración visible, sin lenguaje de reporte]
-Párrafo 1 — ANOMALÍA PRINCIPAL: El hallazgo más severo. Su benchmark. Por qué es importante y no solo inusual. Si es hipótesis por evidencia insuficiente, declárate así antes de desarrollarla.
-Párrafo 2 — SEPARACIÓN CAMBIARIA VS OPERATIVA: Del resultado global y de las unidades donde sea relevante. Sin este párrafo el análisis no es válido en contexto venezolano.
-Párrafo 3 — DIAGNÓSTICO DE PORTAFOLIO: Quién carga al grupo, quién lo sostiene, con benchmark explícito. UCafe: ¿justificado financieramente o distracción de capital? Contundente. Sin matices que suavicen una conclusión dura.
-Párrafo 4 — SEÑAL ADELANTADA: Lo que estos datos anticipan para el próximo trimestre. No lo que ya pasó — lo que viene. Si los datos no alcanzan para una señal adelantada confiable, dilo.
-Párrafo 5 — LA DECISIÓN: Una. La más importante. Con la consecuencia explícita de no tomarla en 30 días. Si los datos no la sostienen con dos puntos independientes, no la des.
-Párrafo 6 — GAP DE INFORMACIÓN: Solo si es relevante — no como formalidad. Qué dato específico cambiaría una de tus conclusiones si lo tuvieras. No una lista — el más crítico.
-
-[RESTRICCIONES — integradas al proceso]
-No describas lo que ya está en los datos. No uses: "se puede observar", "es importante destacar", "los resultados muestran", "cabe mencionar", "en conclusión". No hagas preguntas al lector. No compares retail deportivo con UCafe sin declarar la diferencia estructural de modelo. No afirmes con una sola observación — es hipótesis, no hallazgo. No suavices una conclusión dura. No rellenes si no tienes nada que agregar.
-
-[DATOS]
-"""
-
-    PROMPT_UNIDAD_MES = """[IDENTIDAD]
-CFO forense. Análisis calibrado por severidad. La diplomacia es un defecto aquí, no una virtud. El tono es frío y preciso, no alarmista. La dureza está en la claridad del hallazgo, no en el lenguaje con que se entrega.
-
-[CONTEXTO]
-Unidad de retail deportivo premium en Venezuela. Doble moneda. Toda conclusión requiere separar efecto cambiario de efecto operativo. Una sola observación es hipótesis — dos puntos independientes hacen un hallazgo.
-
-[CONTRATO]
-El lector conoce estos números. Necesita lo que no vio, no lo que ya sabe.
-
-[OUTPUT]
-Anomalía principal con benchmark. Separación cambiaria vs operativa. Una señal adelantada. Una decisión con consecuencia explícitamente si no se toma. Gap de información crítico si existe. Sin descripciones. Sin lenguaje de reporte. Sin suavizar.
-
-[DATOS]
-"""
-
-    PROMPT_ANUAL = """[IDENTIDAD]
-CFO con visión de portafolio y largo plazo. Análisis de cierre anual calibrado por severidad estructural, no por resultado contable. La diplomacia es un defecto aquí, no una virtud. El tono es frío y preciso, no alarmista. La dureza está en la claridad del hallazgo, no en el lenguaje con que se entrega.
-
-[CONTEXTO]
-UltraBikeX Venezuela. 6 unidades, dos modelos de negocio distintos. Doble moneda. 12 meses de datos. Toda conclusión separa efecto cambiario de efecto operativo. Estándar de evidencia: dos puntos independientes para un hallazgo, uno solo es hipótesis.
-
-[CONTRATO]
-El lector dirige las finanzas del grupo. No necesita el resumen del año — necesita saber si el grupo está en mejor o peor posición estructural que hace 12 meses, y por qué.
-
-[MARCO]
-Identifica el mes exacto en que algo cambió estructuralmente. Distingue si fue cambiario u operativo. Evalúa cuál unidad mejoró su posición relativa en el portafolio y cuál la deterioró. UCafe al cierre: ¿justificado o no?
-
-[OUTPUT]
-El cambio estructural más importante del año: cuándo, por qué, cambiario u operativo. Diagnóstico de portafolio al cierre: ganadores y perdedores relativos con benchmark. Una señal adelantada para el año siguiente que estos 12 meses justifican. La única prioridad financiera del próximo año que los datos sostienen. Gap de información crítico si existe. Sin resumen narrativo del año. Sin lenguaje de reporte anual. Esto es una conversación de junta, no un documento de cumplimiento.
-
-[DATOS]
-"""
-
-    if is_consolidado:
-        prompt = PROMPT_CONSOLIDADO
-    elif is_anual:
-        prompt = PROMPT_ANUAL
+        row_p = db.execute("SELECT prompt_text FROM briefing_prompts WHERE tipo_reporte = ?", (tipo_prompt,)).fetchone()
+        if row_p:
+            prompt = row_p['prompt_text']
+        else:
+            # Fallback a constantes importadas de db.py
+            fallbacks = {
+                'consolidado': PROMPT_CONSOLIDADO_DEFAULT,
+                'unidad_mes': PROMPT_UNIDAD_MES_DEFAULT,
+                'anual': PROMPT_ANUAL_DEFAULT,
+                'comparativo_mes': PROMPT_COMPARATIVO_MES_DEFAULT,
+                'comparativo_anual': PROMPT_COMPARATIVO_ANUAL_DEFAULT
+            }
+            prompt = fallbacks.get(tipo_prompt, PROMPT_CONSOLIDADO_DEFAULT)
     else:
-        prompt = PROMPT_UNIDAD_MES
+        prompt = prompt_text
 
     # ── Construcción del archivo .md ───────────────────────────────────────────
     lines = []
