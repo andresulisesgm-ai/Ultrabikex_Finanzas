@@ -4960,10 +4960,10 @@ def export_ai():
         if tipo == 'comparativa':
             tipo_prompt = 'comparativo_anual' if month == '' else 'comparativo_mes'
         else:
-            if month == '':
-                tipo_prompt = 'anual'
-            elif unit == '':
+            if unit == '':
                 tipo_prompt = 'consolidado'
+            elif month == '':
+                tipo_prompt = 'anual'
             else:
                 tipo_prompt = 'unidad_mes'
 
