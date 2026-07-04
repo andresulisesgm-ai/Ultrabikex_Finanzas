@@ -3127,7 +3127,15 @@ def get_tasas():
             return jsonify({'error': 'No hay tasas configuradas para este período'}), 404
         return jsonify(dict(row))
     else:
-        rows = db.execute('SELECT * FROM tasas_periodo ORDER BY year DESC, month DESC').fetchall()
+        rows = db.execute('''
+            SELECT * FROM tasas_periodo
+            ORDER BY year DESC,
+            CASE month
+                WHEN 'ENE' THEN 1 WHEN 'FEB' THEN 2 WHEN 'MAR' THEN 3 WHEN 'ABR' THEN 4
+                WHEN 'MAY' THEN 5 WHEN 'JUN' THEN 6 WHEN 'JUL' THEN 7 WHEN 'AGO' THEN 8
+                WHEN 'SEPT' THEN 9 WHEN 'OCT' THEN 10 WHEN 'NOV' THEN 11 WHEN 'DIC' THEN 12
+            END DESC
+        ''').fetchall()
         return jsonify([dict(r) for r in rows])
 
 

@@ -3642,6 +3642,12 @@ async function guardarTasas(){
   if(!bcvIni||!bcvFin||!parIni||!parFin){showA('al-tasas-er','❌ Completa todas las tasas (inicio y fin)');return;}
   if(bcvIni<=0||bcvFin<=0){showA('al-tasas-er','❌ Tasas BCV deben ser mayores a 0');return;}
 
+  const chk=await fetch(`/api/tasas?year=${year}&month=${month}`);
+  if(chk.ok){
+    const ok=confirm(`Ya existe una tasa guardada para ${month} ${year}. ¿Deseas reemplazarla?`);
+    if(!ok)return;
+  }
+
   const r=await fetch('/api/tasas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
     year,month,
     tasa_bcv_inicio:bcvIni,
@@ -3691,12 +3697,22 @@ async function cargarHistorialTasas() {
         <td>${t.tasa_bcv_promedio.toFixed(4)}</td>
         <td>${t.tasa_paralela_promedio.toFixed(4)}</td>
         <td>${t.factor_diferencial.toFixed(4)}</td>
-        <td><button class="btnd" onclick="eliminarTasa(${t.id})">🗑 Borrar</button></td>
+        <td>
+          <button class="btnm" onclick="editarTasa('${t.year}','${t.month}')">✏ Editar</button>
+          <button class="btnd" onclick="eliminarTasa(${t.id})">🗑 Borrar</button>
+        </td>
       </tr>
     `).join('');
   } catch {
     G('tasas-historial-loading').textContent = 'Error al cargar.';
   }
+}
+
+async function editarTasa(year, month){
+  G('tasas-year').value = year;
+  G('tasas-month').value = month;
+  await cargarTasas();
+  G('tasas-year').scrollIntoView({behavior:'smooth', block:'center'});
 }
 
 async function eliminarTasa(id) {
@@ -5846,6 +5862,13 @@ document.addEventListener('click', (e) => {
       panel.style.display = 'none';
     }
   }
+});
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  const meses=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC'];
+  const mesActual=meses[new Date().getMonth()];
+  const sel=G('tasas-month');
+  if(sel) sel.value=mesActual;
 });
 </script>
 <div id="traza-panel">
