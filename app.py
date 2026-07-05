@@ -4827,49 +4827,6 @@ def calcular_subtotales_jerarquicos_v2(eerr_structure, by_partida, month, ing_p,
         subtotales[partida_name] = total
     return subtotales
 
-# DEAD CODE — sin llamador confirmado. Frontend usa /api/eerr/completo. Pendiente eliminar.
-@app.route('/api/eerr/completo_v2', methods=['GET'])
-def eerr_completo_v2():
-    """
-    DEAD CODE — Versión 2 del EERR: Basada íntegramente en la Matriz Maestra (mapping_groups_v2).
-    Sin llamador confirmado. Frontend usa /api/eerr/completo. Pendiente eliminar en sesión dedicada.
-    """
-    year = request.args.get('year', str(datetime.now().year))
-    unit = request.args.get('unit', '')
-
-    # Obtenemos los datos desde el adaptador común para asegurar que no haya descuadres
-    data = eerr_completo_v2_ui_adapter(year, unit)
-
-    # Reformateamos los datos al contrato simplificado esperado por V2
-    rows = []
-    for r in data['rows']:
-        meses_data = []
-        acum_ejec = 0
-        for m_data in r['meses']:
-            val_ejec = m_data['ejecutado']['valor']
-            acum_ejec += val_ejec
-            meses_data.append({
-                'month': m_data['month'],
-                'ejecutado': {'valor': val_ejec}
-            })
-        rows.append({
-            'partida': r['partida'],
-            'is_header': r['is_header'],
-            'bold': r['bold'],
-            'bg_color': r['bg_color'],
-            'es_nota': r.get('es_nota', False),
-            'meses': meses_data,
-            'acum_ejec': round(acum_ejec, 2)
-        })
-
-    return jsonify({
-        'year': year,
-        'unit': unit,
-        'rows': rows
-    })
-
-
-
 @app.route('/api/mapping/reset', methods=['POST'])
 @admin_required
 def reset_mapping_endpoint():
