@@ -1,0 +1,15 @@
+.git
+.gitignore
+__pycache__/
+*.pyc
+data/ultrax.db
+uploads/
+flask_server.log
+integrity_guard.log
+.aider*
+.aiexclude
+.antigravignore
+.geminiignore
+~$*.xlsx
+README.md
+CLAUDE.md
