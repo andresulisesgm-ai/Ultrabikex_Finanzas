@@ -490,6 +490,17 @@ def init_db():
             updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
             UNIQUE(year, quarter)
         );
+
+        CREATE TABLE IF NOT EXISTS validation_baselines (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            year TEXT NOT NULL,
+            unit TEXT NOT NULL,
+            month TEXT NOT NULL,
+            partida TEXT NOT NULL,
+            valor_esperado REAL NOT NULL,
+            fecha_actualizacion TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+            UNIQUE(year, unit, month, partida)
+        );
     ''')
 
     _crear_tabla_briefing_prompts(conn)

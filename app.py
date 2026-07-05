@@ -2518,25 +2518,27 @@ def validate_eerr_v2_integrity(year, unit, adapter_output, db):
                         msg = f"Discrepancia de subtotal en [{name}] para el mes {m}: Valor Header={header_val:.2f}, Suma Hojas={sum_leaves:.2f} (Diff={diff:.2f})"
                         discrepancies.append(msg)
 
-    # 2. Validación contra referencia Excel (Solo Rodeo ENE 2026)
-    if year == '2026' and unit == 'Rodeo':
-        EXCEL_BASELINE = {
-            "Total Ingresos": 13800.00,
-            "Total Costo de Ventas": 9050.00,
-            "Utilidad Bruta": 4750.00,
-            "Gastos Bancarios": 30.00,
-            "Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)": 3530.00,
-            "Utilidad Neta": 3710.00
-        }
-        for row_name, expected_val in EXCEL_BASELINE.items():
-            if row_name in rows_map:
-                actual_val = rows_map[row_name]['meses'][0]['ejecutado']['valor']
+    # 2. Validación contra baseline dinámico (validation_baselines)
+    baseline_rows = db.execute(
+        'SELECT month, partida, valor_esperado FROM validation_baselines WHERE year = ? AND unit = ?',
+        [year, unit]
+    ).fetchall()
+    if baseline_rows:
+        months_in_adapter = adapter_output['rows'][0]['meses'] if adapter_output['rows'] else []
+        month_index = {m['month']: idx for idx, m in enumerate(months_in_adapter)}
+        for row in baseline_rows:
+            b_month = row['month']
+            row_name = row['partida']
+            expected_val = row['valor_esperado']
+            if row_name in rows_map and b_month in month_index:
+                idx = month_index[b_month]
+                actual_val = rows_map[row_name]['meses'][idx]['ejecutado']['valor']
                 diff = abs(actual_val - expected_val)
                 if diff > 0.05:
-                    msg = f"Descuadre contra Excel Baseline en [{row_name}]: Esperado={expected_val:.2f}, Obtenido={actual_val:.2f} (Diff={diff:.2f})"
+                    msg = f"Descuadre contra baseline validado en [{row_name}] mes {b_month}: Esperado={expected_val:.2f}, Obtenido={actual_val:.2f} (Diff={diff:.2f})"
                     discrepancies.append(msg)
-            else:
-                discrepancies.append(f"Fila obligatoria de Excel Baseline [{row_name}] no encontrada en la respuesta")
+            elif row_name not in rows_map:
+                discrepancies.append(f"Fila obligatoria de baseline [{row_name}] no encontrada en la respuesta")
 
     # 3. Validación de cuentas activas en financials sin mapear en mapping_groups_v2
     try:
