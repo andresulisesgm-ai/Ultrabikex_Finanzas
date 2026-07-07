@@ -388,6 +388,95 @@ class OdooParser:
         return MONTH_TO_QUARTER.get(month, 1)
 
 
+MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC']
+MONTH_TYPE = {
+    'ENE': 'A', 'FEB': 'B', 'MAR': 'C', 'ABR': 'B', 'MAY': 'B', 'JUN': 'D',
+    'JUL': 'B', 'AGO': 'B', 'SEPT': 'C', 'OCT': 'B', 'NOV': 'B', 'DIC': 'E'
+}
+
+def _month_subcols(tipo):
+    cols = ['Monto', '%V', '%G']
+    if tipo == 'A':
+        return cols
+    cols.append('Vari Rel.')
+    if tipo == 'E':
+        cols += ['AÑO', '%V', '%G']
+    else:
+        cols += ['ACUM EJEC', '%V', '%G']
+    if tipo in ('C', 'D', 'E'):
+        cols += ['ACUM PPTO', '%V', 'Var PPTO']
+        if tipo == 'D':
+            cols += ['PROM 6 EJEC', '%V', '%G', 'PROM 6 PPTO', '%V', 'Var PPTO']
+    return cols
+
+def _blank(v):
+    """Replica fmtZ/pctZ: 0 o None se muestra vacío."""
+    return None if (v is None or v == 0) else v
+
+def _month_values(mes_data, tipo, muestra_pct_gastos):
+    ejec = mes_data.get('ejecutado', {}) or {}
+    out = [
+        (_blank(ejec.get('valor')), 'num'),
+        (_blank(ejec.get('pct_vtas')), 'pct'),
+        (_blank(ejec.get('pct_gastos')) if muestra_pct_gastos else None, 'pct'),
+    ]
+    if tipo == 'A':
+        return out
+    out.append((_blank(mes_data.get('vari_rel')), 'pct'))
+    bloque = (mes_data.get('anio') if tipo == 'E' else mes_data.get('acum_ejecutado')) or {}
+    out += [
+        (_blank(bloque.get('valor')), 'num'),
+        (_blank(bloque.get('pct_vtas')), 'pct'),
+        (_blank(bloque.get('pct_gastos')) if muestra_pct_gastos else None, 'pct'),
+    ]
+    if tipo in ('C', 'D', 'E'):
+        ppto = mes_data.get('acum_ppto', {}) or {}
+        out += [
+            (_blank(ppto.get('valor')), 'num'),
+            (_blank(ppto.get('pct_vtas')), 'pct'),
+            (_blank(mes_data.get('var_ppto')), 'pct'),
+        ]
+        if tipo == 'D':
+            p6e = mes_data.get('prom_6_ejec', {}) or {}
+            p6p = mes_data.get('prom_6_ppto', {}) or {}
+            out += [
+                (_blank(p6e.get('valor')), 'num'),
+                (_blank(p6e.get('pct_vtas')), 'pct'),
+                (_blank(p6e.get('pct_gastos')) if muestra_pct_gastos else None, 'pct'),
+                (_blank(p6p.get('valor')), 'num'),
+                (_blank(p6p.get('pct_vtas')), 'pct'),
+                (_blank(mes_data.get('var_ppto_prom')), 'pct'),
+            ]
+    return out
+
+def _build_eerr_header(ws, months, year_prev_label, start_row=1):
+    row1, row2 = start_row, start_row + 1
+    col = 1
+    ws.cell(row=row1, column=col, value='PARTIDAS')
+    ws.merge_cells(start_row=row1, start_column=col, end_row=row2, end_column=col)
+    col += 1
+
+    ws.merge_cells(start_row=row1, start_column=col, end_row=row1, end_column=col + 2)
+    ws.cell(row=row1, column=col, value=year_prev_label)
+    for i, label in enumerate(['Valor', '%V', '%G']):
+        ws.cell(row=row2, column=col + i, value=label)
+    col += 3
+
+    month_start_cols = {}
+    for mes in months:
+        tipo = MONTH_TYPE[mes]
+        subcols = _month_subcols(tipo)
+        n = len(subcols)
+        month_start_cols[mes] = col
+        ws.merge_cells(start_row=row1, start_column=col, end_row=row1, end_column=col + n - 1)
+        ws.cell(row=row1, column=col, value=mes)
+        for i, label in enumerate(subcols):
+            ws.cell(row=row2, column=col + i, value=label)
+        col += n
+
+    return col - 1, month_start_cols
+
+
 class ExcelExporter:
     """Genera Excel del EERR usando eerr_completo_v2_ui_adapter() — subtotales como valores del engine."""
 
@@ -433,15 +522,6 @@ class ExcelExporter:
             'Utilidad después de Comisiones por Ventas'
         }
 
-        N_MONTHS     = len(self.months)
-        COL_ANUAL    = 2
-        COL_M_START  = 3
-        COL_M_END    = COL_M_START + N_MONTHS - 1
-        COL_ACUM     = COL_M_END + 1
-        COL_VAR      = COL_M_END + 2
-        COL_PVTAS    = COL_M_END + 3
-        COL_PGASTOS  = COL_M_END + 4
-
         sheets_to_build = list(self.units) + ['CONSOLIDADO']
 
         for unit in sheets_to_build:
@@ -452,41 +532,36 @@ class ExcelExporter:
             ws = wb.create_sheet(unit)
             ws.sheet_view.showGridLines = False
 
-            last_col = get_column_letter(COL_PGASTOS)
-            ws.merge_cells(f'A1:{last_col}1')
+            year_prev_label = str(int(self.year) - 1)
+            last_col, month_start_cols = _build_eerr_header(ws, self.months, year_prev_label, start_row=2)
+
+            ws.merge_cells(f'A1:{get_column_letter(last_col)}1')
             title = ws['A1']
             title.value     = f'ESTADO DE RESULTADOS — {unit.upper()} — {self.year}'
             title.font      = Font(name='Arial', bold=True, color='FFFFFF', size=12)
             title.fill      = HDR_FILL
             title.alignment = Alignment(horizontal='center', vertical='center')
             ws.row_dimensions[1].height = 24
-
             ws.row_dimensions[2].height = 20
-            headers = ['PARTIDAS', 'ANUAL'] + list(self.months) + ['ACUM EJEC', '%VAR', '%VTAS', '%GASTOS']
-            for col_idx, h in enumerate(headers, 1):
-                cell = ws.cell(row=2, column=col_idx, value=h)
-                cell.font      = WHITE_FONT
-                cell.fill      = SUB_FILL
-                cell.alignment = Alignment(horizontal='center', vertical='center')
-                cell.border    = border
+            ws.row_dimensions[3].height = 20
 
             ws.column_dimensions['A'].width = 52
-            ws.column_dimensions['B'].width = 14
-            for ci in range(COL_M_START, COL_M_END + 1):
+            for ci in range(2, 5):
                 ws.column_dimensions[get_column_letter(ci)].width = 11
-            ws.column_dimensions[get_column_letter(COL_ACUM)].width    = 14
-            ws.column_dimensions[get_column_letter(COL_VAR)].width     = 9
-            ws.column_dimensions[get_column_letter(COL_PVTAS)].width   = 9
-            ws.column_dimensions[get_column_letter(COL_PGASTOS)].width = 9
+            for mes, start_c in month_start_cols.items():
+                n = len(_month_subcols(MONTH_TYPE[mes]))
+                for i in range(n):
+                    ws.column_dimensions[get_column_letter(start_c + i)].width = 11
 
-            row_num      = 3
+            row_num = 4
             partida_rows = {}
-
             for item in rows:
                 partida   = item['partida']
                 is_header = item['is_header']
                 indent    = item.get('indent', 0)
                 meses     = item.get('meses', [])
+                year_prev = item.get('year_prev', {}) or {}
+                muestra_pct_gastos = item.get('muestra_pct_gastos', False)
 
                 ws.row_dimensions[row_num].height = 16
 
@@ -497,103 +572,61 @@ class ExcelExporter:
                 else:
                     fill, fnt = WHITE_FILL, NORM_FONT
 
-                # Columna A
                 a_cell = ws.cell(row=row_num, column=1, value=partida)
                 a_cell.font      = fnt
                 a_cell.fill      = fill
                 a_cell.alignment = Alignment(vertical='center', indent=indent)
                 a_cell.border    = border
 
-                # Columnas de meses
-                for m_idx, month in enumerate(self.months):
-                    col = COL_M_START + m_idx
-                    # Buscar el mes correspondiente en la lista meses del engine
-                    mes_data = next((m for m in meses if m.get('month') == month), None)
-                    val = mes_data['ejecutado']['valor'] if mes_data else None
-                    val = val if val else None
+                yp_vals = [
+                    (_blank(year_prev.get('valor')), 'num'),
+                    (_blank(year_prev.get('pct_vtas')), 'pct'),
+                    (_blank(year_prev.get('pct_gastos')) if muestra_pct_gastos else None, 'pct'),
+                ]
+                for i, (val, fmt) in enumerate(yp_vals):
+                    if fmt == 'pct' and val is not None:
+                        val = val / 100
+                    c = ws.cell(row=row_num, column=2 + i, value=val)
+                    c.number_format = PCT_FMT if fmt == 'pct' else NUM_FMT
+                    c.font      = fnt
+                    c.fill      = fill
+                    c.alignment = Alignment(horizontal='right', vertical='center')
+                    c.border    = border
 
-                    c = ws.cell(row=row_num, column=col, value=val)
-                    c.number_format = NUM_FMT
-                    c.font          = fnt
-                    c.fill          = fill
-                    c.alignment     = Alignment(horizontal='right', vertical='center')
-                    c.border        = border
-
-                # Columna B: ANUAL = SUM(meses)
-                month_range = f'{get_column_letter(COL_M_START)}{row_num}:{get_column_letter(COL_M_END)}{row_num}'
-                b_cell = ws.cell(row=row_num, column=COL_ANUAL)
-                b_cell.value         = f'=SUM({month_range})'
-                b_cell.number_format = NUM_FMT
-                b_cell.font          = fnt
-                b_cell.fill          = fill
-                b_cell.alignment     = Alignment(horizontal='right', vertical='center')
-                b_cell.border        = border
-
-                # Columna ACUM EJEC
-                acum_cell = ws.cell(row=row_num, column=COL_ACUM)
-                acum_cell.value         = f'=B{row_num}'
-                acum_cell.number_format = NUM_FMT
-                acum_cell.font          = Font(name='Arial', size=9, italic=True, bold=is_header)
-                acum_cell.fill          = ACUM_FILL if not is_header else fill
-                acum_cell.alignment     = Alignment(horizontal='right', vertical='center')
-                acum_cell.border        = border
-
-                # Columna %VAR
-                if N_MONTHS >= 2:
-                    last_m_col  = get_column_letter(COL_M_END)
-                    prev_m_col  = get_column_letter(COL_M_END - 1)
-                    var_formula = (
-                        f'=IF(AND({prev_m_col}{row_num}<>0,{prev_m_col}{row_num}<>""),'
-                        f'({last_m_col}{row_num}-{prev_m_col}{row_num})/ABS({prev_m_col}{row_num}),"")'
-                    )
-                else:
-                    var_formula = '=""'
-                var_cell = ws.cell(row=row_num, column=COL_VAR)
-                var_cell.value         = var_formula
-                var_cell.number_format = PCT_FMT
-                var_cell.font          = Font(name='Arial', size=9)
-                var_cell.fill          = VAR_FILL if not is_header else fill
-                var_cell.alignment     = Alignment(horizontal='right', vertical='center')
-                var_cell.border        = border
+                for month in self.months:
+                    mes_data = next((m for m in meses if m.get('month') == month), {}) or {}
+                    tipo = MONTH_TYPE[month]
+                    start_c = month_start_cols[month]
+                    for i, (val, fmt) in enumerate(_month_values(mes_data, tipo, muestra_pct_gastos)):
+                        if fmt == 'pct' and val is not None:
+                            val = val / 100
+                        c = ws.cell(row=row_num, column=start_c + i, value=val)
+                        c.number_format = PCT_FMT if fmt == 'pct' else NUM_FMT
+                        c.font      = fnt
+                        c.fill      = fill
+                        c.alignment = Alignment(horizontal='right', vertical='center')
+                        c.border    = border
 
                 partida_rows[partida] = row_num
                 row_num += 1
 
-            # %VTAS y %GASTOS
-            total_ing_row = partida_rows.get('Total Ingresos')
-            total_gas_row = partida_rows.get('Total Gastos Operacionales')
-            for p, r in partida_rows.items():
-                pv = ws.cell(row=r, column=COL_PVTAS)
-                pg = ws.cell(row=r, column=COL_PGASTOS)
-                if total_ing_row:
-                    pv.value         = f'=IF(B{total_ing_row}<>0,B{r}/B{total_ing_row},"")'
-                    pv.number_format = PCT_FMT
-                if total_gas_row:
-                    pg.value         = f'=IF(B{total_gas_row}<>0,B{r}/B{total_gas_row},"")'
-                    pg.number_format = PCT_FMT
-                for c in [pv, pg]:
-                    c.font      = NORM_FONT
-                    c.border    = border
-                    c.alignment = Alignment(horizontal='right', vertical='center')
+            ws.freeze_panes = f'{get_column_letter(month_start_cols[self.months[0]])}4'
 
-            ws.freeze_panes = 'B3'
-
-            # Construir Notas y obtener mapa de filas
             notes_name, partida_month_rows = self._build_notes_sheet(wb, unit, engine_unit)
 
-            # Si hay datos en Notas, reescribir celdas de meses en EERR con fórmulas a Notas
             if partida_month_rows:
+                months_list = list(self.months)
                 for partida, r in partida_rows.items():
                     if partida in partida_month_rows:
-                        for m_idx, month in enumerate(self.months):
-                            col = COL_M_START + m_idx
+                        for month in months_list:
                             filas = partida_month_rows[partida].get(month, [])
                             if filas:
                                 refs = '+'.join(
-                                    f"'{notes_name}'!{get_column_letter(4+m_idx)}{f}"
+                                    f"'{notes_name}'!{get_column_letter(4 + months_list.index(month))}{f}"
                                     for f in filas
                                 )
-                                c = ws.cell(row=r, column=col)
+                                col_monto = month_start_cols[month]
+                                c = ws.cell(row=r, column=col_monto)
                                 c.value = f'={refs}'
                                 c.number_format = NUM_FMT
 
