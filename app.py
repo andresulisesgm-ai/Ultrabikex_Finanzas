@@ -2638,6 +2638,77 @@ def validate_eerr_v2_integrity(year, unit, adapter_output, db):
         return True, []
 
 
+def validate_esf_integrity(year, unit, esf_output, db):
+    """
+    Guarda de integridad para ESF.
+    No replica el patrón de EERR 1:1 porque la identidad Activo=Pasivo+Patrimonio
+    y el subtotal-vs-hojas se cumplen siempre por construcción algebraica en esf_engine
+    (Resultados acumulados es un plug, headers se calculan sumando hijos directos).
+    Valida lo que sí puede fallar: mapeo de cuentas y razonabilidad del plug.
+    """
+    import logging
+    logger = logging.getLogger('esf_integrity_guard')
+
+    if not logger.handlers:
+        logging.basicConfig(level=logging.INFO)
+        try:
+            fh = logging.FileHandler('integrity_guard_esf.log', encoding='utf-8')
+            fh.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+            logger.addHandler(fh)
+        except Exception:
+            pass
+
+    discrepancies = []
+
+    # 1. Cuentas activas en financials_detail (report_type='esf') sin mapear en mapping_groups_v2
+    try:
+        missing_mappings = db.execute('''
+            SELECT DISTINCT fd.odoo_code, fd.odoo_name
+            FROM financials_detail fd
+            LEFT JOIN mapping_groups_v2 mg
+                ON fd.odoo_code = mg.odoo_code AND mg.report_type = 'esf'
+            WHERE fd.report_type = 'esf' AND fd.year = ? AND mg.odoo_code IS NULL
+              AND fd.amount_sign != 0
+        ''', [year]).fetchall()
+        for r in missing_mappings:
+            msg = f"Cuenta ESF activa sin mapear en mapping_groups_v2: OdooCode='{r['odoo_code']}', Nombre='{r['odoo_name']}'"
+            discrepancies.append(msg)
+    except Exception as e:
+        discrepancies.append(f"Error al validar cuentas ESF sin mapear: {str(e)}")
+
+    # 2. Razonabilidad del plug "Resultados acumulados" (variación trimestre a trimestre)
+    rows_map = {r['partida']: r for r in esf_output.get('rows', [])}
+    res_acum = rows_map.get('Resultados acumulados')
+    total_activos = rows_map.get('TOTAL ACTIVOS')
+
+    if res_acum and total_activos:
+        quarters_present = sorted(res_acum['quarters'].keys())
+        for i in range(1, len(quarters_present)):
+            q_prev = quarters_present[i - 1]
+            q_curr = quarters_present[i]
+            val_prev = res_acum['quarters'][q_prev]
+            val_curr = res_acum['quarters'][q_curr]
+            activos_curr = total_activos['quarters'].get(q_curr, 0.0)
+
+            variacion = abs(val_curr - val_prev)
+            if activos_curr:
+                variacion_pct = variacion / abs(activos_curr)
+                if variacion_pct > 0.30:
+                    msg = (f"Salto brusco en Resultados acumulados (plug) entre Q{q_prev} y Q{q_curr}: "
+                           f"Q{q_prev}={val_prev:.2f}, Q{q_curr}={val_curr:.2f}, "
+                           f"Variación={variacion:.2f} ({variacion_pct*100:.1f}% de Total Activos)")
+                    discrepancies.append(msg)
+
+    if discrepancies:
+        logger.warning(f"--- DETECTADAS DISCREPANCIAS DE INTEGRIDAD (ESF) - Unidad={unit}, Año={year} ---")
+        for d in discrepancies:
+            logger.warning(d)
+    else:
+        logger.info(f"Integridad ESF validada exitosamente para Unidad={unit}, Año={year}. Sin descuadres.")
+
+    return discrepancies
+
+
 @app.route('/api/eerr/completo', methods=['GET'])
 def eerr_completo():
     year = request.args.get('year', str(datetime.now().year))
@@ -2684,6 +2755,10 @@ def compute_esf(db, year, unit=''):
     quarters_available = sorted([r['quarter'] for r in rows_q])
     
     res = esf_engine(year, unit)
+    try:
+        validate_esf_integrity(year, unit, res, db)
+    except Exception as e:
+        app.logger.error(f"Error al ejecutar validacion de integridad ESF: {str(e)}")
     
     result_quarters = {
         1: {'totales': {}, 'partidas': {}},
@@ -3091,6 +3166,13 @@ def esf_completo():
     
     from engine import esf_engine
     result = esf_engine(year, unit)
+
+    try:
+        db = get_db()
+        validate_esf_integrity(year, unit, result, db)
+    except Exception as e:
+        app.logger.error(f"Error al ejecutar validacion de integridad ESF: {str(e)}")
+
     return jsonify(result)
 
 
