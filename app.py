@@ -1,7 +1,9 @@
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
 import sqlite3, os, shutil, tempfile, secrets
 from datetime import datetime
-from engine import OdooParser, ExcelExporter, ESFExporter, MONTH_TO_QUARTER
+from engine import OdooParser, MONTH_TO_QUARTER
+from exporters.excel_eerr import ExcelExporter
+from exporters.excel_esf import ESFExporter
 from db import init_db, migrate_db, get_db, close_db, DB_PATH
 from auth import login_required, admin_required, verify_password, get_current_user
 
@@ -4453,7 +4455,7 @@ def comparativa():
 
 @app.route('/api/export/excel', methods=['GET'])
 def export_excel():
-    from engine import ExcelExporter
+    from exporters.excel_eerr import ExcelExporter
     year = request.args.get('year', str(datetime.now().year))
     unit = request.args.get('unit', '')
     mf   = request.args.get('month_from', '')
@@ -4476,7 +4478,7 @@ def export_excel():
 
 @app.route('/api/export/esf', methods=['GET'])
 def export_esf():
-    from engine import ESFExporter
+    from exporters.excel_esf import ESFExporter
     year = request.args.get('year', str(datetime.now().year))
     unit = request.args.get('unit', '')
     units = [unit] if unit else UNITS
