@@ -265,7 +265,7 @@ class ExcelExporter:
                             filas = partida_month_rows[partida].get(month, [])
                             if filas:
                                 refs = '+'.join(
-                                    f"'{notes_name}'!{get_column_letter(4 + months_list.index(month))}{f}"
+                                    f"'{notes_name}'!{get_column_letter(3 + months_list.index(month))}{f}"
                                     for f in filas
                                 )
                                 col_monto = month_start_cols[month]
