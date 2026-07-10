@@ -120,6 +120,51 @@ def _apply_row_grouping(ws, rows, row_num_map):
     ws.sheet_view.showOutlineSymbols = True
 
 
+# Bloque de ingresos no operativos: en EERR_STRUCTURE está posicionado lejos
+# del resto de ingresos (cerca de la sección de gastos). Para la hoja de Notas
+# se reordena visualmente aquí, sin modificar EERR_STRUCTURE ni el motor de
+# cálculo — ver Problema B, sesión jul-2026, validado contra hoja de Yocelin
+# "N EERR RODEO".
+BLOQUE_INGRESOS_NO_OPERATIVOS = [
+    'Otros Ingresos no Operacionales',
+    'Ingresos por alquileres',
+    'Ingresos por intereses',
+    'Ingresos por comisiones',
+    'Ingresos por servicios administrativos',
+    'Sobrante en ventas',
+    'Sobrante de inventarios',
+    'Ganancia en venta de activos',
+    'Ganancia por tasa cambiaria',
+    'Ganancia por diferencias en pagos',
+]
+
+# Partida después de la cual se inserta el bloque anterior.
+ANCLA_INSERCION_INGRESOS_NO_OPERATIVOS = 'Ingresos por taller'
+
+
+def _reordenar_estructura_para_notas(estructura):
+    """
+    Devuelve una copia de EERR_STRUCTURE con BLOQUE_INGRESOS_NO_OPERATIVOS
+    reinsertado inmediatamente después de ANCLA_INSERCION_INGRESOS_NO_OPERATIVOS.
+    No modifica la estructura original. Uso exclusivo de presentación en
+    exportables — el motor de cálculo sigue usando EERR_STRUCTURE tal cual.
+    """
+    bloque_set = set(BLOQUE_INGRESOS_NO_OPERATIVOS)
+    resto = [item for item in estructura if item[0] not in bloque_set]
+    bloque_tuplas = [item for item in estructura if item[0] in bloque_set]
+    bloque_ordenado = sorted(
+        bloque_tuplas,
+        key=lambda item: BLOQUE_INGRESOS_NO_OPERATIVOS.index(item[0])
+    )
+
+    resultado = []
+    for item in resto:
+        resultado.append(item)
+        if item[0] == ANCLA_INSERCION_INGRESOS_NO_OPERATIVOS:
+            resultado.extend(bloque_ordenado)
+    return resultado
+
+
 class ExcelExporter:
     """Genera Excel del EERR usando eerr_completo_v2_ui_adapter() — subtotales como valores del engine."""
 
@@ -330,7 +375,7 @@ class ExcelExporter:
         partida_month_rows = defaultdict(lambda: defaultdict(list))
         row_num = 3
 
-        for item in EERR_STRUCTURE:
+        for item in _reordenar_estructura_para_notas(EERR_STRUCTURE):
             partida_nombre = item[0]
             es_header = item[1]
             r = rows_by_partida.get(partida_nombre)
