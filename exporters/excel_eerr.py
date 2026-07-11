@@ -375,14 +375,8 @@ class ExcelExporter:
         partida_month_rows = defaultdict(lambda: defaultdict(list))
         row_num = 3
 
-        for item in _reordenar_estructura_para_notas(EERR_STRUCTURE):
-            partida_nombre = item[0]
-            es_header = item[1]
-            r = rows_by_partida.get(partida_nombre)
-            if r is None:
-                continue
-
-            ws.cell(row=row_num, column=1, value=partida_nombre).border = border
+        def _escribir_fila_notas(nombre_mostrado, r, es_header, row_num):
+            ws.cell(row=row_num, column=1, value=nombre_mostrado).border = border
             ws.cell(row=row_num, column=1).font = DARK_FONT if es_header else NORM_FONT
 
             yp = r.get('year_prev', {}).get('valor', 0)
@@ -403,7 +397,7 @@ class ExcelExporter:
                 c.alignment = Alignment(horizontal='right')
 
                 if not es_header:
-                    partida_month_rows[partida_nombre][month].append(row_num)
+                    partida_month_rows[nombre_mostrado][month].append(row_num)
 
             m_start = get_column_letter(3)
             m_end = get_column_letter(2 + N)
@@ -414,7 +408,31 @@ class ExcelExporter:
             tot.border = border
             tot.alignment = Alignment(horizontal='right')
 
+        for item in _reordenar_estructura_para_notas(EERR_STRUCTURE):
+            partida_nombre = item[0]
+            es_header = item[1]
+
+            # Se omite aquí: se muestra como "Total Gastos" justo después de
+            # "Utilidad Bruta", replicando la posición de la hoja de Yocelin.
+            if partida_nombre == 'Total Gastos Operacionales y No Operacionales':
+                continue
+
+            r = rows_by_partida.get(partida_nombre)
+            if r is None:
+                continue
+
+            _escribir_fila_notas(partida_nombre, r, es_header, row_num)
             row_num += 1
+
+            # Fila sintética "Total Gastos" — solo presentación en el exportable,
+            # no existe en EERR_STRUCTURE ni en el motor de cálculo. Reutiliza el
+            # valor ya calculado por el motor bajo 'Total Gastos Operacionales y
+            # No Operacionales' (= gastos_operacionales + otros_gastos).
+            if partida_nombre == 'Utilidad Bruta':
+                r_total_gastos = rows_by_partida.get('Total Gastos Operacionales y No Operacionales')
+                if r_total_gastos is not None:
+                    _escribir_fila_notas('Total Gastos', r_total_gastos, True, row_num)
+                    row_num += 1
 
         ws.freeze_panes = 'A3'
         return notes_sheet_name, partida_month_rows
