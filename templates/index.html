@@ -880,8 +880,6 @@ input[type=file]{display:none;}
         <div style="display:flex;gap:6px;align-items:center">
           <input type="hidden" id="esf-unit" value="">
           <select class="csel" id="esf-year" onchange="loadESF()" style="padding:5px 8px"><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option></select>
-          <button class="btns" onclick="window.location.href='/api/export/esf?year='+G('esf-year').value+(G('esf-unit').value?'&unit='+encodeURIComponent(G('esf-unit').value):'')" style="font-size:11px">↓ Excel</button>
-          <button class="btns" onclick="window.location.href='/api/export/esf/pdf?year='+G('esf-year').value+(G('esf-unit').value?'&unit='+encodeURIComponent(G('esf-unit').value):'')" style="font-size:11px">↓ PDF</button>
         </div>
       </div>
       <div class="esf-qsel" id="esf-qtabs">
