@@ -285,6 +285,13 @@ class ExcelExporter:
 
         sheets_to_build = list(self.units) + ['CONSOLIDADO']
 
+        partida_rows_by_unit = {}
+        notes_name_by_unit = {}
+        partida_month_rows_by_unit = {}
+        notes_header_rows_by_unit = {}
+        muestra_pct_gastos_cons_capture = {}
+        month_start_cols_final = None
+
         for unit in sheets_to_build:
             engine_unit = unit if unit != 'CONSOLIDADO' else ''
             data = eerr_completo_v2_ui_adapter(self.year, engine_unit)
@@ -295,6 +302,7 @@ class ExcelExporter:
 
             year_prev_label = str(int(self.year) - 1)
             last_col, month_start_cols = _build_eerr_header(ws, self.months, year_prev_label, start_row=2)
+            month_start_cols_final = month_start_cols
 
             ws.merge_cells(f'A1:{get_column_letter(last_col)}1')
             title = ws['A1']
@@ -373,66 +381,197 @@ class ExcelExporter:
 
             ws.freeze_panes = f'{get_column_letter(month_start_cols[self.months[0]])}4'
 
-            notes_name, partida_month_rows, notes_header_rows = self._build_notes_sheet(wb, unit, engine_unit)
+            partida_rows_by_unit[unit] = partida_rows
 
-            if partida_month_rows:
-                months_list = list(self.months)
-                for partida, r in partida_rows.items():
-                    if partida in partida_month_rows:
+            if unit == 'CONSOLIDADO':
+                muestra_pct_gastos_cons_capture = {item['partida']: item.get('muestra_pct_gastos', False) for item in rows}
+
+            if unit != 'CONSOLIDADO':
+                notes_name, partida_month_rows, notes_header_rows = self._build_notes_sheet(wb, unit, engine_unit)
+                notes_name_by_unit[unit] = notes_name
+                partida_month_rows_by_unit[unit] = partida_month_rows
+                notes_header_rows_by_unit[unit] = notes_header_rows
+
+                if partida_month_rows:
+                    months_list = list(self.months)
+                    for partida, r in partida_rows.items():
+                        if partida in partida_month_rows:
+                            for month in months_list:
+                                filas = partida_month_rows[partida].get(month, [])
+                                if filas:
+                                    refs = '+'.join(
+                                        f"'{notes_name}'!{get_column_letter(3 + months_list.index(month))}{f}"
+                                        for f in filas
+                                    )
+                                    col_monto = month_start_cols[month]
+                                    c = ws.cell(row=r, column=col_monto)
+                                    c.value = f'={refs}'
+                                    c.number_format = NUM_FMT
+
+                NOMBRE_NOTAS_ESPECIAL = {
+                    'Total Gastos Operacionales y No Operacionales': 'Total Gastos',
+                }
+
+                if notes_header_rows:
+                    months_list = list(self.months)
+                    for partida, r in partida_rows.items():
+                        nombre_en_notas = NOMBRE_NOTAS_ESPECIAL.get(partida, partida)
+                        notes_row = notes_header_rows.get(nombre_en_notas)
+                        if notes_row is None:
+                            continue
                         for month in months_list:
-                            filas = partida_month_rows[partida].get(month, [])
-                            if filas:
-                                refs = '+'.join(
-                                    f"'{notes_name}'!{get_column_letter(3 + months_list.index(month))}{f}"
-                                    for f in filas
-                                )
-                                col_monto = month_start_cols[month]
-                                c = ws.cell(row=r, column=col_monto)
-                                c.value = f'={refs}'
-                                c.number_format = NUM_FMT
+                            col_notas = get_column_letter(3 + months_list.index(month))
+                            ref = f"'{notes_name}'!{col_notas}{notes_row}"
+                            col_monto = month_start_cols[month]
+                            c = ws.cell(row=r, column=col_monto)
+                            c.value = f'={ref}'
+                            c.number_format = NUM_FMT
 
-            NOMBRE_NOTAS_ESPECIAL = {
-                'Total Gastos Operacionales y No Operacionales': 'Total Gastos',
-            }
+                if notes_header_rows or partida_month_rows:
+                    for partida, r in partida_rows.items():
+                        nombre_en_notas = NOMBRE_NOTAS_ESPECIAL.get(partida, partida)
+                        notes_rows_yp = set()
+                        if nombre_en_notas in notes_header_rows:
+                            notes_rows_yp.add(notes_header_rows[nombre_en_notas])
+                        elif nombre_en_notas in partida_month_rows:
+                            for filas in partida_month_rows[nombre_en_notas].values():
+                                notes_rows_yp.update(filas)
+                        if not notes_rows_yp:
+                            continue
+                        refs_yp = '+'.join(f"'{notes_name}'!B{fila}" for fila in sorted(notes_rows_yp))
+                        c_yp = ws.cell(row=r, column=2)
+                        c_yp.value = f'={refs_yp}'
+                        c_yp.number_format = NUM_FMT
 
-            if notes_header_rows:
+                # --- Subtarea 3a: %V y %G del bloque "Monto" mensual como fórmula ---
                 months_list = list(self.months)
-                for partida, r in partida_rows.items():
-                    nombre_en_notas = NOMBRE_NOTAS_ESPECIAL.get(partida, partida)
-                    notes_row = notes_header_rows.get(nombre_en_notas)
-                    if notes_row is None:
-                        continue
-                    for month in months_list:
-                        col_notas = get_column_letter(3 + months_list.index(month))
-                        ref = f"'{notes_name}'!{col_notas}{notes_row}"
-                        col_monto = month_start_cols[month]
-                        c = ws.cell(row=r, column=col_monto)
-                        c.value = f'={ref}'
-                        c.number_format = NUM_FMT
+                muestra_pct_gastos_by_partida = {item['partida']: item.get('muestra_pct_gastos', False) for item in rows}
+                gastos_totales_row = partida_rows.get('Total Gastos Operacionales y No Operacionales')
+                ti_operativos_notas_row = notes_header_rows.get('Total Ingresos Operativos') if notes_header_rows else None
 
-            if notes_header_rows or partida_month_rows:
                 for partida, r in partida_rows.items():
-                    nombre_en_notas = NOMBRE_NOTAS_ESPECIAL.get(partida, partida)
-                    notes_rows_yp = set()
-                    if nombre_en_notas in notes_header_rows:
-                        notes_rows_yp.add(notes_header_rows[nombre_en_notas])
-                    elif nombre_en_notas in partida_month_rows:
-                        for filas in partida_month_rows[nombre_en_notas].values():
-                            notes_rows_yp.update(filas)
-                    if not notes_rows_yp:
-                        continue
-                    refs_yp = '+'.join(f"'{notes_name}'!B{fila}" for fila in sorted(notes_rows_yp))
+                    segmento = PARTIDAS_DIVISOR_SEGMENTADO.get(partida)
+                    for month in months_list:
+                        start_c = month_start_cols[month]
+                        col_v = start_c + 1
+                        col_g = start_c + 2
+                        col_letter_monto = get_column_letter(start_c)
+                        monto_ref = f'{col_letter_monto}{r}'
+
+                        if partida == 'Total Ingresos':
+                            formula_v = f'=IF(AND({monto_ref}=0,{monto_ref}>=0),"",{monto_ref}/{monto_ref})'
+                            c = ws.cell(row=r, column=col_v, value=formula_v)
+                            c.number_format = PCT_FMT
+                        elif segmento is not None:
+                            hijos = SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO[segmento]
+                            den_refs = [f'{col_letter_monto}{partida_rows[h]}' for h in hijos if h in partida_rows]
+                            if den_refs:
+                                den = '(' + '+'.join(den_refs) + ')'
+                                formula_v = f'=IFERROR({monto_ref}/{den},0)'
+                                c = ws.cell(row=r, column=col_v, value=formula_v)
+                                c.number_format = PCT_FMT
+                        elif ti_operativos_notas_row is not None:
+                            col_letter_notas = get_column_letter(3 + months_list.index(month))
+                            den = f"'{notes_name}'!{col_letter_notas}{ti_operativos_notas_row}"
+                            formula_v = f'=IFERROR({monto_ref}/{den},0)'
+                            c = ws.cell(row=r, column=col_v, value=formula_v)
+                            c.number_format = PCT_FMT
+
+                        if muestra_pct_gastos_by_partida.get(partida, False) and gastos_totales_row is not None:
+                            den_ref = f'{col_letter_monto}{gastos_totales_row}'
+                            formula_g = f'=IFERROR({monto_ref}/{den_ref},0)'
+                            c = ws.cell(row=r, column=col_g, value=formula_g)
+                            c.number_format = PCT_FMT
+
+                # --- Subtarea 3b: %V y %G de ACUM EJEC y PROM 6 EJEC como fórmula ---
+                for partida, r in partida_rows.items():
+                    segmento = PARTIDAS_DIVISOR_SEGMENTADO.get(partida)
+                    for m_idx, month in enumerate(months_list):
+                        tipo = MONTH_TYPE[month]
+                        if tipo not in ('B', 'C', 'D'):
+                            continue
+                        start_c = month_start_cols[month]
+                        col_acum_v = start_c + 5
+                        col_acum_g = start_c + 6
+
+                        meses_acumulados = months_list[:m_idx + 1]
+                        monto_refs = [f'{get_column_letter(month_start_cols[mm])}{r}' for mm in meses_acumulados]
+                        monto_sum = '(' + '+'.join(monto_refs) + ')'
+
+                        if partida == 'Total Ingresos':
+                            formula_v = f'=IF(AND({monto_sum}=0,{monto_sum}>=0),"",{monto_sum}/{monto_sum})'
+                            c = ws.cell(row=r, column=col_acum_v, value=formula_v)
+                            c.number_format = PCT_FMT
+                        elif segmento is not None:
+                            hijos = SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO[segmento]
+                            den_refs = []
+                            for mm in meses_acumulados:
+                                col_letter_mm = get_column_letter(month_start_cols[mm])
+                                den_refs += [f'{col_letter_mm}{partida_rows[h]}' for h in hijos if h in partida_rows]
+                            if den_refs:
+                                den = '(' + '+'.join(den_refs) + ')'
+                                formula_v = f'=IFERROR({monto_sum}/{den},0)'
+                                c = ws.cell(row=r, column=col_acum_v, value=formula_v)
+                                c.number_format = PCT_FMT
+                        elif ti_operativos_notas_row is not None:
+                            den_refs = []
+                            for mm in meses_acumulados:
+                                col_letter_notas = get_column_letter(3 + months_list.index(mm))
+                                den_refs.append(f"'{notes_name}'!{col_letter_notas}{ti_operativos_notas_row}")
+                            den = '(' + '+'.join(den_refs) + ')'
+                            formula_v = f'=IFERROR({monto_sum}/{den},0)'
+                            c = ws.cell(row=r, column=col_acum_v, value=formula_v)
+                            c.number_format = PCT_FMT
+
+                        if muestra_pct_gastos_by_partida.get(partida, False) and gastos_totales_row is not None:
+                            den_refs_g = [f'{get_column_letter(month_start_cols[mm])}{gastos_totales_row}' for mm in meses_acumulados]
+                            den_g = '(' + '+'.join(den_refs_g) + ')'
+                            formula_g = f'=IFERROR({monto_sum}/{den_g},0)'
+                            c = ws.cell(row=r, column=col_acum_g, value=formula_g)
+                            c.number_format = PCT_FMT
+
+                        if month == 'JUN':
+                            col_prom_v = start_c + 11
+                            col_prom_g = start_c + 12
+                            c_v = ws.cell(row=r, column=col_prom_v, value=f'={get_column_letter(col_acum_v)}{r}')
+                            c_v.number_format = PCT_FMT
+                            c_g = ws.cell(row=r, column=col_prom_g, value=f'={get_column_letter(col_acum_g)}{r}')
+                            c_g.number_format = PCT_FMT
+
+            _apply_row_grouping(ws, rows, partida_rows)
+
+        # --- CONSOLIDADO: trazabilidad por suma cruzada a las 6 unidades, sin Notas propia ---
+        # No se llama a _build_notes_sheet para 'CONSOLIDADO' — no existe hoja "N EERR CONSOLIDADO".
+        # Los montos y año anterior son SUMA de las 6 hojas de unidad. Los %V/%G se calculan
+        # mirando la propia hoja CONSOLIDADO cuando el denominador es un subtotal o "Total Gastos"
+        # (esas filas ya están sumadas), y sumando cruzado las 6 Notas de unidad cuando el
+        # denominador es "Total Ingresos Operativos" (fila que solo existe en Notas de unidad).
+        if 'CONSOLIDADO' in partida_rows_by_unit:
+            ws = wb['CONSOLIDADO']
+            partida_rows_cons = partida_rows_by_unit['CONSOLIDADO']
+            months_list = list(self.months)
+            unidades_reales = list(self.units)
+            month_start_cols = month_start_cols_final
+
+            for partida, r in partida_rows_cons.items():
+                refs_yp = [f"'{u}'!B{partida_rows_by_unit[u][partida]}" for u in unidades_reales if partida in partida_rows_by_unit.get(u, {})]
+                if refs_yp:
                     c_yp = ws.cell(row=r, column=2)
-                    c_yp.value = f'={refs_yp}'
+                    c_yp.value = '=' + '+'.join(refs_yp)
                     c_yp.number_format = NUM_FMT
 
-            # --- Subtarea 3a: %V y %G del bloque "Monto" mensual como fórmula ---
-            months_list = list(self.months)
-            muestra_pct_gastos_by_partida = {item['partida']: item.get('muestra_pct_gastos', False) for item in rows}
-            gastos_totales_row = partida_rows.get('Total Gastos Operacionales y No Operacionales')
-            ti_operativos_notas_row = notes_header_rows.get('Total Ingresos Operativos') if notes_header_rows else None
+                for month in months_list:
+                    col_monto = month_start_cols[month]
+                    refs = [f"'{u}'!{get_column_letter(col_monto)}{partida_rows_by_unit[u][partida]}"
+                            for u in unidades_reales if partida in partida_rows_by_unit.get(u, {})]
+                    if refs:
+                        c = ws.cell(row=r, column=col_monto)
+                        c.value = '=' + '+'.join(refs)
+                        c.number_format = NUM_FMT
 
-            for partida, r in partida_rows.items():
+            gastos_totales_row_cons = partida_rows_cons.get('Total Gastos Operacionales y No Operacionales')
+
+            for partida, r in partida_rows_cons.items():
                 segmento = PARTIDAS_DIVISOR_SEGMENTADO.get(partida)
                 for month in months_list:
                     start_c = month_start_cols[month]
@@ -447,27 +586,33 @@ class ExcelExporter:
                         c.number_format = PCT_FMT
                     elif segmento is not None:
                         hijos = SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO[segmento]
-                        den_refs = [f'{col_letter_monto}{partida_rows[h]}' for h in hijos if h in partida_rows]
+                        den_refs = [f'{col_letter_monto}{partida_rows_cons[h]}' for h in hijos if h in partida_rows_cons]
                         if den_refs:
                             den = '(' + '+'.join(den_refs) + ')'
                             formula_v = f'=IFERROR({monto_ref}/{den},0)'
                             c = ws.cell(row=r, column=col_v, value=formula_v)
                             c.number_format = PCT_FMT
-                    elif ti_operativos_notas_row is not None:
+                    else:
                         col_letter_notas = get_column_letter(3 + months_list.index(month))
-                        den = f"'{notes_name}'!{col_letter_notas}{ti_operativos_notas_row}"
-                        formula_v = f'=IFERROR({monto_ref}/{den},0)'
-                        c = ws.cell(row=r, column=col_v, value=formula_v)
-                        c.number_format = PCT_FMT
+                        den_refs = []
+                        for u in unidades_reales:
+                            nh = notes_header_rows_by_unit.get(u, {})
+                            tio_row_u = nh.get('Total Ingresos Operativos')
+                            if tio_row_u is not None:
+                                den_refs.append(f"'{notes_name_by_unit[u]}'!{col_letter_notas}{tio_row_u}")
+                        if den_refs:
+                            den = '(' + '+'.join(den_refs) + ')'
+                            formula_v = f'=IFERROR({monto_ref}/{den},0)'
+                            c = ws.cell(row=r, column=col_v, value=formula_v)
+                            c.number_format = PCT_FMT
 
-                    if muestra_pct_gastos_by_partida.get(partida, False) and gastos_totales_row is not None:
-                        den_ref = f'{col_letter_monto}{gastos_totales_row}'
+                    if muestra_pct_gastos_cons_capture.get(partida, False) and gastos_totales_row_cons is not None:
+                        den_ref = f'{col_letter_monto}{gastos_totales_row_cons}'
                         formula_g = f'=IFERROR({monto_ref}/{den_ref},0)'
                         c = ws.cell(row=r, column=col_g, value=formula_g)
                         c.number_format = PCT_FMT
 
-            # --- Subtarea 3b: %V y %G de ACUM EJEC (acumulado hasta el mes) y PROM 6 EJEC como fórmula ---
-            for partida, r in partida_rows.items():
+            for partida, r in partida_rows_cons.items():
                 segmento = PARTIDAS_DIVISOR_SEGMENTADO.get(partida)
                 for m_idx, month in enumerate(months_list):
                     tipo = MONTH_TYPE[month]
@@ -490,24 +635,29 @@ class ExcelExporter:
                         den_refs = []
                         for mm in meses_acumulados:
                             col_letter_mm = get_column_letter(month_start_cols[mm])
-                            den_refs += [f'{col_letter_mm}{partida_rows[h]}' for h in hijos if h in partida_rows]
+                            den_refs += [f'{col_letter_mm}{partida_rows_cons[h]}' for h in hijos if h in partida_rows_cons]
                         if den_refs:
                             den = '(' + '+'.join(den_refs) + ')'
                             formula_v = f'=IFERROR({monto_sum}/{den},0)'
                             c = ws.cell(row=r, column=col_acum_v, value=formula_v)
                             c.number_format = PCT_FMT
-                    elif ti_operativos_notas_row is not None:
+                    else:
                         den_refs = []
                         for mm in meses_acumulados:
                             col_letter_notas = get_column_letter(3 + months_list.index(mm))
-                            den_refs.append(f"'{notes_name}'!{col_letter_notas}{ti_operativos_notas_row}")
-                        den = '(' + '+'.join(den_refs) + ')'
-                        formula_v = f'=IFERROR({monto_sum}/{den},0)'
-                        c = ws.cell(row=r, column=col_acum_v, value=formula_v)
-                        c.number_format = PCT_FMT
+                            for u in unidades_reales:
+                                nh = notes_header_rows_by_unit.get(u, {})
+                                tio_row_u = nh.get('Total Ingresos Operativos')
+                                if tio_row_u is not None:
+                                    den_refs.append(f"'{notes_name_by_unit[u]}'!{col_letter_notas}{tio_row_u}")
+                        if den_refs:
+                            den = '(' + '+'.join(den_refs) + ')'
+                            formula_v = f'=IFERROR({monto_sum}/{den},0)'
+                            c = ws.cell(row=r, column=col_acum_v, value=formula_v)
+                            c.number_format = PCT_FMT
 
-                    if muestra_pct_gastos_by_partida.get(partida, False) and gastos_totales_row is not None:
-                        den_refs_g = [f'{get_column_letter(month_start_cols[mm])}{gastos_totales_row}' for mm in meses_acumulados]
+                    if muestra_pct_gastos_cons_capture.get(partida, False) and gastos_totales_row_cons is not None:
+                        den_refs_g = [f'{get_column_letter(month_start_cols[mm])}{gastos_totales_row_cons}' for mm in meses_acumulados]
                         den_g = '(' + '+'.join(den_refs_g) + ')'
                         formula_g = f'=IFERROR({monto_sum}/{den_g},0)'
                         c = ws.cell(row=r, column=col_acum_g, value=formula_g)
@@ -520,8 +670,6 @@ class ExcelExporter:
                         c_v.number_format = PCT_FMT
                         c_g = ws.cell(row=r, column=col_prom_g, value=f'={get_column_letter(col_acum_g)}{r}')
                         c_g.number_format = PCT_FMT
-
-            _apply_row_grouping(ws, rows, partida_rows)
 
         path = os.path.join(tempfile.gettempdir(), f'EEFF_ULTRAX_{self.year}.xlsx')
         wb.save(path)
