@@ -1004,4 +1004,53 @@ def calcular_esf_divisa_real(year, quarter):
     }
 
 
+SUBTOTAL_EXCLUSIONS = {
+    'Subtotal Gastos de Administración': [
+        'Gasto por impuesto a las pensiones', 'Gastos de IGTF', 'Gastos de comisiones bancarias',
+        'Gastos de intereses de mora', 'Gastos de mantenimiento y reparación a la propiedad alq.',
+        'Gastos de mantenimiento y reparación de edificaciones',
+        'Gastos de mantenimiento y reparación de maquinaria y equipos',
+        'Gastos de mantenimiento y reparación de mobiliario y equipo',
+        'Gastos de mantenimiento y reparación de vehiculo',
+        'Gastos de comida por viáticos administrativos', 'Gastos de hospedaje por viáticos administrativos',
+        'Gastos de pasajes por viáticos administrativos', 'Gastos de transporte por viáticos administrativos',
+        'Otros gastos de viáticos administrativos', 'Gastos de seguro de edificaciones',
+        'Gastos de seguro de vehiculos', 'Gasto por otras tasas',
+        'Gastos de impuesto por licencia de actividades economicas', 'Gastos de impuesto por publicidad',
+        'Gastos de patente vehicular', 'Gastos de tasa sencamer', 'Gastos de tasas de notaria y registro',
+        'Gastos de amortización de software', 'Gastos de depreciación de edificaciones',
+        'Gastos de depreciación de maquinarias y equipos', 'Gastos de depreciación de mobiliario y equipo',
+        'Gastos de depreciación de vehículos', 'Gastos de deterioro de edificaciones',
+        'Gastos de deterioro de maquinarias y equipos', 'Gastos de deterioro de mobiliario y equipo',
+        'Gastos de deterioro de vehículos', 'Gastos de deterioro por cuentas incobrables',
+        'Gastos de intereses sobre préstamos bancarios', 'Gastos de intereses sobre préstamos de terceros'
+    ],
+    'Subtotal Gastos de Recursos Humanos': ['Gastos de uniformes y dotación al personal'],
+    'Subtotal Gastos de Mercadeo': ['Gastos de impresiones de material gráfico', 'Gastos de patrocinio y donación'],
+    'Subtotal Gastos de Comercialización y Logistica': [
+        'Gastos de comida por viáticos comerciales', 'Gastos de hospedaje por viáticos comerciales',
+        'Gastos de pasajes por viáticos comerciales', 'Gastos de transporte por viáticos comerciales',
+        'Otros gastos de viáticos comerciales', 'Gastos de almacenaje sobre compras no incluídos en el costo',
+        'Gastos de armado de bicicletas no incluídos en el costo', 'Gastos de bolsas no incluídos en el costo',
+        'Gastos de embalaje no incluídos en el costo', 'Gastos de etiquetas no incluídos en el costo',
+        'Gastos de importación no incluídos en el costo', 'Gastos de seguro de mercancía no incluídos en el costo',
+        'Gastos de títulos de propiedad no incluídos en el costo', 'Gastos por gasoil', 'Gastos por gasolina',
+        'Gastos de alquiler Stand y/o ferias comerciales', 'Gastos de otros viáticos Stand y/o ferias comerciales',
+        'Gastos de pasajes Stand y/o ferias comerciales',
+        'Gastos de premiaciones, donaciones Stand y/o ferias comerciales',
+        'Gastos de publicidad Stand y/o ferias comerciales', 'Gastos de viáticos comida Stand y/o ferias comerciales',
+        'Gastos de viáticos hospedaje Stand y/o ferias comerciales',
+        'Gastos de viáticos transporte Stand y/o ferias comerciales'
+    ],
+    'Gastos de TI+I': ['Gastos de dominio de página web', 'Gastos de servidores', 'Gastos de software tecnológico'],
+    'Otros Gastos no Operacionales': ['Deterioro de inventarios', 'Faltante de inventarios'],
+}
+
+SUBTOTAL_EXTRA_SUM = {
+    'Subtotal Gastos de Comercialización y Logistica': [
+        'Gastos de comisiones empleados', 'Gastos de comisiones por venta de personal externo'
+    ]
+}
+
+
 
