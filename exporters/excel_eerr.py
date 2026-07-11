@@ -697,15 +697,27 @@ class ExcelExporter:
                     cell_ti.alignment = Alignment(horizontal='right')
 
         # --- Fase 1 trazabilidad: subtotales Grupo A como fórmula SUM ---
+        # GRUPO_A_HIJOS: solo los 2 subtotales que SÍ tienen fila activa en Notas
+        # (no están en PARTIDAS_OCULTAS_NOTAS). Los otros 6 subtotales de Grupo A
+        # nunca tuvieron fila en Notas por diseño (Yocelin tampoco los usa como fila
+        # separada) — ver GRUPO_A_HIJOS_OCULTOS_REFERENCIA abajo para no perder el
+        # mapeo cuenta-hija si algún día se decide mostrarlos. Ver ultrax_logs.md,
+        # hallazgo "Grupo A parcialmente inactivo", sesión Fase 3.
         GRUPO_A_HIJOS = {
+            'Subtotal Costo de Ventas por Mercancia': ['Costos de venta por mercancia'],
+            'Otros Ingresos no Operacionales': ['Ingresos por alquileres', 'Ingresos por intereses', 'Ingresos por comisiones', 'Ingresos por servicios administrativos', 'Sobrante en ventas', 'Sobrante de inventarios', 'Ganancia en venta de activos', 'Ganancia por tasa cambiaria', 'Ganancia por diferencias en pagos'],
+        }
+
+        # Referencia únicamente — NO se usa en el bucle de fórmula (esos subtotales
+        # están ocultos en Notas, no tienen fila a la cual apuntar). Documenta la
+        # relación cuenta-hija por si se decide mostrar alguno de estos subtotales.
+        GRUPO_A_HIJOS_OCULTOS_REFERENCIA = {
             'Subtotal Ingresos por Venta de Mercancia': ['Ingresos por venta de mercancias', 'Devoluciones sobre ventas', 'Descuentos sobre ventas'],
             'Subtotal Ingresos por Servicios': ['Ingresos por servicios del café', 'Ingresos por zona FIT', 'Ingresos por fletes', 'Ingresos por otros servicios'],
             'Subtotal Ingresos por Eventos': ['Ingresos por eventos'],
             'Subtotal Ingresos por Taller': ['Ingresos por taller'],
-            'Subtotal Costo de Ventas por Mercancia': ['Costos de venta por mercancia'],
             'Subtotal Costo de Ventas por Servicios': ['Costo de venta por servicio del café'],
             'Subtotal Costo de Ventas por Eventos': ['Costo de ventas por eventos'],
-            'Otros Ingresos no Operacionales': ['Ingresos por alquileres', 'Ingresos por intereses', 'Ingresos por comisiones', 'Ingresos por servicios administrativos', 'Sobrante en ventas', 'Sobrante de inventarios', 'Ganancia en venta de activos', 'Ganancia por tasa cambiaria', 'Ganancia por diferencias en pagos'],
         }
 
         for subtotal_nombre, hijos in GRUPO_A_HIJOS.items():
