@@ -554,6 +554,53 @@ class ExcelExporter:
                     header_rows['Total Gastos'] = row_num
                     row_num += 1
 
+            if partida_nombre == 'Total Ingresos':
+                r_placeholder = {
+                    'year_prev': {'valor': 0},
+                    'meses': [{'month': m, 'ejecutado': {'valor': 0}} for m in self.months],
+                }
+                _escribir_fila_notas('Total Ingresos Operativos', r_placeholder, True, row_num)
+                header_rows['Total Ingresos Operativos'] = row_num
+                row_num += 1
+
+        # --- 'Total Ingresos Operativos' y 'Total Ingresos' en Notas deben
+        # usar la definición de Yocelin: suma de leaves de ingreso operativo
+        # (sin agrupar por subtotal, esos subtotales no tienen fila en su
+        # hoja), y Total Ingresos = Total Ingresos Operativos + Otros Ingresos
+        # no Operacionales. Distinto de la variable interna del motor
+        # 'Total Ingresos' (ver ultrax_reglas.md, regla jul-2026). ---
+        LEAVES_INGRESO_OPERATIVO_NOTAS = [
+            'Ingresos por venta de mercancias', 'Devoluciones sobre ventas', 'Descuentos sobre ventas',
+            'Ingresos por servicios del café', 'Ingresos por zona FIT', 'Ingresos por fletes', 'Ingresos por otros servicios',
+            'Ingresos por eventos', 'Ingresos por taller',
+        ]
+        tio_row = header_rows.get('Total Ingresos Operativos')
+        ti_row = header_rows.get('Total Ingresos')
+        if tio_row is not None:
+            for m_idx, month in enumerate(self.months):
+                col = 3 + m_idx
+                col_letter = get_column_letter(col)
+                refs = [f'{col_letter}{hr}' for hijo in LEAVES_INGRESO_OPERATIVO_NOTAS
+                        for hr in partida_month_rows.get(hijo, {}).get(month, [])]
+                if refs:
+                    formula = '=' + '+'.join(refs)
+                    cell = ws.cell(row=tio_row, column=col, value=formula)
+                    cell.number_format = NUM_FMT
+                    cell.font = DARK_FONT
+                    cell.border = border
+                    cell.alignment = Alignment(horizontal='right')
+
+                if ti_row is not None:
+                    refs_oin = [f'{col_letter}{hr}' for hr in partida_month_rows.get('Otros Ingresos no Operacionales', {}).get(month, [])]
+                    if 'Otros Ingresos no Operacionales' in header_rows:
+                        refs_oin.append(f'{col_letter}{header_rows["Otros Ingresos no Operacionales"]}')
+                    formula_ti = f'={col_letter}{tio_row}' + (('+' + '+'.join(refs_oin)) if refs_oin else '')
+                    cell_ti = ws.cell(row=ti_row, column=col, value=formula_ti)
+                    cell_ti.number_format = NUM_FMT
+                    cell_ti.font = DARK_FONT
+                    cell_ti.border = border
+                    cell_ti.alignment = Alignment(horizontal='right')
+
         # --- Fase 1 trazabilidad: subtotales Grupo A como fórmula SUM ---
         GRUPO_A_HIJOS = {
             'Subtotal Ingresos por Venta de Mercancia': ['Ingresos por venta de mercancias', 'Devoluciones sobre ventas', 'Descuentos sobre ventas'],
