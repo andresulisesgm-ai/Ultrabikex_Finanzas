@@ -373,7 +373,7 @@ class ExcelExporter:
 
             ws.freeze_panes = f'{get_column_letter(month_start_cols[self.months[0]])}4'
 
-            notes_name, partida_month_rows = self._build_notes_sheet(wb, unit, engine_unit)
+            notes_name, partida_month_rows, notes_header_rows = self._build_notes_sheet(wb, unit, engine_unit)
 
             if partida_month_rows:
                 months_list = list(self.months)
@@ -390,6 +390,25 @@ class ExcelExporter:
                                 c = ws.cell(row=r, column=col_monto)
                                 c.value = f'={refs}'
                                 c.number_format = NUM_FMT
+
+            NOMBRE_NOTAS_ESPECIAL = {
+                'Total Gastos Operacionales y No Operacionales': 'Total Gastos',
+            }
+
+            if notes_header_rows:
+                months_list = list(self.months)
+                for partida, r in partida_rows.items():
+                    nombre_en_notas = NOMBRE_NOTAS_ESPECIAL.get(partida, partida)
+                    notes_row = notes_header_rows.get(nombre_en_notas)
+                    if notes_row is None:
+                        continue
+                    for month in months_list:
+                        col_notas = get_column_letter(3 + months_list.index(month))
+                        ref = f"'{notes_name}'!{col_notas}{notes_row}"
+                        col_monto = month_start_cols[month]
+                        c = ws.cell(row=r, column=col_monto)
+                        c.value = f'={ref}'
+                        c.number_format = NUM_FMT
 
             _apply_row_grouping(ws, rows, partida_rows)
 
@@ -614,4 +633,4 @@ class ExcelExporter:
                 cell.alignment = Alignment(horizontal='right')
 
         ws.freeze_panes = 'A3'
-        return notes_sheet_name, partida_month_rows
+        return notes_sheet_name, partida_month_rows, header_rows
