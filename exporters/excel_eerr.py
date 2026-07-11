@@ -466,10 +466,7 @@ class ExcelExporter:
 
             for m_idx, month in enumerate(self.months):
                 mes_data = next((m for m in r.get('meses', []) if m.get('month') == month), {})
-                if month == 'DIC' and 'anio' in mes_data:
-                    val = mes_data['anio'].get('valor', 0)
-                else:
-                    val = mes_data.get('ejecutado', {}).get('valor', 0)
+                val = mes_data.get('ejecutado', {}).get('valor', 0)
                 col = 3 + m_idx
                 c = ws.cell(row=row_num, column=col, value=val)
                 c.number_format = NUM_FMT
