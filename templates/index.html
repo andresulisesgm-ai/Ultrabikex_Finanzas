@@ -553,7 +553,7 @@ input[type=file]{display:none;}
   <div class="topbar">
     <div><h2 id="ptitle">Dashboard Financiero</h2><p id="psub">Estado de resultados consolidado</p></div>
     <div class="tr">
-      <button class="tb-sel" id="btn-export-excel" onclick="doExcelExport()" 
+      <button class="tb-sel" id="btn-export-excel" onclick="openExcelModal()" 
         title="Exportar a Excel" style="cursor:pointer;display:none">📊 Exportar Excel</button>
       <button class="tb-sel" id="btnprint" onclick="window.print()" 
         title="Imprimir o guardar como PDF esta hoja, con los filtros actuales" 
@@ -1304,13 +1304,10 @@ input[type=file]{display:none;}
 <div class="ov" id="exmod">
   <div class="modal">
     <h3>↓ Exportar Excel</h3>
+    <div class="fg"><label>Tipo de Reporte</label><select id="ex-tipo" onchange="onExTipoChange()"><option value="eerr">EERR</option><option value="esf">ESF (Balance General)</option></select></div>
     <div class="fg"><label>Año</label><select id="ex-year"><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option></select></div>
-    <div class="fg"><label>Unidad</label><select id="ex-unit"><option value="">Consolidado — Todas</option>{% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}</select></div>
-    <div class="fgrow2 fg">
-      <div><label>Mes Desde</label><select id="ex-mf"><option value="">Todos</option>{% for m in months %}<option value="{{ m }}">{{ m }}</option>{% endfor %}</select></div>
-      <div><label>Mes Hasta</label><select id="ex-mt"><option value="">—</option>{% for m in months %}<option value="{{ m }}">{{ m }}</option>{% endfor %}</select></div>
-    </div>
-    <p class="note">Sin "Mes Desde" exporta todos los meses.</p>
+    <div class="fg" id="ex-unit-wrap"><label>Unidad</label><select id="ex-unit"><option value="">Consolidado — Todas</option>{% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}</select></div>
+    <p class="note">Se exportan todos los meses disponibles del año seleccionado.</p>
     <div class="mfoot"><button class="btnc" onclick="closeExcel()">Cancelar</button><button class="btnm" onclick="doExport()">Descargar</button></div>
   </div>
 </div>
@@ -1379,30 +1376,6 @@ function getCurrentUnit() {
   else val = G('dash-unit') ? G('dash-unit').value : '';
   if (val === 'TODAS' || val === 'Consolidado' || val === 'Todas') return '';
   return val;
-}
-
-function doExcelExport() {
-  const activePage = document.querySelector('.page.active');
-  if (!activePage) return;
-  const id = activePage.id;
-  let url = '';
-  if (id === 'page-eerr') {
-    url = '/api/export/excel?year=' + G('eerr-year').value + 
-          (G('eerr-unit').value ? '&unit=' + encodeURIComponent(G('eerr-unit').value) : '');
-  } else if (id === 'page-err_divisa') {
-    url = '/api/export/excel?year=' + G('err-divisa-year').value + 
-          (G('err-divisa-unit').value ? '&unit=' + encodeURIComponent(G('err-divisa-unit').value) : '');
-  } else if (id === 'page-esf') {
-    url = '/api/export/esf?year=' + G('esf-year').value + 
-          (G('esf-unit').value ? '&unit=' + encodeURIComponent(G('esf-unit').value) : '');
-  } else if (id === 'page-presupuesto') {
-    url = '/api/export/excel?year=' + G('bgt-year').value + 
-          (G('bgt-unit').value ? '&unit=' + encodeURIComponent(G('bgt-unit').value) : '');
-  } else if (id === 'page-comparativa') {
-    url = '/api/export/excel?year=' + G('cmp-year').value + 
-          (G('cmp-unit').value ? '&unit=' + encodeURIComponent(G('cmp-unit').value) : '');
-  }
-  if (url) window.location.href = url;
 }
 
 // ── AUTH ──────────────────────────────────────────────────────────────────
@@ -4579,9 +4552,32 @@ async function deshacerOverride(year,month,unit,odoo_code){
 }
 
 // ── EXCEL ─────────────────────────────────────────────────────────────────
-function openExcelModal(){G('ex-year').value=G('dash-year').value;G('ex-unit').value=G('dash-unit').value==='TODAS'?'':G('dash-unit').value;G('exmod').classList.add('show');}
+function onExTipoChange(){
+  const esEsf = G('ex-tipo').value === 'esf';
+  G('ex-unit-wrap').style.display = esEsf ? 'none' : '';
+}
+function openExcelModal(){
+  const activePage = document.querySelector('.page.active');
+  const id = activePage ? activePage.id : '';
+  G('ex-tipo').value = (id === 'page-esf') ? 'esf' : 'eerr';
+  G('ex-year').value = getCurrentYear();
+  G('ex-unit').value = getCurrentUnit();
+  onExTipoChange();
+  G('exmod').classList.add('show');
+}
 function closeExcel(){G('exmod').classList.remove('show');}
-function doExport(){let url=`/api/export/excel?year=${G('ex-year').value}`;const u=G('ex-unit').value,mf=G('ex-mf').value,mt=G('ex-mt').value;if(u)url+=`&unit=${encodeURIComponent(u)}`;if(mf)url+=`&month_from=${mf}`;if(mt)url+=`&month_to=${mt}`;window.location.href=url;closeExcel();}
+function doExport(){
+  const tipo = G('ex-tipo').value, year = G('ex-year').value, u = G('ex-unit').value;
+  let url;
+  if (tipo === 'esf') {
+    url = `/api/export/esf?year=${year}`;
+  } else {
+    url = `/api/export/excel?year=${year}`;
+    if (u) url += `&unit=${encodeURIComponent(u)}`;
+  }
+  window.location.href = url;
+  closeExcel();
+}
 
 // ── BACKUP / RESTORE ──────────────────────────────────────────────────────
 function onRF(i){sRF=i.files[0];G('rfn').textContent=sRF?sRF.name:'';G('btnrs').disabled=!sRF;}
