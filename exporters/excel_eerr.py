@@ -454,6 +454,7 @@ class ExcelExporter:
             ws.column_dimensions[get_column_letter(ci)].width = 12
 
         partida_month_rows = defaultdict(lambda: defaultdict(list))
+        header_rows = {}
         row_num = 3
 
         def _escribir_fila_notas(nombre_mostrado, r, es_header, row_num):
@@ -503,6 +504,8 @@ class ExcelExporter:
                 continue
 
             _escribir_fila_notas(partida_nombre, r, es_header, row_num)
+            if es_header:
+                header_rows[partida_nombre] = row_num
             row_num += 1
 
             # Fila sintética "Total Gastos" — solo presentación en el exportable,
@@ -514,6 +517,38 @@ class ExcelExporter:
                 if r_total_gastos is not None:
                     _escribir_fila_notas('Total Gastos', r_total_gastos, True, row_num)
                     row_num += 1
+
+        # --- Fase 1 trazabilidad: subtotales Grupo A como fórmula SUM ---
+        GRUPO_A_HIJOS = {
+            'Subtotal Ingresos por Venta de Mercancia': ['Ingresos por venta de mercancias', 'Devoluciones sobre ventas', 'Descuentos sobre ventas'],
+            'Subtotal Ingresos por Servicios': ['Ingresos por servicios del café', 'Ingresos por zona FIT', 'Ingresos por fletes', 'Ingresos por otros servicios'],
+            'Subtotal Ingresos por Eventos': ['Ingresos por eventos'],
+            'Subtotal Ingresos por Taller': ['Ingresos por taller'],
+            'Subtotal Costo de Ventas por Mercancia': ['Costos de venta por mercancia'],
+            'Subtotal Costo de Ventas por Servicios': ['Costo de venta por servicio del café'],
+            'Subtotal Costo de Ventas por Eventos': ['Costo de ventas por eventos'],
+            'Otros Ingresos no Operacionales': ['Ingresos por alquileres', 'Ingresos por intereses', 'Ingresos por comisiones', 'Ingresos por servicios administrativos', 'Sobrante en ventas', 'Sobrante de inventarios', 'Ganancia en venta de activos', 'Ganancia por tasa cambiaria', 'Ganancia por diferencias en pagos'],
+        }
+
+        for subtotal_nombre, hijos in GRUPO_A_HIJOS.items():
+            sub_row = header_rows.get(subtotal_nombre)
+            if sub_row is None:
+                continue
+            for m_idx, month in enumerate(self.months):
+                col = 3 + m_idx
+                col_letter = get_column_letter(col)
+                refs = []
+                for hijo in hijos:
+                    for hr in partida_month_rows.get(hijo, {}).get(month, []):
+                        refs.append(f'{col_letter}{hr}')
+                if not refs:
+                    continue
+                formula = '=' + '+'.join(refs)
+                cell = ws.cell(row=sub_row, column=col, value=formula)
+                cell.number_format = NUM_FMT
+                cell.font = DARK_FONT
+                cell.border = border
+                cell.alignment = Alignment(horizontal='right')
 
         ws.freeze_panes = 'A3'
         return notes_sheet_name, partida_month_rows
