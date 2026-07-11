@@ -516,6 +516,7 @@ class ExcelExporter:
                 r_total_gastos = rows_by_partida.get('Total Gastos Operacionales y No Operacionales')
                 if r_total_gastos is not None:
                     _escribir_fila_notas('Total Gastos', r_total_gastos, True, row_num)
+                    header_rows['Total Gastos'] = row_num
                     row_num += 1
 
         # --- Fase 1 trazabilidad: subtotales Grupo A como fórmula SUM ---
@@ -545,6 +546,68 @@ class ExcelExporter:
                     continue
                 formula = '=' + '+'.join(refs)
                 cell = ws.cell(row=sub_row, column=col, value=formula)
+                cell.number_format = NUM_FMT
+                cell.font = DARK_FONT
+                cell.border = border
+                cell.alignment = Alignment(horizontal='right')
+
+        # --- Fase 1 trazabilidad: Grupo C, totales de negocio (combinación de subtotales) ---
+        LEAVES_INGRESO_OPERATIVO = ['Ingresos por venta de mercancias', 'Devoluciones sobre ventas', 'Descuentos sobre ventas',
+                                     'Ingresos por servicios del café', 'Ingresos por zona FIT', 'Ingresos por fletes', 'Ingresos por otros servicios',
+                                     'Ingresos por eventos', 'Ingresos por taller']
+        SUBTOTALES_COSTO = ['Subtotal Costo de Ventas por Mercancia', 'Subtotal Costo de Ventas por Servicios', 'Subtotal Costo de Ventas por Eventos']
+        SUBTOTALES_GASTO_OPERACIONAL = ['Subtotal Gastos de Administración', 'Subtotal Gastos de Recursos Humanos',
+                                         'Subtotal Gastos de Comercialización y Logistica', 'Subtotal Gastos de Mercadeo', 'Gastos de TI+I']
+
+        for m_idx, month in enumerate(self.months):
+            col = 3 + m_idx
+            col_letter = get_column_letter(col)
+
+            def _refs(nombres):
+                out = []
+                for n in nombres:
+                    for hr in partida_month_rows.get(n, {}).get(month, []):
+                        out.append(f'{col_letter}{hr}')
+                    if n in header_rows:
+                        out.append(f'{col_letter}{header_rows[n]}')
+                return out
+
+            # Utilidad Bruta = leaves ingreso operativo + Otros Ingresos no Operacionales - subtotales costo
+            if 'Utilidad Bruta' in header_rows:
+                pos = _refs(LEAVES_INGRESO_OPERATIVO) + (_refs(['Otros Ingresos no Operacionales']))
+                neg = _refs(SUBTOTALES_COSTO)
+                if pos or neg:
+                    formula = '=' + '+'.join(pos) + (('-' + '-'.join(neg)) if neg else '')
+                    cell = ws.cell(row=header_rows['Utilidad Bruta'], column=col, value=formula)
+                    cell.number_format = NUM_FMT
+                    cell.font = DARK_FONT
+                    cell.border = border
+                    cell.alignment = Alignment(horizontal='right')
+
+            # Total Gastos (sintético) = subtotales gasto operacional + Otros Gastos no Operacionales
+            if 'Total Gastos' in header_rows:
+                pos = _refs(SUBTOTALES_GASTO_OPERACIONAL) + _refs(['Otros Gastos no Operacionales'])
+                if pos:
+                    formula = '=' + '+'.join(pos)
+                    cell = ws.cell(row=header_rows['Total Gastos'], column=col, value=formula)
+                    cell.number_format = NUM_FMT
+                    cell.font = DARK_FONT
+                    cell.border = border
+                    cell.alignment = Alignment(horizontal='right')
+
+            # Utilidad Neta = Utilidad Bruta - Total Gastos
+            if 'Utilidad Neta' in header_rows and 'Utilidad Bruta' in header_rows and 'Total Gastos' in header_rows:
+                formula = f"={col_letter}{header_rows['Utilidad Bruta']}-{col_letter}{header_rows['Total Gastos']}"
+                cell = ws.cell(row=header_rows['Utilidad Neta'], column=col, value=formula)
+                cell.number_format = NUM_FMT
+                cell.font = DARK_FONT
+                cell.border = border
+                cell.alignment = Alignment(horizontal='right')
+
+            # Utilidad Neta despues de ISLR = Utilidad Neta - ISLR
+            if 'Utilidad Neta despues de ISLR' in header_rows and 'Utilidad Neta' in header_rows and 'ISLR' in header_rows:
+                formula = f"={col_letter}{header_rows['Utilidad Neta']}-{col_letter}{header_rows['ISLR']}"
+                cell = ws.cell(row=header_rows['Utilidad Neta despues de ISLR'], column=col, value=formula)
                 cell.number_format = NUM_FMT
                 cell.font = DARK_FONT
                 cell.border = border
