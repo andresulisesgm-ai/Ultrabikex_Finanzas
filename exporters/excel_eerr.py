@@ -148,6 +148,9 @@ BLOQUE_INVENTARIOS_ORDEN = [
 ANCLA_INSERCION_INVENTARIOS = 'Multas'
 
 PARTIDAS_OCULTAS_NOTAS = {
+    # Encabezado — ya se muestra en fila 1 (A1) y fila 2, evita duplicado como fila de datos
+    'ESTADO DE RESULTADOS',
+    'PARTIDAS',
     # Ingresos — subtotales sin equivalente en hoja de Yocelin
     'Subtotal Ingresos por Venta de Mercancia',
     'Subtotal Ingresos por Servicios',
@@ -422,8 +425,16 @@ class ExcelExporter:
         N = len(self.months)
         total_cols = 2 + N + 1  # partida, year_prev, meses..., total
 
-        ws.merge_cells(f'A1:{get_column_letter(total_cols)}1')
-        t = ws['A1']
+        # Columna A: "ESTADO DE RESULTADOS" suelto, replicando layout de Yocelin.
+        a1 = ws['A1']
+        a1.value = 'ESTADO DE RESULTADOS'
+        a1.font = Font(name='Arial', bold=True, color='FFFFFF', size=12)
+        a1.fill = HDR_FILL
+        a1.alignment = Alignment(horizontal='center', vertical='center')
+
+        # Título mergeado desde columna B (ya no ocupa la columna A).
+        ws.merge_cells(f'B1:{get_column_letter(total_cols)}1')
+        t = ws['B1']
         t.value = f'NOTAS — ESTADO DE RESULTADOS — {unit.upper()} — {self.year}'
         t.font = Font(name='Arial', bold=True, color='FFFFFF', size=12)
         t.fill = HDR_FILL
