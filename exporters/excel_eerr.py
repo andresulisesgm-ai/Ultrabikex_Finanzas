@@ -410,6 +410,22 @@ class ExcelExporter:
                         c.value = f'={ref}'
                         c.number_format = NUM_FMT
 
+            if notes_header_rows or partida_month_rows:
+                for partida, r in partida_rows.items():
+                    nombre_en_notas = NOMBRE_NOTAS_ESPECIAL.get(partida, partida)
+                    notes_rows_yp = set()
+                    if nombre_en_notas in notes_header_rows:
+                        notes_rows_yp.add(notes_header_rows[nombre_en_notas])
+                    elif nombre_en_notas in partida_month_rows:
+                        for filas in partida_month_rows[nombre_en_notas].values():
+                            notes_rows_yp.update(filas)
+                    if not notes_rows_yp:
+                        continue
+                    refs_yp = '+'.join(f"'{notes_name}'!B{fila}" for fila in sorted(notes_rows_yp))
+                    c_yp = ws.cell(row=r, column=2)
+                    c_yp.value = f'={refs_yp}'
+                    c_yp.number_format = NUM_FMT
+
             _apply_row_grouping(ws, rows, partida_rows)
 
         path = os.path.join(tempfile.gettempdir(), f'EEFF_ULTRAX_{self.year}.xlsx')
