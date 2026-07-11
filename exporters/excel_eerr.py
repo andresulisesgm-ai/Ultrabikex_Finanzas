@@ -141,27 +141,97 @@ BLOQUE_INGRESOS_NO_OPERATIVOS = [
 # Partida después de la cual se inserta el bloque anterior.
 ANCLA_INSERCION_INGRESOS_NO_OPERATIVOS = 'Ingresos por taller'
 
+BLOQUE_INVENTARIOS_ORDEN = [
+    'Faltante de inventarios',
+    'Deterioro de inventarios',
+]
+ANCLA_INSERCION_INVENTARIOS = 'Multas'
+
+PARTIDAS_OCULTAS_NOTAS = {
+    # Ingresos — subtotales sin equivalente en hoja de Yocelin
+    'Subtotal Ingresos por Venta de Mercancia',
+    'Subtotal Ingresos por Servicios',
+    'Subtotal Ingresos por Eventos',
+    'Subtotal Ingresos por Taller',
+    # Costo de Ventas / Utilidad Bruta — subtotales sin equivalente
+    'Subtotal Costo de Ventas por Servicios',
+    'Subtotal Costo de Ventas por Eventos',
+    'Utilidad Bruta por Venta de Mercancia y Taller',
+    'Utilidad Bruta por Servicios',
+    'Utilidad Bruta por Eventos',
+    # Gastos — headers de agrupación sin equivalente
+    'Mantenimiento y reparaciones',
+    'Viáticos administrativos',
+    'Gastos de seguro',
+    'Gastos de impuestos, tasas y contribuciones',
+    'Depreciaciones, deterioro y Amortización',
+    'Gastos Bancarios',
+    'Gastos de sueldos y salarios empleados y directivos',
+    'Gastos de complementos empleados y directivos',
+    'Gastos de personal externo',
+    'Gastos de pasivos laborales vacaciones',
+    'Gastos de pasivos laborales utilidades',
+    'Gastos de pasivos laborales prestaciones e intereses',
+    'Gastos de pasivos laborales aportes',
+    'Gastos de pasivos laborales bono de guardería',
+    'Gastos de pasivos laborales HCM',
+    'Gastos de salud y seguridad laboral dotación',
+    'Gastos de salud y seguridad laboral fiestas y agasajos',
+    'Otros gastos de personal',
+    'Gastos de viáticos comerciales',
+    'Gastos de fletes y envios no asociados al costo',
+    'Otros gastos no asociados al costo',
+    'Gastos por combustible',
+    'Gastos de Stand y/o ferias comerciales',
+    'Otros gastos de publicidad y promoción',
+    'Gastos de patrocinio y donación',
+    'Gastos de viáticos por eventos',
+    'Gastos de página web',
+    'Gastos de desarrollo',
+    # Comisiones/Rentabilidad — sin equivalente en hoja de Yocelin
+    'Utilidad antes de Comisiones por Ventas',
+    'Utilidad después de Comisiones por Ventas',
+    'Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)',
+    'Utilidad antes de Intereses e Impuestos (EBIT)',
+    # Comisiones — partida fantasma sin dato real (ver mapping_groups_v2 id 210)
+    'Gastos de comisiones por ventas taller',
+    # Inventarios — header sin relación jerárquica real, siempre en cero
+    'Faltante y deterioro de inventarios',
+}
+
 
 def _reordenar_estructura_para_notas(estructura):
     """
-    Devuelve una copia de EERR_STRUCTURE con BLOQUE_INGRESOS_NO_OPERATIVOS
-    reinsertado inmediatamente después de ANCLA_INSERCION_INGRESOS_NO_OPERATIVOS.
+    Devuelve una copia de EERR_STRUCTURE con los bloques definidos abajo
+    reinsertados inmediatamente después de su ancla correspondiente.
     No modifica la estructura original. Uso exclusivo de presentación en
     exportables — el motor de cálculo sigue usando EERR_STRUCTURE tal cual.
     """
-    bloque_set = set(BLOQUE_INGRESOS_NO_OPERATIVOS)
-    resto = [item for item in estructura if item[0] not in bloque_set]
-    bloque_tuplas = [item for item in estructura if item[0] in bloque_set]
-    bloque_ordenado = sorted(
-        bloque_tuplas,
-        key=lambda item: BLOQUE_INGRESOS_NO_OPERATIVOS.index(item[0])
-    )
+    bloques = [
+        (BLOQUE_INGRESOS_NO_OPERATIVOS, ANCLA_INSERCION_INGRESOS_NO_OPERATIVOS),
+        (BLOQUE_INVENTARIOS_ORDEN, ANCLA_INSERCION_INVENTARIOS),
+    ]
+
+    todos_los_nombres_movidos = set()
+    for bloque, _ in bloques:
+        todos_los_nombres_movidos.update(bloque)
+
+    resto = [item for item in estructura if item[0] not in todos_los_nombres_movidos]
+
+    bloques_ordenados_por_ancla = {}
+    for bloque, ancla in bloques:
+        bloque_tuplas = [item for item in estructura if item[0] in set(bloque)]
+        bloque_ordenado = sorted(
+            bloque_tuplas,
+            key=lambda item: bloque.index(item[0])
+        )
+        bloques_ordenados_por_ancla.setdefault(ancla, []).extend(bloque_ordenado)
 
     resultado = []
     for item in resto:
         resultado.append(item)
-        if item[0] == ANCLA_INSERCION_INGRESOS_NO_OPERATIVOS:
-            resultado.extend(bloque_ordenado)
+        if item[0] in bloques_ordenados_por_ancla:
+            resultado.extend(bloques_ordenados_por_ancla[item[0]])
     return resultado
 
 
@@ -415,6 +485,9 @@ class ExcelExporter:
             # Se omite aquí: se muestra como "Total Gastos" justo después de
             # "Utilidad Bruta", replicando la posición de la hoja de Yocelin.
             if partida_nombre == 'Total Gastos Operacionales y No Operacionales':
+                continue
+
+            if partida_nombre in PARTIDAS_OCULTAS_NOTAS:
                 continue
 
             r = rows_by_partida.get(partida_nombre)
