@@ -466,6 +466,61 @@ class ExcelExporter:
                         c = ws.cell(row=r, column=col_g, value=formula_g)
                         c.number_format = PCT_FMT
 
+            # --- Subtarea 3b: %V y %G de ACUM EJEC (acumulado hasta el mes) y PROM 6 EJEC como fórmula ---
+            for partida, r in partida_rows.items():
+                segmento = PARTIDAS_DIVISOR_SEGMENTADO.get(partida)
+                for m_idx, month in enumerate(months_list):
+                    tipo = MONTH_TYPE[month]
+                    if tipo not in ('B', 'C', 'D'):
+                        continue
+                    start_c = month_start_cols[month]
+                    col_acum_v = start_c + 5
+                    col_acum_g = start_c + 6
+
+                    meses_acumulados = months_list[:m_idx + 1]
+                    monto_refs = [f'{get_column_letter(month_start_cols[mm])}{r}' for mm in meses_acumulados]
+                    monto_sum = '(' + '+'.join(monto_refs) + ')'
+
+                    if partida == 'Total Ingresos':
+                        formula_v = f'=IF(AND({monto_sum}=0,{monto_sum}>=0),"",{monto_sum}/{monto_sum})'
+                        c = ws.cell(row=r, column=col_acum_v, value=formula_v)
+                        c.number_format = PCT_FMT
+                    elif segmento is not None:
+                        hijos = SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO[segmento]
+                        den_refs = []
+                        for mm in meses_acumulados:
+                            col_letter_mm = get_column_letter(month_start_cols[mm])
+                            den_refs += [f'{col_letter_mm}{partida_rows[h]}' for h in hijos if h in partida_rows]
+                        if den_refs:
+                            den = '(' + '+'.join(den_refs) + ')'
+                            formula_v = f'=IFERROR({monto_sum}/{den},0)'
+                            c = ws.cell(row=r, column=col_acum_v, value=formula_v)
+                            c.number_format = PCT_FMT
+                    elif ti_operativos_notas_row is not None:
+                        den_refs = []
+                        for mm in meses_acumulados:
+                            col_letter_notas = get_column_letter(3 + months_list.index(mm))
+                            den_refs.append(f"'{notes_name}'!{col_letter_notas}{ti_operativos_notas_row}")
+                        den = '(' + '+'.join(den_refs) + ')'
+                        formula_v = f'=IFERROR({monto_sum}/{den},0)'
+                        c = ws.cell(row=r, column=col_acum_v, value=formula_v)
+                        c.number_format = PCT_FMT
+
+                    if muestra_pct_gastos_by_partida.get(partida, False) and gastos_totales_row is not None:
+                        den_refs_g = [f'{get_column_letter(month_start_cols[mm])}{gastos_totales_row}' for mm in meses_acumulados]
+                        den_g = '(' + '+'.join(den_refs_g) + ')'
+                        formula_g = f'=IFERROR({monto_sum}/{den_g},0)'
+                        c = ws.cell(row=r, column=col_acum_g, value=formula_g)
+                        c.number_format = PCT_FMT
+
+                    if month == 'JUN':
+                        col_prom_v = start_c + 11
+                        col_prom_g = start_c + 12
+                        c_v = ws.cell(row=r, column=col_prom_v, value=f'={get_column_letter(col_acum_v)}{r}')
+                        c_v.number_format = PCT_FMT
+                        c_g = ws.cell(row=r, column=col_prom_g, value=f'={get_column_letter(col_acum_g)}{r}')
+                        c_g.number_format = PCT_FMT
+
             _apply_row_grouping(ws, rows, partida_rows)
 
         path = os.path.join(tempfile.gettempdir(), f'EEFF_ULTRAX_{self.year}.xlsx')
