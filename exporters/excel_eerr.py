@@ -247,29 +247,32 @@ class ExcelExporter:
         self.months = months
         self.divisa_real = divisa_real
 
-    def generate(self):
+    def generate(self, wb=None, save=True, return_meta=False, consolidado_name='EERR ULTRAX'):
         import openpyxl
         from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
         from app import eerr_completo_v2_ui_adapter, _calcular_eerr_divisa_real, PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO
         import os, tempfile
 
-        wb = openpyxl.Workbook()
-        wb.remove(wb.active)
+        NOMBRE_CONSOLIDADO = consolidado_name
+        external_wb = wb is not None
+        if not external_wb:
+            wb = openpyxl.Workbook()
+            wb.remove(wb.active)
 
-        HDR_FILL  = PatternFill('solid', start_color='1F3864')  # Azul oscuro - título
-        SUB_FILL  = PatternFill('solid', start_color='D6DCE4')  # Header columnas
-        SEC_FILL  = PatternFill('solid', start_color='F2F2F2')  # Gris suave - subtotales
-        WHITE_FILL= PatternFill('solid', start_color='FFFFFF')  # Blanco - partidas
-        ACUM_FILL = PatternFill('solid', start_color='FFFFFF')  # Blanco - acumulados
-        VAR_FILL  = PatternFill('solid', start_color='FFFFFF')  # Blanco - variaciones
-        WHITE_FONT= Font(name='Arial', bold=True, color='FFFFFF', size=10)  # Blanco sobre azul
-        DARK_FONT = Font(name='Arial', bold=True, color='000000', size=10)  # Negro sobre gris
+        HDR_FILL  = PatternFill('solid', start_color='1F3864')
+        SUB_FILL  = PatternFill('solid', start_color='D6DCE4')
+        SEC_FILL  = PatternFill('solid', start_color='F2F2F2')
+        WHITE_FILL= PatternFill('solid', start_color='FFFFFF')
+        ACUM_FILL = PatternFill('solid', start_color='FFFFFF')
+        VAR_FILL  = PatternFill('solid', start_color='FFFFFF')
+        WHITE_FONT= Font(name='Arial', bold=True, color='FFFFFF', size=10)
+        DARK_FONT = Font(name='Arial', bold=True, color='000000', size=10)
         NORM_FONT = Font(name='Arial', size=9)
-        TEAL_FILL = PatternFill('solid', start_color='D6DCE4')  # Gris claro - totales principales
+        TEAL_FILL = PatternFill('solid', start_color='D6DCE4')
         NUM_FMT   = '#,##0.00;(#,##0.00);"-"'
         PCT_FMT   = '0.0%;(0.0%);"-"'
-        thin      = Side(style='thin', color='D9D9D9')  # Borde gris suave
+        thin      = Side(style='thin', color='D9D9D9')
         border    = Border(left=thin, right=thin, top=thin, bottom=thin)
 
         TOTALES_HDR = {
@@ -284,7 +287,7 @@ class ExcelExporter:
             'Utilidad después de Comisiones por Ventas'
         }
 
-        sheets_to_build = list(self.units) + ['CONSOLIDADO']
+        sheets_to_build = list(self.units) + [NOMBRE_CONSOLIDADO]
 
         partida_rows_by_unit = {}
         notes_name_by_unit = {}
@@ -294,7 +297,7 @@ class ExcelExporter:
         month_start_cols_final = None
 
         for unit in sheets_to_build:
-            engine_unit = unit if unit != 'CONSOLIDADO' else ''
+            engine_unit = unit if unit != NOMBRE_CONSOLIDADO else ''
             if self.divisa_real:
                 data = _calcular_eerr_divisa_real(self.year, engine_unit)
                 if not isinstance(data, dict) or 'rows' not in data:
@@ -393,10 +396,10 @@ class ExcelExporter:
 
             partida_rows_by_unit[unit] = partida_rows
 
-            if unit == 'CONSOLIDADO':
+            if unit == NOMBRE_CONSOLIDADO:
                 muestra_pct_gastos_cons_capture = {item['partida']: item.get('muestra_pct_gastos', False) for item in rows}
 
-            if unit != 'CONSOLIDADO' and not self.divisa_real:
+            if unit != NOMBRE_CONSOLIDADO and not self.divisa_real:
                 notes_name, partida_month_rows, notes_header_rows = self._build_notes_sheet(wb, unit, engine_unit)
                 notes_name_by_unit[unit] = notes_name
                 partida_month_rows_by_unit[unit] = partida_month_rows
@@ -453,7 +456,6 @@ class ExcelExporter:
                         c_yp.value = f'={refs_yp}'
                         c_yp.number_format = NUM_FMT
 
-                # --- Subtarea 3a: %V y %G del bloque "Monto" mensual como fórmula ---
                 months_list = list(self.months)
                 muestra_pct_gastos_by_partida = {item['partida']: item.get('muestra_pct_gastos', False) for item in rows}
                 gastos_totales_row = partida_rows.get('Total Gastos Operacionales y No Operacionales')
@@ -493,7 +495,6 @@ class ExcelExporter:
                             c = ws.cell(row=r, column=col_g, value=formula_g)
                             c.number_format = PCT_FMT
 
-                # --- Subtarea 3b: %V y %G de ACUM EJEC y PROM 6 EJEC como fórmula ---
                 for partida, r in partida_rows.items():
                     segmento = PARTIDAS_DIVISOR_SEGMENTADO.get(partida)
                     for m_idx, month in enumerate(months_list):
@@ -550,15 +551,9 @@ class ExcelExporter:
 
             _apply_row_grouping(ws, rows, partida_rows)
 
-        # --- CONSOLIDADO: trazabilidad por suma cruzada a las 6 unidades, sin Notas propia ---
-        # No se llama a _build_notes_sheet para 'CONSOLIDADO' — no existe hoja "N EERR CONSOLIDADO".
-        # Los montos y año anterior son SUMA de las 6 hojas de unidad. Los %V/%G se calculan
-        # mirando la propia hoja CONSOLIDADO cuando el denominador es un subtotal o "Total Gastos"
-        # (esas filas ya están sumadas), y sumando cruzado las 6 Notas de unidad cuando el
-        # denominador es "Total Ingresos Operativos" (fila que solo existe en Notas de unidad).
-        if 'CONSOLIDADO' in partida_rows_by_unit:
-            ws = wb['CONSOLIDADO']
-            partida_rows_cons = partida_rows_by_unit['CONSOLIDADO']
+        if NOMBRE_CONSOLIDADO in partida_rows_by_unit:
+            ws = wb[NOMBRE_CONSOLIDADO]
+            partida_rows_cons = partida_rows_by_unit[NOMBRE_CONSOLIDADO]
             months_list = list(self.months)
             unidades_reales = list(self.units)
             month_start_cols = month_start_cols_final
@@ -682,7 +677,17 @@ class ExcelExporter:
                         c_g.number_format = PCT_FMT
 
         path = os.path.join(tempfile.gettempdir(), f'EEFF_ULTRAX_{self.year}.xlsx')
-        wb.save(path)
+        if save:
+            wb.save(path)
+
+        if return_meta:
+            return {
+                'path': path if save else None,
+                'wb': wb,
+                'partida_rows_consolidado': partida_rows_by_unit.get(NOMBRE_CONSOLIDADO, {}),
+                'month_start_cols': month_start_cols_final,
+                'sheet_name_consolidado': NOMBRE_CONSOLIDADO,
+            }
         return path
 
     def _build_notes_sheet(self, wb, unit, engine_unit):

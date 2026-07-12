@@ -4428,12 +4428,9 @@ def export_excel():
 def export_esf():
     from exporters.excel_esf import ESFExporter
     year = request.args.get('year', str(datetime.now().year))
-    unit = request.args.get('unit', '')
-    units = [unit] if unit else UNITS
-    exp  = ESFExporter(year, units)
+    exp  = ESFExporter(year, MONTHS)
     path = exp.generate()
-    suf  = f'_{unit}' if unit else '_CONSOLIDADO'
-    return send_file(path, as_attachment=True, download_name=f'ESF_ULTRAX_{year}{suf}.xlsx')
+    return send_file(path, as_attachment=True, download_name=f'ESF_ULTRAX_{year}_CONSOLIDADO.xlsx')
 
 
 @app.route('/api/export/esf/pdf', methods=['GET'])
