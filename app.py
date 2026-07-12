@@ -3094,15 +3094,22 @@ def esf_completo():
     """
     year = request.args.get('year', str(datetime.now().year))
     unit = request.args.get('unit', '')
-    
     from engine import esf_engine
     result = esf_engine(year, unit)
-
     try:
         db = get_db()
         validate_esf_integrity(year, unit, result, db)
     except Exception as e:
         app.logger.error(f"Error al ejecutar validacion de integridad ESF: {str(e)}")
+
+    year_prev = str(int(year) - 1)
+    result_prev = esf_engine(year_prev, unit)
+    prev_by_partida = {}
+    for r in result_prev.get('rows', []):
+        prev_by_partida[r['partida']] = r.get('quarters', {}).get(4, 0.0)
+    for row in result.get('rows', []):
+        row['year_prev'] = prev_by_partida.get(row['partida'], 0.0)
+    result['year_prev'] = year_prev
 
     return jsonify(result)
 

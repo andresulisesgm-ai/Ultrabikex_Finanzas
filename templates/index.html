@@ -373,7 +373,7 @@ input[type=file]{display:none;}
 .esf-qtab{padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--bd);color:var(--mu);background:var(--sf2);transition:all .15s;}
 .esf-qtab.active{background:var(--indigo-l);border-color:rgba(67,56,202,.4);color:var(--indigo);}
 .esf-section{margin-bottom:2px;}
-.esf-row{display:grid;padding:5px 10px;border-bottom:1px solid var(--bd);font-size:11px;align-items:center;gap:6px;}
+.esf-row{display:grid;padding:5px 10px;border-bottom:1px solid var(--bd);font-size:11px;align-items:center;gap:24px;}
 .esf-row:hover{background:var(--sf2);}
 .esf-row.esf-grand{background:var(--indigo-l);font-weight:800;font-size:12px;color:var(--indigo);border-radius:7px;margin:3px 0;}
 .esf-row.esf-sec{background:var(--sf2);font-weight:700;color:var(--tx);font-size:11px;border-radius:4px;}
@@ -382,7 +382,7 @@ input[type=file]{display:none;}
 .esf-num{text-align:right;font-family:'DM Mono',monospace;}
 .esf-var{text-align:right;font-size:10px;}
 .esf-wrap{overflow-x:auto;max-height:calc(100vh - 210px);}
-.esf-hdr{display:grid;padding:6px 10px;background:var(--sf3);border-radius:7px 7px 0 0;font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;gap:6px;position:sticky;top:0;z-index:5;}
+.esf-hdr{display:grid;padding:6px 10px;background:var(--sf3);border-radius:7px 7px 0 0;font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;gap:24px;position:sticky;top:0;z-index:5;}
 
 /* ── PRESUPUESTO ── */
 .bgt-tabs{display:flex;gap:5px;margin-bottom:12px;flex-wrap:wrap;}
@@ -5479,7 +5479,7 @@ function renderESF() {
 
   const qCols = quarters.map(q => `90px`).join(' ');
   const varCols = qAll ? '65px 65px 65px' : '';
-  const gridCols = `260px ${qCols}${qAll ? ' ' + varCols : ''}`;
+  const gridCols = `260px 100px ${qCols}${qAll ? ' ' + varCols : ''}`;
 
   function cleanPartidaName(name) {
     return name.replace(/\s*\((CxC|PxC|CxP|PxP)\)/g, '');
@@ -5496,6 +5496,9 @@ function renderESF() {
   }
 
   function numCells(rowObj) {
+    const prevVal = rowObj.year_prev || 0;
+    const prevColored = prevVal < 0 ? 'color:var(--red)' : '';
+    const prevCell = `<div class="esf-num" style="${prevColored}">${prevVal === 0 ? '—' : fmt(prevVal)}</div>`;
     const vals = quarters.map(q => qVal(q, rowObj));
     const nums = vals.map(v => {
       const colored = v < 0 ? 'color:var(--red)' : '';
@@ -5508,7 +5511,7 @@ function renderESF() {
         `<div class="esf-var ${parseFloat(v) >= 0 ? 'var-pos' : 'var-neg'}">${parseFloat(v) >= 0 ? '▲' : '▼'}${Math.abs(parseFloat(v))}%</div>`;
       varHtml = varCell(v12) + varCell(v23) + varCell(v34);
     }
-    return nums + varHtml;
+    return prevCell + nums + varHtml;
   }
 
   const rows = ESF_DATA.rows;
@@ -5636,12 +5639,13 @@ function renderESF() {
     ${numCells(difRowObj)}
   </div>`;
 
+  const prevHdr = `<div class="esf-num" style="font-weight:700">${ESF_DATA.year_prev || 'Año Ant.'}</div>`;
   const qHdrs = quarters.map(q => `<div class="esf-num" style="font-weight:700">${qLabels[q]}</div>`).join('');
   const vHdrs = qAll ? '<div class="esf-var" style="font-weight:700">Q1→Q2</div><div class="esf-var" style="font-weight:700">Q2→Q3</div><div class="esf-var" style="font-weight:700">Q3→Q4</div>' : '';
   
   let html = `<div class="esf-wrap">
     <div class="esf-hdr" style="grid-template-columns:${gridCols}">
-      <div>Partida</div>${qHdrs}${vHdrs}
+      <div>Partida</div>${prevHdr}${qHdrs}${vHdrs}
     </div>
     ${htmlRows}
   </div>`;
