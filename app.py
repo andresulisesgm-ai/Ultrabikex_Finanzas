@@ -62,24 +62,30 @@ SEGMENTOS_INGRESO_PCT_VTAS = {
 }
 
 
-def divisor_ejec(partida_name, subtotales_mes, default):
+def divisor_ejec(partida_name, subtotales_mes, default, by_partida=None, m=None, ing_p=None):
     """Divisor de %Vtas ejecutado (y base de acumulado/promedio) para un mes."""
+    if partida_name == 'Total Ingresos' and by_partida is not None and ing_p is not None:
+        return sum(by_partida.get(p, {}).get(m, 0) for p in ing_p)
     segmento = PARTIDAS_DIVISOR_SEGMENTADO.get(partida_name)
     if segmento is None:
         return default
     return sum(subtotales_mes.get(k, 0) for k in SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO[segmento])
 
 
-def divisor_ppto_mes(partida_name, by_budget, m, default):
+def divisor_ppto_mes(partida_name, by_budget, m, default, ing_p=None):
     """Divisor de %Vtas de presupuesto para un mes."""
+    if partida_name == 'Total Ingresos' and ing_p is not None:
+        return sum(by_budget.get(p, {}).get(m, 0) for p in ing_p)
     segmento = PARTIDAS_DIVISOR_SEGMENTADO.get(partida_name)
     if segmento is None:
         return default
     return sum(by_budget.get(p, {}).get(m, 0) for p in SEGMENTOS_INGRESO_PCT_VTAS[segmento])
 
 
-def divisor_prev(partida_name, by_prev_raw, default):
+def divisor_prev(partida_name, by_prev_raw, default, ing_p=None):
     """Divisor de %Vtas para la columna de año anterior."""
+    if partida_name == 'Total Ingresos' and ing_p is not None:
+        return sum(by_prev_raw.get(p, 0) for p in ing_p)
     segmento = PARTIDAS_DIVISOR_SEGMENTADO.get(partida_name)
     if segmento is None:
         return default
@@ -2164,7 +2170,7 @@ def eerr_completo_v2_ui_adapter(year, unit):
         else:
             prev_val = resolve_leaf_value_prev(partida_name, by_prev_raw)
 
-        prev_pct_vtas = safe_pct(prev_val, divisor_prev(partida_name, by_prev_raw, ingresos_prev))
+        prev_pct_vtas = safe_pct(prev_val, divisor_prev(partida_name, by_prev_raw, ingresos_prev, ing_p))
         prev_pct_gastos = safe_pct(prev_val, gastos_prev)
 
         meses_data = []
@@ -2186,8 +2192,8 @@ def eerr_completo_v2_ui_adapter(year, unit):
                 val_ejec = resolve_leaf_value(partida_name, m, by_partida)
                 val_ppto = resolve_leaf_value(partida_name, m, by_budget)
 
-            divisor_vtas_mes = divisor_ejec(partida_name, subtotales_por_mes[m], ingresos_ejec_mes[m])
-            divisor_vtas_ppto = divisor_ppto_mes(partida_name, by_budget, m, ingresos_ppto_mes[m])
+            divisor_vtas_mes = divisor_ejec(partida_name, subtotales_por_mes[m], ingresos_ejec_mes[m], by_partida, m, ing_p)
+            divisor_vtas_ppto = divisor_ppto_mes(partida_name, by_budget, m, ingresos_ppto_mes[m], ing_p)
 
             acum_ejec += val_ejec
             acum_ppto += val_ppto
@@ -3968,7 +3974,7 @@ def _calcular_eerr_divisa_real(year, unit):
         else:
             prev_val = resolve_leaf_value_prev(partida_name, by_prev_raw)
 
-        prev_pct_vtas = safe_pct(prev_val, divisor_prev(partida_name, by_prev_raw, ingresos_prev))
+        prev_pct_vtas = safe_pct(prev_val, divisor_prev(partida_name, by_prev_raw, ingresos_prev, ing_p))
         prev_pct_gastos = safe_pct(prev_val, gastos_prev)
 
         meses_data = []
@@ -3990,8 +3996,8 @@ def _calcular_eerr_divisa_real(year, unit):
                 val_ejec = resolve_leaf_value(partida_name, m, by_partida)
                 val_ppto = resolve_leaf_value(partida_name, m, by_budget)
 
-            divisor_vtas_mes = divisor_ejec(partida_name, subtotales_por_mes[m], ingresos_ejec_mes[m])
-            divisor_vtas_ppto = divisor_ppto_mes(partida_name, by_budget, m, ingresos_ppto_mes[m])
+            divisor_vtas_mes = divisor_ejec(partida_name, subtotales_por_mes[m], ingresos_ejec_mes[m], by_partida, m, ing_p)
+            divisor_vtas_ppto = divisor_ppto_mes(partida_name, by_budget, m, ingresos_ppto_mes[m], ing_p)
 
             acum_ejec += val_ejec
             acum_ppto += val_ppto
@@ -4388,10 +4394,14 @@ def export_excel():
     else:
         sel = MONTHS
 
-    units = [unit] if unit else UNITS
-    exp   = ExcelExporter(year, units, sel)
-    path  = exp.generate()
-    suf   = (f'_{unit}' if unit else '_CONSOLIDADO') + (f'_{mf}-{mt}' if mf and mt else '')
+    divisa = request.args.get('divisa', '') == '1'
+    units  = [unit] if unit else UNITS
+    exp    = ExcelExporter(year, units, sel, divisa_real=divisa)
+    try:
+        path = exp.generate()
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    suf   = (f'_{unit}' if unit else '_CONSOLIDADO') + ('_DIVISA_REAL' if divisa else '') + (f'_{mf}-{mt}' if mf and mt else '')
     return send_file(path, as_attachment=True, download_name=f'EERR_ULTRAX_{year}{suf}.xlsx')
 
 

@@ -241,16 +241,17 @@ def _reordenar_estructura_para_notas(estructura):
 class ExcelExporter:
     """Genera Excel del EERR usando eerr_completo_v2_ui_adapter() — subtotales como valores del engine."""
 
-    def __init__(self, year, units, months):
+    def __init__(self, year, units, months, divisa_real=False):
         self.year   = year
         self.units  = units
         self.months = months
+        self.divisa_real = divisa_real
 
     def generate(self):
         import openpyxl
         from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
-        from app import eerr_completo_v2_ui_adapter, PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO
+        from app import eerr_completo_v2_ui_adapter, _calcular_eerr_divisa_real, PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO
         import os, tempfile
 
         wb = openpyxl.Workbook()
@@ -294,7 +295,16 @@ class ExcelExporter:
 
         for unit in sheets_to_build:
             engine_unit = unit if unit != 'CONSOLIDADO' else ''
-            data = eerr_completo_v2_ui_adapter(self.year, engine_unit)
+            if self.divisa_real:
+                data = _calcular_eerr_divisa_real(self.year, engine_unit)
+                if not isinstance(data, dict) or 'rows' not in data:
+                    raise ValueError(
+                        f"No se pudo generar el EERR en Divisa Real para {self.year}: "
+                        f"faltan tasas de cambio cargadas para ese período. "
+                        f"Verifica en Configuración de Tasas."
+                    )
+            else:
+                data = eerr_completo_v2_ui_adapter(self.year, engine_unit)
             rows = data.get('rows', [])
 
             ws = wb.create_sheet(unit)
@@ -386,7 +396,7 @@ class ExcelExporter:
             if unit == 'CONSOLIDADO':
                 muestra_pct_gastos_cons_capture = {item['partida']: item.get('muestra_pct_gastos', False) for item in rows}
 
-            if unit != 'CONSOLIDADO':
+            if unit != 'CONSOLIDADO' and not self.divisa_real:
                 notes_name, partida_month_rows, notes_header_rows = self._build_notes_sheet(wb, unit, engine_unit)
                 notes_name_by_unit[unit] = notes_name
                 partida_month_rows_by_unit[unit] = partida_month_rows
