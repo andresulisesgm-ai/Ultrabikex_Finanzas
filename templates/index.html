@@ -5300,8 +5300,7 @@ async function loadIndicadores(){
   for(const ind of inds){
     const esPct=ind.es_pct;
     const esRatio=ind.es_ratio;
-    const ref=ind.referencia?` <span style="color:var(--mu);font-weight:400">(${ind.referencia})</span>`:'';
-    const nombre=ind.nombre+ref;
+    const nombre=ind.nombre;
     let row=`<tr><td style="${lStyle};position:sticky;left:0;background:#fff;z-index:4">${nombre}</td>`;
     row+=`<td style="${cStyle}">${fmtInd(ind.year_prev,esPct,esRatio)}</td>`;
     for(let j=0;j<4;j++){

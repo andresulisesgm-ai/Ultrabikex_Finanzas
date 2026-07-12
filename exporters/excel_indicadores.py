@@ -70,8 +70,6 @@ class IndicadoresExporter:
         row = 3
         for ind in indicadores:
             nombre = ind['nombre']
-            if ind.get('referencia'):
-                nombre += f" ({ind['referencia']})"
             es_pct, es_ratio = ind['es_pct'], ind['es_ratio']
 
             c = ws.cell(row=row, column=1, value=nombre)
