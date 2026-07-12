@@ -1302,7 +1302,7 @@ input[type=file]{display:none;}
 <div class="ov" id="exmod">
   <div class="modal">
     <h3>↓ Exportar Excel</h3>
-    <div class="fg"><label>Tipo de Reporte</label><select id="ex-tipo" onchange="onExTipoChange()"><option value="eerr">EERR</option><option value="eerr_divisa">EERR Divisa Real</option><option value="esf">ESF (Balance General)</option></select></div>
+    <div class="fg"><label>Tipo de Reporte</label><select id="ex-tipo" onchange="onExTipoChange()"><option value="eerr">EERR</option><option value="eerr_divisa">EERR Divisa Real</option><option value="esf">ESF (Balance General)</option><option value="indicadores">Indicadores Financieros</option></select></div>
     <div class="fg"><label>Año</label><select id="ex-year"><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option></select></div>
     <div class="fg" id="ex-unit-wrap"><label>Unidad</label><select id="ex-unit"><option value="">Consolidado — Todas</option>{% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}</select></div>
     <p class="note">Se exportan todos los meses disponibles del año seleccionado.</p>
@@ -4551,8 +4551,8 @@ async function deshacerOverride(year,month,unit,odoo_code){
 
 // ── EXCEL ─────────────────────────────────────────────────────────────────
 function onExTipoChange(){
-  const esEsf = G('ex-tipo').value === 'esf';
-  G('ex-unit-wrap').style.display = esEsf ? 'none' : '';
+  const tipo = G('ex-tipo').value;
+  G('ex-unit-wrap').style.display = (tipo === 'esf' || tipo === 'indicadores') ? 'none' : '';
 }
 function openExcelModal(){
   const activePage = document.querySelector('.page.active');
@@ -4569,6 +4569,8 @@ function doExport(){
   let url;
   if (tipo === 'esf') {
     url = `/api/export/esf?year=${year}`;
+  } else if (tipo === 'indicadores') {
+    url = `/api/export/excel?tipo=indicadores&year=${year}`;
   } else {
     url = `/api/export/excel?year=${year}`;
     if (tipo === 'eerr_divisa') url += `&divisa=1`;

@@ -4384,8 +4384,16 @@ def comparativa():
 
 @app.route('/api/export/excel', methods=['GET'])
 def export_excel():
-    from exporters.excel_eerr import ExcelExporter
+    tipo = request.args.get('tipo', '')
     year = request.args.get('year', str(datetime.now().year))
+
+    if tipo == 'indicadores':
+        from exporters.excel_indicadores import IndicadoresExporter
+        exp = IndicadoresExporter(year)
+        path = exp.generate()
+        return send_file(path, as_attachment=True, download_name=f'INDICADORES_ULTRAX_{year}.xlsx')
+
+    from exporters.excel_eerr import ExcelExporter
     unit = request.args.get('unit', '')
     mf   = request.args.get('month_from', '')
     mt   = request.args.get('month_to', '')
