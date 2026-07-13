@@ -12,6 +12,19 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.secret_key = secrets.token_hex(32)
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+# ── Protección global por defecto (fix seguridad ultrax jul-2026) ──
+# Todas las rutas requieren sesión activa, salvo las explícitamente exentas abajo.
+RUTAS_PUBLICAS = {'login_page', 'login', 'static'}
+
+@app.before_request
+def _requerir_sesion_global():
+    if request.endpoint in RUTAS_PUBLICAS or request.endpoint is None:
+        return
+    if 'username' not in session:
+        if request.path.startswith('/api/'):
+            return jsonify({'error': 'No autenticado. Inicia sesión.'}), 401
+        return redirect(url_for('login_page'))
+
 # Registrar función de cierre de base de datos
 app.teardown_appcontext(close_db)
 
@@ -2677,8 +2690,9 @@ def compute_esf(db, year, unit=''):
     """
     from engine import esf_engine
     
-    uc = f"AND unit='{unit}'" if unit else ''
-    rows_q = db.execute(f'SELECT DISTINCT quarter FROM esf_data WHERE year=? {uc}', [year]).fetchall()
+    uc = 'AND unit=?' if unit else ''
+    params_q = [year, unit] if unit else [year]
+    rows_q = db.execute(f'SELECT DISTINCT quarter FROM esf_data WHERE year=? {uc}', params_q).fetchall()
     quarters_available = sorted([r['quarter'] for r in rows_q])
     
     res = esf_engine(year, unit)
@@ -4428,9 +4442,18 @@ def export_excel():
 def export_esf():
     from exporters.excel_esf import ESFExporter
     year = request.args.get('year', str(datetime.now().year))
-    exp  = ESFExporter(year, MONTHS)
+    quarter = request.args.get('quarter', '')
+    QUARTER_MESES = {
+        '1': ['ENE', 'FEB', 'MAR'],
+        '2': ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN'],
+        '3': ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEPT'],
+        '4': MONTHS,
+    }
+    meses = QUARTER_MESES.get(quarter, MONTHS)
+    exp  = ESFExporter(year, meses)
     path = exp.generate()
-    return send_file(path, as_attachment=True, download_name=f'ESF_ULTRAX_{year}_CONSOLIDADO.xlsx')
+    suf  = f'_Q{quarter}' if quarter else ''
+    return send_file(path, as_attachment=True, download_name=f'ESF_ULTRAX_{year}{suf}_CONSOLIDADO.xlsx')
 
 
 @app.route('/api/export/esf/pdf', methods=['GET'])

@@ -270,7 +270,7 @@ class ExcelExporter:
         DARK_FONT = Font(name='Arial', bold=True, color='000000', size=10)
         NORM_FONT = Font(name='Arial', size=9)
         TEAL_FILL = PatternFill('solid', start_color='D6DCE4')
-        NUM_FMT   = '#,##0.00;(#,##0.00);"-"'
+        NUM_FMT   = '#,##0.00;-#,##0.00;"-"'
         PCT_FMT   = '0.0%;(0.0%);"-"'
         thin      = Side(style='thin', color='D9D9D9')
         border    = Border(left=thin, right=thin, top=thin, bottom=thin)
@@ -559,6 +559,8 @@ class ExcelExporter:
             month_start_cols = month_start_cols_final
 
             for partida, r in partida_rows_cons.items():
+                if partida == 'Utilidad Neta':
+                    continue
                 refs_yp = [f"'{u}'!B{partida_rows_by_unit[u][partida]}" for u in unidades_reales if partida in partida_rows_by_unit.get(u, {})]
                 if refs_yp:
                     c_yp = ws.cell(row=r, column=2)
@@ -573,6 +575,23 @@ class ExcelExporter:
                         c = ws.cell(row=r, column=col_monto)
                         c.value = '=' + '+'.join(refs)
                         c.number_format = NUM_FMT
+
+            # Utilidad Neta (consolidado) = Utilidad después de Comisiones por Ventas - Otros Gastos no Operacionales + Otros Ingresos no Operacionales
+            # Calculado localmente dentro del consolidado, NO como suma de unidades (fix ultrax jul-2026).
+            r_un = partida_rows_cons.get('Utilidad Neta')
+            r_udc = partida_rows_cons.get('Utilidad después de Comisiones por Ventas')
+            r_ogno = partida_rows_cons.get('Otros Gastos no Operacionales')
+            r_oino = partida_rows_cons.get('Otros Ingresos no Operacionales')
+            if r_un and r_udc and r_ogno and r_oino:
+                c_yp = ws.cell(row=r_un, column=2)
+                c_yp.value = f'=B{r_udc}-B{r_ogno}+B{r_oino}'
+                c_yp.number_format = NUM_FMT
+                for month in months_list:
+                    col_monto = month_start_cols[month]
+                    col_letter = get_column_letter(col_monto)
+                    c = ws.cell(row=r_un, column=col_monto)
+                    c.value = f'={col_letter}{r_udc}-{col_letter}{r_ogno}+{col_letter}{r_oino}'
+                    c.number_format = NUM_FMT
 
             gastos_totales_row_cons = partida_rows_cons.get('Total Gastos Operacionales y No Operacionales')
 
@@ -704,7 +723,7 @@ class ExcelExporter:
         WHITE_FONT= Font(name='Arial', bold=True, color='FFFFFF', size=10)
         DARK_FONT = Font(name='Arial', bold=True, color='000000', size=10)
         NORM_FONT = Font(name='Arial', size=9)
-        NUM_FMT   = '#,##0.00;(#,##0.00);"-"'
+        NUM_FMT   = '#,##0.00;-#,##0.00;"-"'
         thin      = Side(style='thin', color='D9D9D9')
         border    = Border(left=thin, right=thin, top=thin, bottom=thin)
 

@@ -1,6 +1,6 @@
 from openpyxl.styles import Font, Alignment
 
-NUM_FMT = '#,##0.00;(#,##0.00);"-"'
+NUM_FMT = '#,##0.00;-#,##0.00;"-"'
 PCT_FMT = '0.0%;(0.0%);"-"'
 
 # Ajustes frente a ESF_STRUCTURE_V2, decididos en sesión — si no está en el
@@ -294,23 +294,27 @@ class ESFExporter:
                 set_formula('TOTAL PASIVOS Y PATRIMONIO', col, f'={L(col)}{r_tp}+{L(col)}{r_pat}')
 
         # --- Resultados del ejercicio: enlazado a EERR (única partida que viene de otro motor) ---
-        q_meses = {
-            1: ['ENE', 'FEB', 'MAR'],
-            2: ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN'],
-            3: ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEPT'],
-            4: list(self.months),
+        # Toma el ACUM EJEC del último mes de cada trimestre (ya es el acumulado desde enero, no sumar meses).
+        ultimo_mes_q = {
+            1: 'MAR',
+            2: 'JUN',
+            3: 'SEPT',
+            4: self.months[-1] if self.months else 'DIC',
         }
         if row_islr_curr:
             for q, col in zip((1, 2, 3, 4), (COL_Q1, COL_Q2, COL_Q3, COL_Q4)):
-                meses = [m for m in q_meses[q] if m in cols_curr]
-                refs = '+'.join(f"'{sheet_curr}'!{L(cols_curr[m])}{row_islr_curr}" for m in meses)
-                if refs:
-                    set_formula('Resultados del ejercicio', col, f'={refs}')
+                m = ultimo_mes_q[q]
+                if m in cols_curr:
+                    col_acum = cols_curr[m] + 4
+                    ref = f"'{sheet_curr}'!{L(col_acum)}{row_islr_curr}"
+                    set_formula('Resultados del ejercicio', col, f'={ref}')
         if row_islr_prev:
             meses_prev = [m for m in self.months if m in cols_prev]
-            refs = '+'.join(f"'{sheet_prev}'!{L(cols_prev[m])}{row_islr_prev}" for m in meses_prev)
-            if refs:
-                set_formula('Resultados del ejercicio', COL_AA, f'={refs}')
+            if meses_prev:
+                ultimo_mes_prev = meses_prev[-1]
+                col_acum_prev = cols_prev[ultimo_mes_prev] + 4
+                ref = f"'{sheet_prev}'!{L(col_acum_prev)}{row_islr_prev}"
+                set_formula('Resultados del ejercicio', COL_AA, f'={ref}')
 
         # --- Resultados acumulados: plug, formula viva SOLO para Q1-Q4.
         #     Año Anterior queda como valor fijo (decisión pendiente, ver ultrax_logs.md). ---
@@ -357,6 +361,7 @@ class ESFExporter:
 
         # ESF ULTRAX visible como primera pestaña.
         wb.move_sheet('ESF ULTRAX', offset=-(len(wb.sheetnames) - 1))
+        wb.move_sheet('EERR ULTRAX', offset=-(wb.sheetnames.index('EERR ULTRAX') - 1))
 
         path = os.path.join(tempfile.gettempdir(), f'ESF_ULTRAX_{self.year}.xlsx')
         wb.save(path)
