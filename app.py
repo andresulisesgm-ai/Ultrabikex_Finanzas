@@ -892,7 +892,8 @@ def trazabilidad():
         return jsonify({'error': 'KPI no reconocido'}), 400
 
     db  = get_db()
-    uc  = f"AND unit='{unit}'" if unit and unit != 'TODAS' else ''
+    uc  = "AND unit=?" if unit and unit != 'TODAS' else ''
+    params = [year] + ([unit] if unit and unit != 'TODAS' else [])
 
     rows = db.execute(
         f"""SELECT odoo_code, odoo_name, partida,
@@ -901,7 +902,7 @@ def trazabilidad():
             WHERE year=? {uc}
             GROUP BY odoo_code, odoo_name, partida
             ORDER BY ABS(SUM(amount_sign)) DESC""",
-        [year]
+        params
     ).fetchall()
 
     cuentas = [
@@ -1466,7 +1467,8 @@ def gasto_detalle():
     categoria = request.args.get('categoria', '')
     db        = get_db()
 
-    uc = '' if (not unit or unit == 'TODAS') else f"AND unit='{unit}'"
+    uc = '' if (not unit or unit == 'TODAS') else "AND unit=?"
+    uc_params = [] if (not unit or unit == 'TODAS') else [unit]
     _, _, gas_p = get_clasificacion(db)
 
     if partida:
@@ -1487,7 +1489,7 @@ def gasto_detalle():
 
     mrows = db.execute(
         f'SELECT month, SUM(amount) t FROM financials WHERE year=? AND partida IN ({ph}) {uc} GROUP BY month',
-        [year] + targets
+        [year] + targets + uc_params
     ).fetchall()
     by_month = {r['month']: r['t'] or 0 for r in mrows}
     meses    = [{'month': m, 'amount': round(by_month.get(m, 0), 2)} for m in MONTHS]
@@ -1495,7 +1497,7 @@ def gasto_detalle():
 
     prows = db.execute(
         f'SELECT partida, SUM(amount) t FROM financials WHERE year=? AND partida IN ({ph}) {uc} GROUP BY partida ORDER BY t DESC',
-        [year] + targets
+        [year] + targets + uc_params
     ).fetchall()
     partidas = [{'partida': r['partida'], 'total': round(r['t'] or 0, 2)} for r in prows if (r['t'] or 0)]
 
@@ -1504,7 +1506,7 @@ def gasto_detalle():
         phg = ','.join('?' * len(gas_p))
         tot_gastos = db.execute(
             f'SELECT SUM(amount) FROM financials WHERE year=? AND partida IN ({phg}) {uc}',
-            [year] + list(gas_p)
+            [year] + list(gas_p) + uc_params
         ).fetchone()[0] or 0
     pct = round(total / tot_gastos * 100, 1) if tot_gastos else 0
 
@@ -1527,7 +1529,8 @@ def grafico_detalle():
     month    = request.args.get('month', '')
     db       = get_db()
 
-    uc = '' if (not unit or unit == 'TODAS') else f"AND unit='{unit}'"
+    uc = '' if (not unit or unit == 'TODAS') else "AND unit=?"
+    uc_params = [] if (not unit or unit == 'TODAS') else [unit]
     ing_p, cos_p, gas_p = get_clasificacion(db)
 
     if chart_id == 'ch-main':
@@ -1540,7 +1543,7 @@ def grafico_detalle():
                 ph = ','.join('?' * len(ps))
                 return db.execute(
                     f'SELECT SUM(amount) FROM financials WHERE year=? AND partida IN ({ph}) {uc} {mc}',
-                    [year] + list(ps)
+                    [year] + list(ps) + uc_params
                 ).fetchone()[0] or 0
             i = msum(ing_p); c = msum(cos_p); g = msum(gas_p)
             ub = i - c; un = i - c - g
@@ -1560,7 +1563,7 @@ def grafico_detalle():
                 ph = ','.join('?' * len(ps))
                 return db.execute(
                     f'SELECT SUM(amount) FROM financials WHERE year=? AND partida IN ({ph}) {uc} {mc}',
-                    [year] + list(ps)
+                    [year] + list(ps) + uc_params
                 ).fetchone()[0] or 0
             i = msum(ing_p); c = msum(cos_p); g = msum(gas_p)
             ub = i - c; un = i - c - g
@@ -1583,7 +1586,7 @@ def grafico_detalle():
                 ph = ','.join('?' * len(ps))
                 return db.execute(
                     f'SELECT SUM(amount) FROM financials WHERE year=? AND partida IN ({ph}) {uc} {mc}',
-                    [year] + list(ps)
+                    [year] + list(ps) + uc_params
                 ).fetchone()[0] or 0
             i = msum(ing_p); c = msum(cos_p); g = msum(gas_p); un = i - c - g
             meses.append({'month': m, 'ingresos': round(i, 2), 'costos': round(c, 2),
@@ -1624,7 +1627,7 @@ def grafico_detalle():
                     ph = ','.join('?' * len(ps))
                     return db.execute(
                         f'SELECT SUM(amount) FROM financials WHERE year=? AND partida IN ({ph}) {uc} {mc}',
-                        [year] + list(ps)
+                        [year] + list(ps) + uc_params
                     ).fetchone()[0] or 0
                 i = msum(ing_p); c = msum(cos_p); g = msum(gas_p); un = i - c - g
                 meses.append({'month': m, 'ingresos': round(i, 2), 'utilidad_neta': round(un, 2)})
@@ -1643,12 +1646,13 @@ def eerr():
     unit  = request.args.get('unit', '')
     month = request.args.get('month', '')
     db    = get_db()
-    uc    = f"AND unit='{unit}'" if unit else ''
-    mc    = f"AND month='{month}'" if month else ''
+    uc    = "AND unit=?" if unit else ''
+    mc    = "AND month=?" if month else ''
+    params = [year] + ([unit] if unit else []) + ([month] if month else [])
 
     rows = db.execute(
         f'SELECT partida, SUM(amount) total FROM financials WHERE year=? {uc} {mc} GROUP BY partida',
-        [year]
+        params
     ).fetchall()
     data = {r['partida']: r['total'] for r in rows}
 
@@ -1693,8 +1697,9 @@ def eerr_detalle():
     else:
         active_months = MONTHS
 
-    uc = f"AND unit='{unit}'" if unit else ''
+    uc = "AND unit=?" if unit else ''
     ph_m = ','.join('?' * len(active_months))
+    params = [year] + ([unit] if unit else []) + active_months
 
     # Totales por partida y mes
     rows = db.execute(
@@ -1702,7 +1707,7 @@ def eerr_detalle():
             FROM financials
             WHERE year=? {uc} AND month IN ({ph_m})
             GROUP BY partida, month''',
-        [year] + active_months
+        params
     ).fetchall()
 
     # Estructura: {partida: {month: amount}}
@@ -1947,7 +1952,8 @@ def eerr_completo_v2_ui_adapter(year, unit):
     db   = get_db()
 
     year_prev = str(int(year) - 1)
-    uc = f"AND unit='{unit}'" if unit else ''
+    uc = "AND unit=?" if unit else ''
+    uc_params = [unit] if unit else []
 
     MONTH_TYPES = {
         'ENE': 'A',
@@ -1974,7 +1980,7 @@ def eerr_completo_v2_ui_adapter(year, unit):
     rows_curr = db.execute(
         f'''SELECT partida, month, SUM(amount) amount FROM financials
             WHERE year=? {uc} GROUP BY partida, month''',
-        [year]
+        [year] + uc_params
     ).fetchall()
 
     by_partida = {}
@@ -1985,7 +1991,7 @@ def eerr_completo_v2_ui_adapter(year, unit):
     rows_prev = db.execute(
         f'''SELECT partida, SUM(amount) amount FROM financials
             WHERE year=? {uc} GROUP BY partida''',
-        [year_prev]
+        [year_prev] + uc_params
     ).fetchall()
     by_prev_raw = {r['partida']: r['amount'] for r in rows_prev}
 
@@ -1993,7 +1999,7 @@ def eerr_completo_v2_ui_adapter(year, unit):
     rows_budget = db.execute(
         f'''SELECT partida, month, SUM(amount) amount FROM budget
             WHERE year=? {uc} GROUP BY partida, month''',
-        [year]
+        [year] + uc_params
     ).fetchall()
     by_budget = {}
     for r in rows_budget:
@@ -2999,14 +3005,15 @@ def compute_indicadores(db, year, unit='', ingresos=0.0, util_neta=0.0):
     tot_cxc     = esf.get('Total Cuentas por Cobrar (neto)', 0)
 
     # Ingresos y costos trimestrales (para rotación inventarios)
-    uc = f"AND unit='{unit}'" if unit else ''
+    uc = "AND unit=?" if unit else ''
+    uc_params = [unit] if unit else []
     meses_q = {1:[1,2,3], 2:[4,5,6], 3:[7,8,9], 4:[10,11,12]}[last_q]
     meses_nombres = [MONTHS[m-1] for m in meses_q]
     rows_q = db.execute(
         f'''SELECT SUM(amount_sign) total, odoo_code AS account_number FROM financials_detail
             WHERE year=? AND month IN ({','.join('?'*len(meses_nombres))}) {uc}
             GROUP BY odoo_code''',
-        [year] + meses_nombres
+        [year] + meses_nombres + uc_params
     ).fetchall()
     ing_q = sum(r['total'] for r in rows_q if r['account_number'].startswith('4'))
     cos_q = sum(r['total'] for r in rows_q if r['account_number'].startswith('5'))
@@ -3507,7 +3514,8 @@ def divisa_real_resumen():
     unit  = request.args.get('unit', 'TODAS')
     db    = get_db()
 
-    uc = '' if unit in ('TODAS', '') else f"AND unit='{unit}'"
+    uc = '' if unit in ('TODAS', '') else "AND unit=?"
+    uc_params = [] if unit in ('TODAS', '') else [unit]
 
     # Obtener tasas disponibles
     if month:
@@ -3562,7 +3570,7 @@ def divisa_real_resumen():
 
         rows = db.execute(
             f'SELECT unit, partida, amount FROM financials WHERE year=? AND month=? {uc}',
-            (year, mes)
+            (year, mes) + tuple(uc_params)
         ).fetchall()
 
         data_ajustado = {}
@@ -3628,7 +3636,8 @@ def _calcular_eerr_divisa_real(year, unit):
     db = get_db()
 
     year_prev = str(int(year) - 1)
-    uc = f"AND unit='{unit}'" if unit else ''
+    uc = "AND unit=?" if unit else ''
+    uc_params = [unit] if unit else []
 
     MONTH_TYPES = {
         'ENE': 'A', 'FEB': 'B', 'MAR': 'C', 'ABR': 'B', 'MAY': 'B', 'JUN': 'D',
@@ -3662,7 +3671,7 @@ def _calcular_eerr_divisa_real(year, unit):
     rows_curr = db.execute(
         f'''SELECT partida, month, unit, amount FROM financials
             WHERE year=? {uc}''',
-        [year]
+        [year] + uc_params
     ).fetchall()
 
     # Validar que existan tasas para todos los meses que contienen transacciones (Paso 4)
@@ -3717,7 +3726,7 @@ def _calcular_eerr_divisa_real(year, unit):
     rows_prev = db.execute(
         f'''SELECT partida, SUM(amount) amount FROM financials
             WHERE year=? {uc} GROUP BY partida''',
-        [year_prev]
+        [year_prev] + uc_params
     ).fetchall()
     by_prev_raw = {r['partida']: r['amount'] for r in rows_prev}
 
@@ -3725,7 +3734,7 @@ def _calcular_eerr_divisa_real(year, unit):
     rows_budget = db.execute(
         f'''SELECT partida, month, SUM(amount) amount FROM budget
             WHERE year=? {uc} GROUP BY partida, month''',
-        [year]
+        [year] + uc_params
     ).fetchall()
     by_budget = {}
     for r in rows_budget:
@@ -4135,13 +4144,14 @@ def get_budget():
     month = request.args.get('month', '')
     db    = get_db()
 
-    uc = f"AND unit='{unit}'" if unit else ''
-    mc = f"AND month='{month}'" if month else ''
+    uc = "AND unit=?" if unit else ''
+    mc = "AND month=?" if month else ''
+    params = [year] + ([unit] if unit else []) + ([month] if month else [])
 
     # Presupuesto
     brows = db.execute(
         f'SELECT partida, month, SUM(amount) amount FROM budget WHERE year=? {uc} {mc} GROUP BY partida, month',
-        [year]
+        params
     ).fetchall()
     budget = {}
     for r in brows:
@@ -4150,7 +4160,7 @@ def get_budget():
     # Real
     rrows = db.execute(
         f'SELECT partida, month, SUM(amount) amount FROM financials WHERE year=? {uc} {mc} GROUP BY partida, month',
-        [year]
+        params
     ).fetchall()
     real = {}
     for r in rrows:
@@ -4358,7 +4368,8 @@ def comparativa():
     prev = year - 1
     db   = get_db()
     ing_p, cos_p, gas_p = get_clasificacion(db)
-    uc = f"AND unit='{unit}'" if unit else ''
+    uc = "AND unit=?" if unit else ''
+    uc_params = [unit] if unit else []
 
     def totals(yr):
         def s(partidas):
@@ -4366,7 +4377,7 @@ def comparativa():
             ph = ','.join('?' * len(partidas))
             r  = db.execute(
                 f'SELECT SUM(amount) FROM financials WHERE year=? AND partida IN ({ph}) {uc}',
-                [str(yr)] + list(partidas)
+                [str(yr)] + list(partidas) + uc_params
             ).fetchone()
             return r[0] or 0
         i = s(ing_p); c = s(cos_p); g = s(gas_p)
@@ -4386,7 +4397,7 @@ def comparativa():
                 ph = ','.join('?' * len(partidas))
                 r  = db.execute(
                     f'SELECT SUM(amount) FROM financials WHERE year=? AND month=? AND partida IN ({ph}) {uc}',
-                    [str(yr), m] + list(partidas)
+                    [str(yr), m] + list(partidas) + uc_params
                 ).fetchone()
                 return r[0] or 0
             i = sm(ing_p); c = sm(cos_p); g = sm(gas_p)
@@ -4554,7 +4565,8 @@ def export_pdf():
     unit  = request.args.get('unit', '')
     db    = get_db()
     ing_p, cos_p, gas_p = get_clasificacion(db)
-    uc    = f"AND unit='{unit}'" if unit else ''
+    uc    = "AND unit=?" if unit else ''
+    uc_params = [unit] if unit else []
 
     def sm(partidas, month=''):
         if not partidas: return 0
@@ -4562,7 +4574,7 @@ def export_pdf():
         extra = f"AND month='{month}'" if month else ''
         r     = db.execute(
             f'SELECT SUM(amount) FROM financials WHERE year=? AND partida IN ({ph}) {uc} {extra}',
-            [year] + list(partidas)
+            [year] + list(partidas) + uc_params
         ).fetchone()
         return r[0] or 0
 
