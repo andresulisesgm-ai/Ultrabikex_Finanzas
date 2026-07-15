@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
 import sqlite3, os, shutil, tempfile, secrets
 from datetime import datetime
+from werkzeug.utils import secure_filename
 from engine import OdooParser, MONTH_TO_QUARTER
 from exporters.excel_eerr import ExcelExporter
 from exporters.excel_esf import ESFExporter
@@ -231,6 +232,8 @@ def index():
 @admin_required
 def upload():
     file    = request.files.get('file')
+    if file and not file.filename.lower().endswith(('.xlsx', '.xls')):
+        return jsonify({'error': 'El archivo debe ser .xlsx o .xls'}), 400
     unit    = request.form.get('unit')
     month   = request.form.get('month')
     year    = request.form.get('year', str(datetime.now().year))
@@ -238,35 +241,52 @@ def upload():
     if is_esf:
         unit = 'CONSOLIDADO'
 
-
     if not all([file, unit, month]):
         return jsonify({'error': 'Faltan parámetros'}), 400
 
     force = request.form.get('force', 'false').lower() == 'true'
 
-    if not force:
-        db = get_db()
-        if is_esf:
-            quarter_check = MONTH_TO_QUARTER.get(month, 1)
-            existing = db.execute(
-                'SELECT COUNT(*) FROM esf_data WHERE year=? AND quarter=? AND unit=?',
-                (year, quarter_check, 'CONSOLIDADO')
-            ).fetchone()[0]
-        else:
-            existing = db.execute(
-                'SELECT COUNT(*) FROM financials WHERE year=? AND month=? AND unit=?',
-                (year, month, unit)
-            ).fetchone()[0]
-        if existing > 0:
-            return jsonify({'exists': True}), 200
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+    if file_size > 10 * 1024 * 1024:
+        return jsonify({'error': 'El archivo excede el tamaño máximo permitido (10MB)'}), 400
 
-    path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+    safe_filename = secure_filename(file.filename)
+    path = os.path.join(app.config['UPLOAD_FOLDER'], safe_filename)
     file.save(path)
 
     try:
         parser   = OdooParser(path)
         accounts = parser.parse()
-        db       = get_db()
+        if not accounts:
+            return jsonify({'error': 'No se reconoció ninguna cuenta en el archivo. Verifica el formato.'}), 400
+
+        balance_count = sum(1 for code in accounts if OdooParser.is_balance_account(code))
+        result_count = len(accounts) - balance_count
+
+        if is_esf and result_count > balance_count:
+            return jsonify({'error': f'El archivo parece ser un EERR (mayoría de cuentas de resultado: {result_count} vs {balance_count} de balance), pero se marcó como ESF. Verifica el archivo o la selección.'}), 400
+
+        if not is_esf and balance_count > result_count:
+            return jsonify({'error': f'El archivo parece ser un ESF (mayoría de cuentas de balance: {balance_count} vs {result_count} de resultado), pero se marcó como EERR. Verifica el archivo o la selección.'}), 400
+
+        db = get_db()
+
+        if not force:
+            if is_esf:
+                quarter_check = MONTH_TO_QUARTER.get(month, 1)
+                existing = db.execute(
+                    'SELECT COUNT(*) FROM esf_data WHERE year=? AND quarter=? AND unit=?',
+                    (year, quarter_check, 'CONSOLIDADO')
+                ).fetchone()[0]
+            else:
+                existing = db.execute(
+                    'SELECT COUNT(*) FROM financials WHERE year=? AND month=? AND unit=?',
+                    (year, month, unit)
+                ).fetchone()[0]
+            if existing > 0:
+                return jsonify({'exists': True}), 200
 
         inserted_fin, inserted_esf, skipped, unmapped = 0, 0, 0, []
         quarter = MONTH_TO_QUARTER.get(month, 1)
