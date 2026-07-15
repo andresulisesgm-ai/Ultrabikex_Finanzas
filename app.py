@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, jsonify, send_file, session, 
 import sqlite3, os, shutil, tempfile, secrets
 from datetime import datetime
 from werkzeug.utils import secure_filename
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from engine import OdooParser, MONTH_TO_QUARTER
 from exporters.excel_eerr import ExcelExporter
 from exporters.excel_esf import ESFExporter
@@ -11,7 +13,12 @@ from auth import login_required, admin_required, verify_password, get_current_us
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.secret_key = secrets.token_hex(32)
+limiter = Limiter(get_remote_address, app=app, default_limits=[])
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+@app.errorhandler(429)
+def rate_limit_exceeded(e):
+    return jsonify({'error': 'Demasiados intentos. Espera 30 segundos e inténtalo de nuevo.'}), 429
 
 # ── Protección global por defecto (fix seguridad ultrax jul-2026) ──
 # Todas las rutas requieren sesión activa, salvo las explícitamente exentas abajo.
@@ -190,6 +197,7 @@ def login_page():
     return render_template('login.html')
 
 @app.route('/api/login', methods=['POST'])
+@limiter.limit("5 per 30 seconds")
 def login():
     data = request.get_json()
     username = data.get('username')
