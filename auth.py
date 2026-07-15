@@ -1,19 +1,17 @@
 import hashlib
 import secrets
+import bcrypt
 from functools import wraps
 from flask import session, redirect, url_for, jsonify
 
-# Usuarios hardcodeados con contraseñas hasheadas (SHA-256)
-# Contraseñas por defecto:
-#   admin: admin2026
-#   viewer: viewer2026
+# Usuarios hardcodeados con contraseñas hasheadas (bcrypt)
 USERS = {
-    'admin': {
-        'password_hash': hashlib.sha256('admin2026'.encode()).hexdigest(),
+    'Yoce': {
+        'password_hash': bcrypt.hashpw('Yoce2026'.encode(), bcrypt.gensalt()).decode(),
         'role': 'admin'
     },
-    'viewer': {
-        'password_hash': hashlib.sha256('viewer2026'.encode()).hexdigest(),
+    'Camilo': {
+        'password_hash': bcrypt.hashpw('Camilo2026'.encode(), bcrypt.gensalt()).decode(),
         'role': 'viewer'
     }
 }
@@ -24,8 +22,7 @@ def verify_password(username, password):
     if not user:
         return None
 
-    password_hash = hashlib.sha256(password.encode()).hexdigest()
-    if password_hash == user['password_hash']:
+    if bcrypt.checkpw(password.encode(), user['password_hash'].encode()):
         return user['role']
     return None
 
