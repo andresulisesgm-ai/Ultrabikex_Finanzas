@@ -13,3 +13,7 @@ integrity_guard.log
 ~$*.xlsx
 README.md
 CLAUDE.md
+*.xlsx
+integrity_guard_esf.log
+diff_*.txt
+ultrax.bat
