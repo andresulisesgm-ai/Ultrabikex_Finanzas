@@ -4311,7 +4311,9 @@ def import_budget():
             rows_matrix = [r for r in csv.reader(io.StringIO(text), delimiter=delim)]
         elif fn.endswith('.xlsx'):
             import openpyxl
-            tmp = tempfile.mktemp(suffix='.xlsx')
+            tmp_file = tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False)
+            tmp = tmp_file.name
+            tmp_file.close()
             file.save(tmp)
             wb = openpyxl.load_workbook(tmp, data_only=True)
             ws = wb.active
@@ -4323,7 +4325,9 @@ def import_budget():
                 import xlrd
             except ImportError:
                 return jsonify({'error': '.xls requiere xlrd. Convierte el archivo a .xlsx o .csv'}), 400
-            tmp = tempfile.mktemp(suffix='.xls')
+            tmp_file = tempfile.NamedTemporaryFile(suffix='.xls', delete=False)
+            tmp = tmp_file.name
+            tmp_file.close()
             file.save(tmp)
             book = xlrd.open_workbook(tmp)
             sh   = book.sheet_by_index(0)
@@ -4533,7 +4537,9 @@ def export_esf_pdf():
     HDR = colors.HexColor('#1e3a5f'); BG = colors.HexColor('#f8fafc')
     GRY = colors.HexColor('#e2e8f0'); SEC = colors.HexColor('#dbe4ef')
 
-    tmp = tempfile.mktemp(suffix='.pdf')
+    tmp_file = tempfile.NamedTemporaryFile(suffix='.pdf', delete=False)
+    tmp = tmp_file.name
+    tmp_file.close()
     doc = SimpleDocTemplate(tmp, pagesize=landscape(A4), leftMargin=1.5*cm, rightMargin=1.5*cm,
                             topMargin=1.5*cm, bottomMargin=1.5*cm)
     title_style = ParagraphStyle('T', fontSize=14, fontName='Helvetica-Bold', spaceAfter=4, alignment=TA_CENTER)
@@ -4606,7 +4612,9 @@ def export_pdf():
         ).fetchone()
         return r[0] or 0
 
-    tmp = tempfile.mktemp(suffix='.pdf')
+    tmp_file = tempfile.NamedTemporaryFile(suffix='.pdf', delete=False)
+    tmp = tmp_file.name
+    tmp_file.close()
     doc = SimpleDocTemplate(tmp, pagesize=landscape(A4), leftMargin=1.5*cm, rightMargin=1.5*cm,
                             topMargin=1.5*cm, bottomMargin=1.5*cm)
     styles    = getSampleStyleSheet()
@@ -4862,7 +4870,9 @@ def restore():
     file = request.files.get('file')
     if not file: return jsonify({'error': 'No se envió archivo'}), 400
     if not file.filename.endswith('.db'): return jsonify({'error': 'El archivo debe ser .db'}), 400
-    tmp = tempfile.mktemp(suffix='.db')
+    tmp_file = tempfile.NamedTemporaryFile(suffix='.db', delete=False)
+    tmp = tmp_file.name
+    tmp_file.close()
     try:
         file.save(tmp)
         conn   = sqlite3.connect(tmp)
