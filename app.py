@@ -2567,21 +2567,6 @@ def eerr_completo():
 
 # ── ESF ───────────────────────────────────────────────────────────────────────
 
-def _esf_sections():
-    """Partidas agrupadas por sección a partir de ESF_STRUCTURE."""
-    from engine import ESF_STRUCTURE
-    sections = {
-        'activo_corriente':    set(),
-        'activo_no_corriente': set(),
-        'pasivo_corriente':    set(),
-        'pasivo_no_corriente': set(),
-        'patrimonio':          set(),
-    }
-    for partida, is_header, section in ESF_STRUCTURE:
-        if not is_header and section:
-            sections[section].add(partida)
-    return sections
-
 
 def compute_esf(db, year, unit=''):
     """
@@ -2671,18 +2656,6 @@ def compute_indicadores_v2(db, year):
         if not s: return ''
         s = ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
         return s.lower().strip()
-
-    def get_subtotal(partida_name, by_partida_q):
-        """Resuelve valor de un nodo hoja o grupo en by_partida para un trimestre."""
-        if partida_name in groups_v2:
-            return sum(by_partida_q.get(p, 0) for p in groups_v2[partida_name])
-        val = by_partida_q.get(partida_name, 0)
-        if val == 0:
-            pn = norm(partida_name)
-            for k, v in by_partida_q.items():
-                if norm(k) == pn:
-                    return v
-        return val
 
     NODOS = {
         'Total Ingresos': 'ingresos',
