@@ -24,6 +24,13 @@ def rate_limit_exceeded(e):
 # Todas las rutas requieren sesión activa, salvo las explícitamente exentas abajo.
 RUTAS_PUBLICAS = {'login_page', 'login', 'static'}
 
+# Umbral de variación trimestral del plug "Resultados acumulados" en
+# el guardián de integridad ESF (validate_esf_integrity). Calibrado
+# empíricamente en jul-2026 con datos simulados (rango observado:
+# 9.6%-21.7% de Total Activos en fluctuación normal). Recalibrar cuando
+# se acumulen varios trimestres de datos reales de producción.
+ESF_PLUG_VARIACION_UMBRAL = 0.25
+
 @app.before_request
 def _requerir_sesion_global():
     if request.endpoint in RUTAS_PUBLICAS or request.endpoint is None:
@@ -2533,11 +2540,19 @@ def validate_esf_integrity(year, unit, esf_output, db):
             variacion = abs(val_curr - val_prev)
             if activos_curr:
                 variacion_pct = variacion / abs(activos_curr)
-                if variacion_pct > 0.30:
+                if variacion_pct > ESF_PLUG_VARIACION_UMBRAL:
                     msg = (f"Salto brusco en Resultados acumulados (plug) entre Q{q_prev} y Q{q_curr}: "
                            f"Q{q_prev}={val_prev:.2f}, Q{q_curr}={val_curr:.2f}, "
-                           f"Variación={variacion:.2f} ({variacion_pct*100:.1f}% de Total Activos)")
+                           f"Variación={variacion:.2f} ({variacion_pct*100:.1f}% de Total Activos, "
+                           f"umbral={ESF_PLUG_VARIACION_UMBRAL*100:.0f}%)")
                     discrepancies.append(msg)
+
+            # Alerta separada: cambio de signo en el plug (independiente del %,
+            # puede indicar patrimonio insuficiente frente a pérdidas acumuladas reales)
+            if (val_prev > 0 and val_curr < 0) or (val_prev < 0 and val_curr > 0):
+                msg_signo = (f"Cambio de signo en Resultados acumulados (plug) entre Q{q_prev} y Q{q_curr}: "
+                             f"Q{q_prev}={val_prev:.2f} -> Q{q_curr}={val_curr:.2f}")
+                discrepancies.append(msg_signo)
 
     if discrepancies:
         logger.warning(f"--- DETECTADAS DISCREPANCIAS DE INTEGRIDAD (ESF) - Unidad={unit}, Año={year} ---")
