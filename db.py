@@ -441,15 +441,6 @@ def init_db():
             income_type TEXT,
             created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
         );
-        CREATE TABLE IF NOT EXISTS esf_upload_history (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            year        TEXT NOT NULL,
-            quarter     INTEGER NOT NULL,
-            unit        TEXT NOT NULL,
-            inserted    INTEGER NOT NULL DEFAULT 0,
-            reverted    INTEGER NOT NULL DEFAULT 0,
-            created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
-        );
         CREATE TABLE IF NOT EXISTS tasas_periodo (
             id                      INTEGER PRIMARY KEY AUTOINCREMENT,
             year                    TEXT NOT NULL,
@@ -627,6 +618,8 @@ def migrate_db():
 
     if 'briefing_prompts' not in tables:
         _crear_tabla_briefing_prompts(conn)
+
+    conn.execute('DROP TABLE IF EXISTS esf_upload_history')
 
 
 
