@@ -799,8 +799,13 @@ def esf_engine(year, unit):
                         q_sum += m_data.get('ejecutado', {}).get('valor', 0.0)
                 utilidad_q[q] = q_sum
     except Exception as e:
-        # Fallback silencioso en caso de error
-        pass
+        try:
+            from app import app as flask_app
+            flask_app.logger.error(
+                f"Error al calcular Utilidad Neta para ESF (year={year}, unit={unit}): {str(e)}"
+            )
+        except Exception:
+            pass
         
     # 4. Calcular los saldos trimestrales para cada partida
     quarters_data = {q: {} for q in [1, 2, 3, 4]}
