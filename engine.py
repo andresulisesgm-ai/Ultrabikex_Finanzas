@@ -1046,11 +1046,5 @@ SUBTOTAL_EXCLUSIONS = {
     'Otros Gastos no Operacionales': ['Deterioro de inventarios', 'Faltante de inventarios'],
 }
 
-SUBTOTAL_EXTRA_SUM = {
-    'Subtotal Gastos de Comercialización y Logistica': [
-        'Gastos de comisiones empleados', 'Gastos de comisiones por venta de personal externo'
-    ]
-}
-
 
 
