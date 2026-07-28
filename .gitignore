@@ -11,6 +11,8 @@ integrity_guard.log
 .aiexclude
 .antigravityignore
 .geminiignore
+.antigravity/
+.geminirules
 # Datos operativos
 uploads/
 

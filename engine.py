@@ -691,7 +691,6 @@ ESF_STRUCTURE_V2 = [
     ('Superavit por revaluacion', False, None, False, None, 2, False, 'PATRIMONIO', 2),
     ('Resultados acumulados', False, None, False, None, 2, False, 'PATRIMONIO', 2),
     ('Resultados del ejercicio', False, None, False, None, 2, False, 'PATRIMONIO', 2),
-    ('Ajuste por Diferencial Cambiario', False, None, False, None, 2, False, 'PATRIMONIO', 2),
     ('Total Patrimonio', True, None, True, None, 1, False, 'PATRIMONIO', 1),
     ('TOTAL PASIVOS Y PATRIMONIO', True, None, True, None, 0, False, None, 0),
 ]
@@ -774,15 +773,6 @@ def esf_engine(year, unit):
             detail_by_group[gn][key] = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}
         detail_by_group[gn][key][r['quarter']] = round(r['total'], 2)
 
-    # Leer ajustes diferenciales desde la base de datos
-    ajustes_diferenciales = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}
-    ajuste_rows = cursor.execute(
-        'SELECT quarter, valor FROM esf_ajuste_diferencial WHERE year = ?',
-        (year,)
-    ).fetchall()
-    for ar in ajuste_rows:
-        ajustes_diferenciales[ar['quarter']] = ar['valor']
-        
     conn.close()
     
     # 3. Importación perezosa de la Utilidad Neta desde EERR V2
@@ -820,14 +810,13 @@ def esf_engine(year, unit):
         for item in ESF_STRUCTURE_V2:
             quarters_data[q][item[0]] = 0.0
             
-        # Asignar Resultados del ejercicio y Ajuste por Diferencial Cambiario
+        # Asignar Resultados del ejercicio
         quarters_data[q]['Resultados del ejercicio'] = utilidad_q[q]
-        quarters_data[q]['Ajuste por Diferencial Cambiario'] = ajustes_diferenciales[q]
         
         # Asignar valores a hojas (is_header == False) excluyendo calculados
         for item in ESF_STRUCTURE_V2:
             name, is_header = item[0], item[1]
-            if not is_header and name not in ('Resultados acumulados', 'Resultados del ejercicio', 'Ajuste por Diferencial Cambiario'):
+            if not is_header and name not in ('Resultados acumulados', 'Resultados del ejercicio'):
                 partidas = groups_v2.get(name, [])
                 quarters_data[q][name] = sum(db_data.get((q, p), 0.0) for p in partidas)
                 
@@ -872,17 +861,16 @@ def esf_engine(year, unit):
         quarters_data[q]['TOTAL ACTIVOS'] = quarters_data[q]['Total Activos Corrientes'] + quarters_data[q]['Total Activos No Corrientes']
         quarters_data[q]['TOTAL PASIVOS'] = quarters_data[q]['Total Pasivos Corrientes'] + quarters_data[q]['Total Pasivos No Corrientes']
         
-        # Regla Especial 2: Resultados acumulados = TOTAL ACTIVOS - TOTAL PASIVOS - (Capital social + Reservas legales y estatutarias + Superavit por revaluacion + Resultados del ejercicio + Ajuste por Diferencial Cambiario)
+        # Regla Especial 2: Resultados acumulados = TOTAL ACTIVOS - TOTAL PASIVOS - (Capital social + Reservas legales y estatutarias + Superavit por revaluacion + Resultados del ejercicio)
         cap_social = quarters_data[q].get('Capital social', 0.0)
         reservas = quarters_data[q].get('Reservas legales y estatutarias', 0.0)
         superavit = quarters_data[q].get('Superavit por revaluacion', 0.0)
         res_ejer = quarters_data[q].get('Resultados del ejercicio', 0.0)
-        ajuste_dif = quarters_data[q].get('Ajuste por Diferencial Cambiario', 0.0)
         
-        res_acum = quarters_data[q]['TOTAL ACTIVOS'] - quarters_data[q]['TOTAL PASIVOS'] - cap_social - reservas - superavit - res_ejer - ajuste_dif
+        res_acum = quarters_data[q]['TOTAL ACTIVOS'] - quarters_data[q]['TOTAL PASIVOS'] - cap_social - reservas - superavit - res_ejer
         quarters_data[q]['Resultados acumulados'] = res_acum
         
-        # Total Patrimonio = Capital social + Reservas + Superavit + Resultados acumulados + Resultados del ejercicio + Ajuste por Diferencial Cambiario
+        # Total Patrimonio = Capital social + Reservas + Superavit + Resultados acumulados + Resultados del ejercicio
         level_2_patrimonio = [x[0] for x in ESF_STRUCTURE_V2 if x[5] == 2 and x[7] == 'PATRIMONIO']
         quarters_data[q]['Total Patrimonio'] = sum(quarters_data[q].get(c, 0.0) for c in level_2_patrimonio)
         quarters_data[q]['PATRIMONIO'] = quarters_data[q]['Total Patrimonio']
@@ -915,7 +903,7 @@ def esf_engine(year, unit):
         })
         
         # Nivel 4: cuentas individuales que componen este nodo hoja
-        if not is_header and name not in ('Resultados acumulados', 'Resultados del ejercicio', 'Ajuste por Diferencial Cambiario'):
+        if not is_header and name not in ('Resultados acumulados', 'Resultados del ejercicio'):
             for (odoo_code, odoo_name), q_vals in detail_by_group.get(name, {}).items():
                 rows.append({
                     'partida':    odoo_name,
