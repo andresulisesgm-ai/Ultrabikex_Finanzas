@@ -341,7 +341,13 @@ class ESFExporter:
             for col_v, col_actual, col_base in VARI_PARES:
                 actual_ref = f'{L(col_actual)}{r}'
                 base_ref = f'{L(col_base)}{r}'
-                formula = f'=IFERROR(({actual_ref}-{base_ref})/{base_ref},0)'
+                formula = (
+                    f'=IF(AND({base_ref}=0,{actual_ref}>0),100%,'
+                    f'IF(AND({base_ref}<0,{actual_ref}>=0),({base_ref}-{actual_ref})/{base_ref},'
+                    f'IF(AND({base_ref}>0,{actual_ref}>0),({actual_ref}-{base_ref})/{base_ref},'
+                    f'IF(AND({base_ref}=0,{actual_ref}<=0),"",'
+                    f'({actual_ref}-{base_ref})/{base_ref}))))'
+                )
                 c = ws.cell(row=r, column=col_v, value=formula)
                 c.number_format = PCT_FMT
                 c.font = NORM_FONT

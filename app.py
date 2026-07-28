@@ -2637,7 +2637,7 @@ def compute_indicadores_v2(db, year):
         if prev is None or curr is None:
             return None
         if prev == 0:
-            return 1.0 if curr > 0 else (None if curr == 0 else -1.0)
+            return 1.0 if curr > 0 else None
         return round((curr - prev) / abs(prev), 4)
 
     QUARTER_MONTHS = {
