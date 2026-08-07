@@ -746,12 +746,13 @@ def restore_mapping_log(lid):
 def dashboard():
     year = request.args.get('year', str(datetime.now().year))
     unit = request.args.get('unit', 'TODAS')
+    empresa_id = request.args.get('empresa_id', type=int) or None
     db   = get_db()
     ing_p, cos_p, gas_p = get_clasificacion(db)
 
     # 1. Obtener los datos del EERR
     eerr_unit_param = '' if unit == 'TODAS' else unit
-    eerr_data = eerr_completo_v2_ui_adapter(year, eerr_unit_param)
+    eerr_data = eerr_completo_v2_ui_adapter(year, eerr_unit_param, empresa_id=empresa_id)
 
     # Función auxiliar para extraer datos del EERR
     def get_eerr_values(partida_name):
@@ -779,7 +780,7 @@ def dashboard():
 
     # 2. Desglose por unidad (por_unidad)
     por_unidad = []
-    for u in UNITS:
+    for u in (UNITS if (empresa_id is None or empresa_id == 2) else []):
         eerr_u = eerr_completo_v2_ui_adapter(year, u)
         
         def get_u_total(p_name):
@@ -885,7 +886,7 @@ def dashboard():
     ).fetchall()
 
     # 8. Indicadores Avanzados pasando ingresos y utilidad neta calculados
-    indicadores_avanzados = compute_indicadores(db, year, '' if unit == 'TODAS' else unit, tI, un)
+    indicadores_avanzados = compute_indicadores(db, year, '' if unit == 'TODAS' else unit, tI, un, empresa_id=empresa_id)
 
     totals = {
         'ingresos': round(tI, 2),
@@ -904,6 +905,16 @@ def dashboard():
         'punto_equilibrio': pe
     })
 
+
+@app.route('/api/empresas', methods=['GET'])
+def get_empresas():
+    """
+    Lista las empresas legales del Holding (tabla empresas). Usado para poblar
+    dinámicamente el selector de empresa en el sidebar.
+    """
+    db = get_db()
+    rows = db.execute('SELECT id, nombre_corto, nombre_legal, color FROM empresas ORDER BY id').fetchall()
+    return jsonify([dict(r) for r in rows])
 
 @app.route('/api/trazabilidad')
 def trazabilidad():
@@ -2584,8 +2595,9 @@ def validate_esf_integrity(year, unit, esf_output, db):
 def eerr_completo():
     year = request.args.get('year', str(datetime.now().year))
     unit = request.args.get('unit', '')
+    empresa_id = request.args.get('empresa_id', type=int) or None
 
-    data = eerr_completo_v2_ui_adapter(year, unit)
+    data = eerr_completo_v2_ui_adapter(year, unit, empresa_id=empresa_id)
     
     try:
         db = get_db()
@@ -2599,19 +2611,26 @@ def eerr_completo():
 # ── ESF ───────────────────────────────────────────────────────────────────────
 
 
-def compute_esf(db, year, unit=''):
+def compute_esf(db, year, unit='', empresa_id=None):
     """
     Calcula el Estado de Situación Financiera por quarter (consolidando unidades
     cuando unit está vacío). Devuelve (result_quarters, quarters_available).
     """
     from engine import esf_engine
-    
-    uc = 'AND unit=?' if unit else ''
-    params_q = [year, unit] if unit else [year]
+
+    if unit:
+        uc = 'AND unit=?'
+        params_q = [year, unit]
+    elif empresa_id:
+        uc = 'AND empresa_id=?'
+        params_q = [year, empresa_id]
+    else:
+        uc = ''
+        params_q = [year]
     rows_q = db.execute(f'SELECT DISTINCT quarter FROM esf_data WHERE year=? {uc}', params_q).fetchall()
     quarters_available = sorted([r['quarter'] for r in rows_q])
-    
-    res = esf_engine(year, unit)
+
+    res = esf_engine(year, unit, empresa_id=empresa_id)
     try:
         validate_esf_integrity(year, unit, res, db)
     except Exception as e:
@@ -2651,7 +2670,7 @@ def compute_esf(db, year, unit=''):
     return result_quarters, quarters_available
 
 
-def compute_indicadores_v2(db, year):
+def compute_indicadores_v2(db, year, empresa_id=None):
     """
     Calcula los 20 indicadores financieros por trimestre + año actual + año anterior.
     Estructura de salida compatible con el módulo Indicadores Financieros del frontend.
@@ -2730,13 +2749,13 @@ def compute_indicadores_v2(db, year):
     year_prev = str(int(year) - 1)
 
     # EERR: una sola llamada por año
-    _rows_curr = eerr_completo_v2_ui_adapter(year, '').get('rows', [])
-    _rows_prev = eerr_completo_v2_ui_adapter(year_prev, '').get('rows', [])
+    _rows_curr = eerr_completo_v2_ui_adapter(year, '', empresa_id=empresa_id).get('rows', [])
+    _rows_prev = eerr_completo_v2_ui_adapter(year_prev, '', empresa_id=empresa_id).get('rows', [])
 
     # ESF: una sola llamada para el año actual
-    _esf_res = esf_engine(year, '')
+    _esf_res = esf_engine(year, '', empresa_id=empresa_id)
     _esf_rows = {n['partida']: n.get('quarters', {}) for n in _esf_res.get('rows', [])}
-    _result_quarters, _ = compute_esf(db, year, '')
+    _result_quarters, _ = compute_esf(db, year, '', empresa_id=empresa_id)
 
     def get_esf_quarter(q):
         rows_esf = {p: qs.get(q, 0) or 0 for p, qs in _esf_rows.items()}
@@ -2882,11 +2901,11 @@ def compute_indicadores_v2(db, year):
     return indicadores
 
 
-def compute_indicadores(db, year, unit='', ingresos=0.0, util_neta=0.0):
+def compute_indicadores(db, year, unit='', ingresos=0.0, util_neta=0.0, empresa_id=None):
     """
     Calcula indicadores financieros combinando datos de ESF + EERR (original para Dashboard).
     """
-    result_quarters, quarters_available = compute_esf(db, year, unit)
+    result_quarters, quarters_available = compute_esf(db, year, unit, empresa_id=empresa_id)
     if not quarters_available:
         return None
 
@@ -2903,8 +2922,21 @@ def compute_indicadores(db, year, unit='', ingresos=0.0, util_neta=0.0):
     tot_cxc     = esf.get('Total Cuentas por Cobrar (neto)', 0)
 
     # Ingresos y costos trimestrales (para rotación inventarios)
-    uc = "AND unit=?" if unit else ''
-    uc_params = [unit] if unit else []
+    if unit:
+        uc = "AND unit=?"
+        uc_params = [unit]
+    elif empresa_id:
+        unidades_rows = db.execute('SELECT nombre FROM unidades WHERE empresa_id=?', [empresa_id]).fetchall()
+        nombres_unidades = [r['nombre'] for r in unidades_rows]
+        if nombres_unidades:
+            uc = f"AND unit IN ({','.join('?'*len(nombres_unidades))})"
+            uc_params = nombres_unidades
+        else:
+            uc = "AND 1=0"
+            uc_params = []
+    else:
+        uc = ''
+        uc_params = []
     meses_q = {1:[1,2,3], 2:[4,5,6], 3:[7,8,9], 4:[10,11,12]}[last_q]
     meses_nombres = [MONTHS[m-1] for m in meses_q]
     rows_q = db.execute(
@@ -3013,8 +3045,9 @@ def esf_completo():
     """
     year = request.args.get('year', str(datetime.now().year))
     unit = request.args.get('unit', '')
+    empresa_id = request.args.get('empresa_id', type=int) or None
     from engine import esf_engine
-    result = esf_engine(year, unit)
+    result = esf_engine(year, unit, empresa_id=empresa_id)
     try:
         db = get_db()
         validate_esf_integrity(year, unit, result, db)
@@ -3022,7 +3055,7 @@ def esf_completo():
         app.logger.error(f"Error al ejecutar validacion de integridad ESF: {str(e)}")
 
     year_prev = str(int(year) - 1)
-    result_prev = esf_engine(year_prev, unit)
+    result_prev = esf_engine(year_prev, unit, empresa_id=empresa_id)
     prev_by_partida = {}
     for r in result_prev.get('rows', []):
         prev_by_partida[r['partida']] = r.get('quarters', {}).get(4, 0.0)
@@ -3037,17 +3070,18 @@ def esf_completo():
 def get_indicadores():
     """
     Retorna indicadores financieros avanzados (ROE, ROA, liquidez, rotación).
-    Parámetros: year, unit (opcional).
+    Parámetros: year, unit (opcional), empresa_id (opcional).
     """
     year = request.args.get('year', str(datetime.now().year))
     unit = request.args.get('unit', '')
+    empresa_id = request.args.get('empresa_id', type=int) or None
     db   = get_db()
 
-    indicadores = compute_indicadores_v2(db, year)
+    indicadores = compute_indicadores_v2(db, year, empresa_id=empresa_id)
     if not indicadores:
         return jsonify({'error': 'Sin datos ESF para calcular indicadores'}), 404
 
-    return jsonify({'year': year, 'unit': unit, 'indicadores': indicadores})
+    return jsonify({'year': year, 'unit': unit, 'empresa_id': empresa_id, 'indicadores': indicadores})
 
 
 # ── Divisa Real (Tasas y Métodos de Pago) ────────────────────────────────────

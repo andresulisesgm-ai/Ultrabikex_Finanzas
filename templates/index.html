@@ -550,21 +550,7 @@ input[type=file]{display:none;}
         <button class="pin-btn" id="pin-btn" onclick="event.stopPropagation();togglePin()" title="Fijar sidebar">📌&#xFE0E;</button>
       </div>
       <div class="company-sel-menu" id="company-sel-menu">
-        <div class="company-sel-item active" onclick="selectCompany(this,'Ultrabikex Holding','var(--tx)','UH')">
-          <span class="company-dot" style="background:var(--tx)"></span>Ultrabikex Holding
-        </div>
-        <div class="company-sel-item" onclick="selectCompany(this,'Ultrax C.A.','var(--blue)','UX')">
-          <span class="company-dot" style="background:var(--blue)"></span>Ultrax C.A.
-        </div>
-        <div class="company-sel-item" onclick="selectCompany(this,'Ultrabikex C.A.','var(--mu)','UBX')">
-          <span class="company-dot" style="background:var(--mu)"></span>Ultrabikex C.A.
-        </div>
-        <div class="company-sel-item" onclick="selectCompany(this,'UxBarinas C.A.','var(--indigo)','UXB')">
-          <span class="company-dot" style="background:var(--indigo)"></span>UxBarinas C.A.
-        </div>
-        <div class="company-sel-item" onclick="selectCompany(this,'Grupo Ultra2000 C.A.','var(--teal)','G2K')">
-          <span class="company-dot" style="background:var(--teal)"></span>Grupo Ultra2000 C.A.
-        </div>
+        <!-- Poblado dinámicamente por loadEmpresasDropdown() desde /api/empresas -->
       </div>
     </div>
   </div>
@@ -1423,6 +1409,9 @@ input[type=file]{display:none;}
 <script>
 // ── UTILS ─────────────────────────────────────────────────────────────────
 const G=id=>document.getElementById(id);
+let CURRENT_EMPRESA_ID = null;   // null = Holding (sin filtro, suma de las 4 empresas)
+let CURRENT_PAGE = 'dashboard';
+let EMPRESAS_CACHE = [];
 const fmt=n=>n==null?'—':'$'+Number(n).toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtS=n=>{if(!n)return'$0';const a=Math.abs(n);return(n<0?'-':'')+(a>=1e6?'$'+(a/1e6).toFixed(1)+'M':a>=1e3?'$'+(a/1e3).toFixed(1)+'K':'$'+a.toFixed(0));};
 const pct=n=>n==null?'—':Number(n).toFixed(1)+'%';
@@ -2685,7 +2674,33 @@ function toggleCompanySel(e){
   e.stopPropagation();
   document.getElementById('company-sel').classList.toggle('open');
 }
-function selectCompany(el,name,color,initials){
+function deriveInitials(nombre){
+  const words = nombre.replace(/C\.A\.?/i,'').trim().split(/\s+/).filter(Boolean);
+  if(words.length >= 2) return (words[0][0]+words[1][0]).toUpperCase();
+  return nombre.substring(0,2).toUpperCase();
+}
+
+async function loadEmpresasDropdown(){
+  try{
+    const res = await fetch('/api/empresas');
+    EMPRESAS_CACHE = await res.json();
+    const menu = G('company-sel-menu');
+    menu.innerHTML = '';
+    EMPRESAS_CACHE.forEach(function(emp){
+      const isHolding = emp.id === 1;
+      const initials = deriveInitials(emp.nombre_corto);
+      const item = document.createElement('div');
+      item.className = 'company-sel-item' + (isHolding ? ' active' : '');
+      item.onclick = function(){ selectCompany(item, emp.nombre_corto, emp.color, initials, isHolding ? null : emp.id); };
+      item.innerHTML = `<span class="company-dot" style="background:${emp.color}"></span>${emp.nombre_corto}`;
+      menu.appendChild(item);
+    });
+  }catch(e){
+    console.error('Error cargando empresas', e);
+  }
+}
+
+function selectCompany(el,name,color,initials,empresaId){
   document.getElementById('company-sel-label').textContent=name;
   document.getElementById('logo-icon').style.background=color;
   document.getElementById('logo-icon').style.boxShadow='0 2px 8px rgba(15,23,42,.35)';
@@ -2693,6 +2708,29 @@ function selectCompany(el,name,color,initials){
   document.querySelectorAll('.company-sel-item').forEach(function(i){i.classList.remove('active');});
   el.classList.add('active');
   document.getElementById('company-sel').classList.remove('open');
+
+  CURRENT_EMPRESA_ID = empresaId;
+
+  const esUltraxOHolding = (empresaId === null || empresaId === 2);
+  const dashUnit = G('dash-unit');
+  if(dashUnit){
+    dashUnit.disabled = !esUltraxOHolding;
+    if(!esUltraxOHolding) dashUnit.value = 'TODAS';
+  }
+  const eerrUnit = G('eerr-unit');
+  if(eerrUnit){
+    eerrUnit.disabled = !esUltraxOHolding;
+    if(!esUltraxOHolding) eerrUnit.value = '';
+  }
+
+  reloadCurrentPage();
+}
+
+function reloadCurrentPage(){
+  if(CURRENT_PAGE === 'dashboard') loadDash();
+  else if(CURRENT_PAGE === 'eerr') loadEERR();
+  else if(CURRENT_PAGE === 'esf') loadESF();
+  else if(CURRENT_PAGE === 'indicadores') loadIndicadores();
 }
 document.addEventListener('click',function(e){
   var sel=document.getElementById('company-sel');
@@ -2717,6 +2755,7 @@ document.addEventListener('DOMContentLoaded',function(){
   }
 });
 function showPage(name,el){
+  CURRENT_PAGE = name;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   G('page-'+name).classList.add('active');
@@ -3346,7 +3385,7 @@ async function loadDash(){
       };
     }else{
       // Modo BCV normal: carga año completo
-      const res=await fetch(`/api/dashboard?year=${year}&unit=${unit}`);
+      const res=await fetch(`/api/dashboard?year=${year}&unit=${unit}&empresa_id=${CURRENT_EMPRESA_ID||''}`);
       if(!res.ok){G('schips').innerHTML=`<span style="color:var(--red);font-size:12px">Error ${res.status} — recarga</span>`;return;}
       DD=await res.json();
       DD._modo_divisa=false;
@@ -4704,7 +4743,7 @@ var EERR_MAIN_DATA = null;
 
 async function loadEERR(){
   const year=G('eerr-year').value, unit=G('eerr-unit').value;
-  const r=await fetch(`/api/eerr/completo?year=${year}&unit=${encodeURIComponent(unit)}`);
+  const r=await fetch(`/api/eerr/completo?year=${year}&unit=${encodeURIComponent(unit)}&empresa_id=${CURRENT_EMPRESA_ID||''}`);
   const d=await r.json();
   EERR_MAIN_DATA = d;
 
@@ -5354,7 +5393,7 @@ let ESF_DATA = null, esfQ = 1;
 
 async function loadIndicadores(){
   const year=G('ind-year').value;
-  const r=await fetch(`/api/indicadores?year=${year}`);
+  const r=await fetch(`/api/indicadores?year=${year}&empresa_id=${CURRENT_EMPRESA_ID||''}`);
   if(!r.ok){
     const err=await r.json();
     G('ind-body').innerHTML=`<div style="padding:30px;text-align:center;color:var(--red)">⚠️ ${err.error||'Error cargando indicadores'}</div>`;
@@ -5787,7 +5826,7 @@ async function loadESF() {
   const year = G('esf-year').value, unit = '';
   G('esf-body').innerHTML = '<p style="color:var(--mu);font-size:12px;padding:20px 0">Cargando...</p>';
   try {
-    const r = await fetch(`/api/esf/completo?year=${year}&unit=${encodeURIComponent(unit)}`);
+    const r = await fetch(`/api/esf/completo?year=${year}&unit=${encodeURIComponent(unit)}&empresa_id=${CURRENT_EMPRESA_ID||''}`);
     ESF_DATA = await r.json();
     renderESF();
   } catch(e) {
@@ -6728,6 +6767,7 @@ function toggleEERRRow(event, rowId) {
   renderDashboardWidgets();
   initModalResize();
   await fillYears();
+  await loadEmpresasDropdown();
 
   G('dash-month').addEventListener('change', function() {
     const hasMes = this.value !== '';
