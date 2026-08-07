@@ -555,7 +555,7 @@ input[type=file]{display:none;}
     </div>
   </div>
   <div class="nav-sec">Principal</div>
-  <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon"><i class="ph ph-squares-four"></i></span>Dashboard</div>
+  <div class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard',this)"><span class="nav-icon"><i class="ph ph-squares-four"></i></span>Dashboard</div>
   <div class="nav-item" onclick="showPage('eerr',this)"><span class="nav-icon"><i class="ph ph-file-text"></i></span>Estados de Resultados (EERR)</div>
   <div class="nav-item" onclick="showPage('err_divisa',this)"><span class="nav-icon"><i class="ph ph-currency-dollar"></i></span>EERR Divisa Real</div>
   <div class="nav-item" onclick="showPage('eerrdet',this)" style="display:none"><span class="nav-icon"><i class="ph ph-list"></i></span>ERR Detallado</div>
@@ -2755,7 +2755,7 @@ function selectCompany(el,name,color,initials,empresaId){
     if(!esUltraxOHolding) eerrUnit.value = '';
   }
 
-  reloadCurrentPage();
+  showPage('dashboard', G('nav-dashboard'));
 }
 
 function reloadCurrentPage(){
