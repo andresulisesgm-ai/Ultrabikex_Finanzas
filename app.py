@@ -255,8 +255,11 @@ def upload():
     month   = request.form.get('month')
     year    = request.form.get('year', str(datetime.now().year))
     is_esf  = request.form.get('is_esf', 'false').lower() == 'true'
+    empresa_id = request.form.get('empresa_id', type=int) or None
     if is_esf:
         unit = 'CONSOLIDADO'
+        if not empresa_id:
+            return jsonify({'error': 'empresa_id es requerido para cargas de ESF'}), 400
 
     if not all([file, unit, month]):
         return jsonify({'error': 'Faltan parámetros'}), 400
@@ -294,8 +297,8 @@ def upload():
             if is_esf:
                 quarter_check = MONTH_TO_QUARTER.get(month, 1)
                 existing = db.execute(
-                    'SELECT COUNT(*) FROM esf_data WHERE year=? AND quarter=? AND unit=?',
-                    (year, quarter_check, 'CONSOLIDADO')
+                    'SELECT COUNT(*) FROM esf_data WHERE year=? AND quarter=? AND unit=? AND empresa_id=?',
+                    (year, quarter_check, 'CONSOLIDADO', empresa_id)
                 ).fetchone()[0]
             else:
                 existing = db.execute(
@@ -311,12 +314,12 @@ def upload():
         # Limpiar datos previos del mismo período antes de insertar (evita acumulación de cargas)
         if is_esf:
             db.execute(
-                'DELETE FROM esf_data WHERE year=? AND quarter=? AND unit=?',
-                (year, quarter, unit)
+                'DELETE FROM esf_data WHERE year=? AND quarter=? AND unit=? AND empresa_id=?',
+                (year, quarter, unit, empresa_id)
             )
             db.execute(
-                'DELETE FROM financials_detail WHERE year=? AND quarter=? AND unit=? AND report_type=\'esf\'',
-                (year, quarter, unit)
+                'DELETE FROM financials_detail WHERE year=? AND quarter=? AND unit=? AND report_type=\'esf\' AND empresa_id=?',
+                (year, quarter, unit, empresa_id)
             )
             db.commit()
         else:
@@ -365,22 +368,23 @@ def upload():
                 report_type = 'esf' if (is_balance or is_esf) else 'eerr'
                 db.execute(
                     '''INSERT INTO financials_detail 
-                       (year, month, unit, odoo_code, odoo_name, partida, amount_orig, amount_sign, report_type, quarter)
-                       VALUES (?,?,?,?,?,?,?,?,?,?)
-                       ON CONFLICT(year, month, unit, odoo_code) 
+                       (year, month, unit, odoo_code, odoo_name, partida, amount_orig, amount_sign, report_type, quarter, empresa_id)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                       ON CONFLICT(year, month, unit, odoo_code, empresa_id) 
                        DO UPDATE SET amount_orig=excluded.amount_orig, 
                                     amount_sign=excluded.amount_sign,
                                     partida=excluded.partida''',
                     (year, month, unit, code, parser.names.get(code, ''),
-                     m['partida'], amount, signed_amount, report_type, quarter)
+                     m['partida'], amount, signed_amount, report_type, quarter,
+                     empresa_id if is_esf else None)
                 )
 
                 if is_balance or is_esf:
                     # Cuentas 1.x / 2.x / 3.x → esf_data (snapshot trimestral)
                     db.execute(
-                        '''INSERT INTO esf_data (year, quarter, unit, partida, amount) VALUES (?,?,?,?,?)
-                           ON CONFLICT(year, quarter, unit, partida) DO UPDATE SET amount=excluded.amount''',
-                        (year, quarter, unit, m['partida'], signed_amount)
+                        '''INSERT INTO esf_data (year, quarter, unit, partida, amount, empresa_id) VALUES (?,?,?,?,?,?)
+                           ON CONFLICT(year, quarter, unit, partida, empresa_id) DO UPDATE SET amount=excluded.amount''',
+                        (year, quarter, unit, m['partida'], signed_amount, empresa_id if is_esf else None)
                     )
                     inserted_esf += 1
                 else:
@@ -405,8 +409,8 @@ def upload():
             ).fetchone()
             if prev:
                 new_entry = db.execute(
-                    'INSERT INTO history (year, month, unit, inserted, is_esf) VALUES (?,?,?,?,?)',
-                    (year, month, unit, inserted_fin + inserted_esf, 1 if is_esf else 0)
+                    'INSERT INTO history (year, month, unit, inserted, is_esf, empresa_id) VALUES (?,?,?,?,?,?)',
+                    (year, month, unit, inserted_fin + inserted_esf, 1 if is_esf else 0, empresa_id if is_esf else None)
                 )
                 new_id = new_entry.lastrowid
                 db.execute(
@@ -416,14 +420,14 @@ def upload():
                 db.commit()
             else:
                 db.execute(
-                    'INSERT INTO history (year, month, unit, inserted, is_esf) VALUES (?,?,?,?,?)',
-                    (year, month, unit, inserted_fin + inserted_esf, 1 if is_esf else 0)
+                    'INSERT INTO history (year, month, unit, inserted, is_esf, empresa_id) VALUES (?,?,?,?,?,?)',
+                    (year, month, unit, inserted_fin + inserted_esf, 1 if is_esf else 0, empresa_id if is_esf else None)
                 )
                 db.commit()
         else:
             db.execute(
-                'INSERT INTO history (year, month, unit, inserted, is_esf) VALUES (?,?,?,?,?)',
-                (year, month, unit, inserted_fin + inserted_esf, 1 if is_esf else 0)
+                'INSERT INTO history (year, month, unit, inserted, is_esf, empresa_id) VALUES (?,?,?,?,?,?)',
+                (year, month, unit, inserted_fin + inserted_esf, 1 if is_esf else 0, empresa_id if is_esf else None)
             )
             db.commit()
 
