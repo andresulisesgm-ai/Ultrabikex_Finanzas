@@ -516,8 +516,8 @@ def revert_history(hid):
     if h['reverted']: return jsonify({'error': 'Ya revertida'}), 400
     if h['is_esf']:
         quarter = MONTH_TO_QUARTER.get(h['month'], 1)
-        db.execute('DELETE FROM esf_data WHERE year=? AND quarter=? AND unit=?', (h['year'], quarter, h['unit']))
-        db.execute('DELETE FROM financials_detail WHERE year=? AND quarter=? AND unit=? AND report_type=\'esf\'', (h['year'], quarter, h['unit']))
+        db.execute('DELETE FROM esf_data WHERE year=? AND quarter=? AND unit=? AND empresa_id=?', (h['year'], quarter, h['unit'], h['empresa_id']))
+        db.execute('DELETE FROM financials_detail WHERE year=? AND quarter=? AND unit=? AND report_type=\'esf\' AND empresa_id=?', (h['year'], quarter, h['unit'], h['empresa_id']))
     else:
         db.execute('DELETE FROM financials WHERE year=? AND month=? AND unit=?', (h['year'], h['month'], h['unit']))
     db.execute('UPDATE history SET reverted=1 WHERE id=?', (hid,))
