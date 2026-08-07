@@ -696,7 +696,7 @@ ESF_STRUCTURE_V2 = [
 ]
 
 
-def esf_engine(year, unit='', overrides_divisa_real=None):
+def esf_engine(year, unit='', overrides_divisa_real=None, empresa_id=None):
     import sqlite3
     import os
     
@@ -728,6 +728,14 @@ def esf_engine(year, unit='', overrides_divisa_real=None):
                GROUP BY quarter, partida''',
             (year, unit)
         ).fetchall()
+    elif empresa_id:
+        rows_esf = cursor.execute(
+            '''SELECT quarter, partida, SUM(amount) amount
+               FROM esf_data
+               WHERE year = ? AND empresa_id = ?
+               GROUP BY quarter, partida''',
+            (year, empresa_id)
+        ).fetchall()
     else:
         rows_esf = cursor.execute(
             '''SELECT quarter, partida, SUM(amount) amount
@@ -747,6 +755,16 @@ def esf_engine(year, unit='', overrides_divisa_real=None):
     if unit:
         detail_unit_clause = 'AND fd.unit = ?'
         detail_args.append(unit)
+    elif empresa_id:
+        unidades_rows = cursor.execute('SELECT nombre FROM unidades WHERE empresa_id=?', (empresa_id,)).fetchall()
+        unidades_list = [r['nombre'] for r in unidades_rows]
+        if unidades_list:
+            placeholders = ','.join(['?'] * len(unidades_list))
+            detail_unit_clause = f'AND fd.unit IN ({placeholders})'
+            detail_args.extend(unidades_list)
+        else:
+            detail_unit_clause = 'AND fd.unit = ?'
+            detail_args.append('__EMPRESA_SIN_UNIDADES__')
         
     detail_rows_raw = cursor.execute(f'''
         SELECT fd.quarter, mg.group_name, fd.odoo_code, fd.odoo_name,
@@ -779,7 +797,7 @@ def esf_engine(year, unit='', overrides_divisa_real=None):
     utilidad_q = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}
     try:
         from app import eerr_completo_v2_ui_adapter
-        eerr_data = eerr_completo_v2_ui_adapter(year, unit)
+        eerr_data = eerr_completo_v2_ui_adapter(year, unit, empresa_id=empresa_id)
         net_income_row = None
         for r in eerr_data.get('rows', []):
             if r.get('partida') == 'Utilidad Neta despues de ISLR':

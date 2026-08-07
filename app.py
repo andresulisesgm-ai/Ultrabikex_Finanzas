@@ -1850,13 +1850,27 @@ def eerr_detalle():
     })
 
 
-def eerr_completo_v2_ui_adapter(year, unit):
+def eerr_completo_v2_ui_adapter(year, unit, empresa_id=None):
     from engine import EERR_STRUCTURE, SUBTOTAL_EXCLUSIONS
     db   = get_db()
 
     year_prev = str(int(year) - 1)
-    uc = "AND unit=?" if unit else ''
-    uc_params = [unit] if unit else []
+    if unit:
+        uc = "AND unit=?"
+        uc_params = [unit]
+    elif empresa_id:
+        unidades_rows = db.execute('SELECT nombre FROM unidades WHERE empresa_id=?', [empresa_id]).fetchall()
+        unidades_list = [r['nombre'] for r in unidades_rows]
+        if unidades_list:
+            placeholders = ','.join(['?'] * len(unidades_list))
+            uc = f"AND unit IN ({placeholders})"
+            uc_params = unidades_list
+        else:
+            uc = "AND unit=?"
+            uc_params = ['__EMPRESA_SIN_UNIDADES__']
+    else:
+        uc = ''
+        uc_params = []
 
     MONTH_TYPES = {
         'ENE': 'A',
