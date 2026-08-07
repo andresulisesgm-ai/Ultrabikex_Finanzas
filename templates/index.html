@@ -5417,8 +5417,11 @@ async function loadAndRenderESFDivQ(q){
     if(q === 0){
       const faltantes = [1,2,3,4].filter(qq => !ESFDIV_CACHE[year][qq]);
       if(faltantes.length){
-        const resultados = await Promise.all(faltantes.map(qq => fetchESFDivQuarter(year, qq)));
-        faltantes.forEach((qq, idx) => { ESFDIV_CACHE[year][qq] = resultados[idx]; });
+        const resultados = await Promise.allSettled(faltantes.map(qq => fetchESFDivQuarter(year, qq)));
+        faltantes.forEach((qq, idx) => {
+          const r = resultados[idx];
+          ESFDIV_CACHE[year][qq] = r.status === 'fulfilled' ? r.value : null;
+        });
       }
       pintarESFDivisaRealTodos(year);
     } else {
@@ -5444,12 +5447,20 @@ function pintarESFDivisaReal(data, detalle){
 }
 
 function pintarESFDivisaRealTodos(year){
-  const base = ESFDIV_CACHE[year][1].data.esf_completo;
+  const disponibles = [1,2,3,4].filter(qq => ESFDIV_CACHE[year][qq]);
+  if(!disponibles.length){
+    G('esfdiv-error').style.display = 'block';
+    G('esfdiv-error').textContent = 'No hay datos disponibles para ningún trimestre.';
+    return;
+  }
+  const base = ESFDIV_CACHE[year][disponibles[0]].data.esf_completo;
   const merged = JSON.parse(JSON.stringify(base));
   for(const row of merged.rows){
     row.quarters = row.quarters || {};
     for(const qq of [1,2,3,4]){
-      const src = ESFDIV_CACHE[year][qq].data.esf_completo.rows.find(r => r.partida === row.partida);
+      const cached = ESFDIV_CACHE[year][qq];
+      if(!cached) continue;
+      const src = cached.data.esf_completo.rows.find(r => r.partida === row.partida);
       if(src && src.quarters){
         row.quarters[qq] = src.quarters[qq];
       }
