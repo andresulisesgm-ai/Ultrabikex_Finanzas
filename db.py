@@ -473,13 +473,24 @@ def init_db():
             updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
         );
 
-        CREATE TABLE IF NOT EXISTS esf_ajuste_diferencial (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            year TEXT NOT NULL,
-            quarter INTEGER NOT NULL,
-            valor REAL NOT NULL,
-            updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-            UNIQUE(year, quarter)
+        CREATE TABLE IF NOT EXISTS esf_divisa_real_overrides (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            year            TEXT NOT NULL,
+            quarter         INTEGER NOT NULL,
+            odoo_code       TEXT NOT NULL,
+            valor_override  REAL NOT NULL,
+            updated_at      TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+            UNIQUE(year, quarter, odoo_code)
+        );
+
+        CREATE TABLE IF NOT EXISTS esf_divisa_real_override_log (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            year            TEXT NOT NULL,
+            quarter         INTEGER NOT NULL,
+            odoo_code       TEXT NOT NULL,
+            valor_anterior  REAL,
+            valor_nuevo     REAL,
+            timestamp       TEXT NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS validation_baselines (
@@ -606,14 +617,28 @@ def migrate_db():
         )''')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_budget ON budget(year, month, unit)')
 
-    if 'esf_ajuste_diferencial' not in tables:
-        conn.execute('''CREATE TABLE esf_ajuste_diferencial (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            year TEXT NOT NULL,
-            quarter INTEGER NOT NULL,
-            valor REAL NOT NULL,
-            updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-            UNIQUE(year, quarter)
+    conn.execute('DROP TABLE IF EXISTS esf_ajuste_diferencial')
+
+    if 'esf_divisa_real_overrides' not in tables:
+        conn.execute('''CREATE TABLE esf_divisa_real_overrides (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            year            TEXT NOT NULL,
+            quarter         INTEGER NOT NULL,
+            odoo_code       TEXT NOT NULL,
+            valor_override  REAL NOT NULL,
+            updated_at      TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+            UNIQUE(year, quarter, odoo_code)
+        )''')
+
+    if 'esf_divisa_real_override_log' not in tables:
+        conn.execute('''CREATE TABLE esf_divisa_real_override_log (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            year            TEXT NOT NULL,
+            quarter         INTEGER NOT NULL,
+            odoo_code       TEXT NOT NULL,
+            valor_anterior  REAL,
+            valor_nuevo     REAL,
+            timestamp       TEXT NOT NULL
         )''')
 
     if 'briefing_prompts' not in tables:

@@ -20,6 +20,8 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 def rate_limit_exceeded(e):
     return jsonify({'error': 'Demasiados intentos. Espera 30 segundos e inténtalo de nuevo.'}), 429
 
+
+
 # ── Protección global por defecto (fix seguridad ultrax jul-2026) ──
 # Todas las rutas requieren sesión activa, salvo las explícitamente exentas abajo.
 RUTAS_PUBLICAS = {'login_page', 'login', 'static'}
@@ -3129,45 +3131,123 @@ def delete_tasa(tasa_id):
 
 @app.route('/api/esf-divisa-real', methods=['GET'])
 def get_esf_divisa_real():
-    """Calcula ESF Divisa Real: saldo consolidado de Caja/Fondo/Bancos/Bancos en tránsito en Bs
-    revalorizado a tasa paralela de fin de mes del trimestre."""
     year = request.args.get('year')
     quarter = request.args.get('quarter', type=int)
-
     if not year or not quarter:
         return jsonify({'error': 'year y quarter son requeridos'}), 400
+    from engine import calcular_esf_divisa_real, esf_engine
 
-    from engine import calcular_esf_divisa_real
-    result = calcular_esf_divisa_real(year, quarter)
+    db = get_db()
+    overrides_rows = db.execute(
+        'SELECT odoo_code, valor_override FROM esf_divisa_real_overrides WHERE year=? AND quarter=?',
+        (year, quarter)
+    ).fetchall()
+    overrides_flat = {r['odoo_code']: r['valor_override'] for r in overrides_rows}
+    overrides_keyed = {(quarter, r['odoo_code']): r['valor_override'] for r in overrides_rows}
 
+    result = calcular_esf_divisa_real(year, quarter, overrides=overrides_flat)
     if 'error' in result:
         return jsonify(result), 404
 
+    esf_completo = esf_engine(year, '', overrides_divisa_real=overrides_keyed)
+
+    year_prev = str(int(year) - 1)
+    result_prev = esf_engine(year_prev, '')
+    prev_by_partida = {}
+    for r in result_prev.get('rows', []):
+        prev_by_partida[r['partida']] = r.get('quarters', {}).get(4, 0.0)
+    for row in esf_completo.get('rows', []):
+        row['year_prev'] = prev_by_partida.get(row['partida'], 0.0)
+    esf_completo['year_prev'] = year_prev
+
+    result['esf_completo'] = esf_completo
     return jsonify(result)
 
 
-@app.route('/api/esf-divisa-real/ajuste', methods=['POST'])
-def save_ajuste_diferencial():
-    """Guarda el ajuste manual por diferencial cambiario para un año/trimestre."""
-    data = request.get_json()
-    year = data.get('year')
-    quarter = data.get('quarter')
-    valor = data.get('valor')
+@app.route('/api/esf-divisa-real/detalle-cuentas', methods=['GET'])
+def get_esf_divisa_real_detalle_cuentas():
+    year = request.args.get('year')
+    quarter = request.args.get('quarter', type=int)
+    if not year or not quarter:
+        return jsonify({'error': 'year y quarter son requeridos'}), 400
+    from engine import PARTIDAS_ESF_DIVISA_REAL, QUARTER_MONTH_CIERRE
+    month = QUARTER_MONTH_CIERRE.get(quarter)
+    if not month:
+        return jsonify({'error': f'Quarter inválido: {quarter}'}), 400
+    db = get_db()
+    placeholders = ','.join('?' * len(PARTIDAS_ESF_DIVISA_REAL))
+    rows = db.execute(f'''
+        SELECT mg.group_name, fd.odoo_code, fd.odoo_name, fd.amount_sign as valor_real
+        FROM financials_detail fd
+        JOIN mapping_groups_v2 mg ON fd.odoo_code = mg.odoo_code AND mg.report_type='esf'
+        WHERE fd.year=? AND fd.report_type='esf' AND fd.month=?
+          AND mg.group_name IN ({placeholders})
+    ''', (year, month, *PARTIDAS_ESF_DIVISA_REAL)).fetchall()
 
-    if not year or not quarter or valor is None:
-        return jsonify({'error': 'year, quarter y valor son requeridos'}), 400
+    overrides_rows = db.execute(
+        'SELECT odoo_code, valor_override FROM esf_divisa_real_overrides WHERE year=? AND quarter=?',
+        (year, quarter)
+    ).fetchall()
+    overrides_map = {r['odoo_code']: r['valor_override'] for r in overrides_rows}
+
+    partidas = {p: [] for p in PARTIDAS_ESF_DIVISA_REAL}
+    for r in rows:
+        partidas[r['group_name']].append({
+            'odoo_code': r['odoo_code'],
+            'odoo_name': r['odoo_name'],
+            'valor_real': round(r['valor_real'], 2),
+            'valor_override': overrides_map.get(r['odoo_code'])
+        })
+    return jsonify({'year': year, 'quarter': quarter, 'partidas': partidas})
+
+
+@app.route('/api/esf-divisa-real/override', methods=['POST'])
+@admin_required
+def save_esf_divisa_real_override():
+    body = request.get_json()
+    year = body.get('year')
+    quarter = body.get('quarter')
+    odoo_code = body.get('odoo_code')
+    valor_nuevo = body.get('valor_nuevo')
+    if None in (year, quarter, odoo_code, valor_nuevo):
+        return jsonify({'error': 'Faltan campos obligatorios'}), 400
 
     db = get_db()
+    row_prev = db.execute(
+        'SELECT valor_override FROM esf_divisa_real_overrides WHERE year=? AND quarter=? AND odoo_code=?',
+        (year, quarter, odoo_code)
+    ).fetchone()
+    valor_anterior = row_prev['valor_override'] if row_prev else None
+
     db.execute('''
-        INSERT INTO esf_ajuste_diferencial (year, quarter, valor, updated_at)
-        VALUES (?, ?, ?, datetime('now', 'localtime'))
-        ON CONFLICT(year, quarter) DO UPDATE SET
-            valor = excluded.valor,
+        INSERT INTO esf_divisa_real_overrides (year, quarter, odoo_code, valor_override, updated_at)
+        VALUES (?, ?, ?, ?, datetime('now','localtime'))
+        ON CONFLICT(year, quarter, odoo_code) DO UPDATE SET
+            valor_override = excluded.valor_override,
             updated_at = excluded.updated_at
-    ''', (year, quarter, valor))
+    ''', (year, quarter, odoo_code, valor_nuevo))
+
+    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    db.execute('''
+        INSERT INTO esf_divisa_real_override_log
+        (year, quarter, odoo_code, valor_anterior, valor_nuevo, timestamp)
+        VALUES (?,?,?,?,?,?)
+    ''', (year, quarter, odoo_code, valor_anterior, valor_nuevo, ts))
     db.commit()
 
-    return jsonify({'success': True, 'year': year, 'quarter': quarter, 'valor': valor})
+    from engine import calcular_esf_divisa_real, esf_engine
+    overrides_rows = db.execute(
+        'SELECT odoo_code, valor_override FROM esf_divisa_real_overrides WHERE year=? AND quarter=?',
+        (year, quarter)
+    ).fetchall()
+    overrides_flat = {r['odoo_code']: r['valor_override'] for r in overrides_rows}
+    panel_divisa_real = calcular_esf_divisa_real(year, quarter, overrides=overrides_flat)
+
+    overrides_keyed = {(quarter, r['odoo_code']): r['valor_override'] for r in overrides_rows}
+    esf_completo = esf_engine(year, '', overrides_divisa_real=overrides_keyed)
+
+    return jsonify({'ok': True, 'panel_divisa_real': panel_divisa_real, 'esf_completo': esf_completo})
+
 
 
 @app.route('/api/metodo_pago', methods=['GET'])

@@ -384,6 +384,15 @@ input[type=file]{display:none;}
 .esf-wrap{overflow-x:auto;max-height:calc(100vh - 210px);}
 .esf-hdr{display:grid;padding:6px 10px;background:var(--sf3);border-radius:7px 7px 0 0;font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;gap:24px;position:sticky;top:0;z-index:5;}
 
+.esfdiv-row{display:grid;grid-template-columns:1fr 100px;padding:5px 10px;border-bottom:1px solid var(--bd);font-size:11px;align-items:center;gap:24px;}
+.esfdiv-row:hover{background:var(--sf2);}
+.esfdiv-row.esf-grand{background:var(--indigo-l);font-weight:800;font-size:12px;color:var(--indigo);border-radius:7px;margin:3px 0;}
+.esfdiv-row.esf-sec{background:var(--sf2);font-weight:700;color:var(--tx);font-size:11px;border-radius:4px;}
+.esfdiv-row.esf-sub{background:var(--sf3);font-weight:600;color:var(--tx2);font-size:11px;}
+.esfdiv-row.esf-leaf{padding-left:22px;color:var(--mu);}
+.esfdiv-wrap{overflow-x:auto;max-height:calc(100vh - 210px);}
+.esfdiv-hdr{display:grid;grid-template-columns:1fr 100px;padding:6px 10px;background:var(--sf3);border-radius:7px 7px 0 0;font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;gap:24px;position:sticky;top:0;z-index:5;}
+
 /* ── PRESUPUESTO ── */
 .bgt-tabs{display:flex;gap:5px;margin-bottom:12px;flex-wrap:wrap;}
 .bgt-tab{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--bd);color:var(--mu);background:var(--sf2);transition:all .15s;}
@@ -937,58 +946,48 @@ input[type=file]{display:none;}
     </div>
   </div>
 
-  <div class="page" id="page-esf_divisa">
-    <div class="al al-ok" id="al-esfdiv-ok"></div><div class="al al-er" id="al-esfdiv-er"></div>
+<div class="page" id="page-esf_divisa">
+  <div class="al al-ok" id="al-esfdiv-ok"></div><div class="al al-er" id="al-esfdiv-er"></div>
 
-    <div class="card" style="max-width:520px;margin-bottom:16px">
-      <div class="stitle">Período</div>
-      <div class="fgrow">
-        <div class="fg"><label>Año</label><input type="number" id="esfdiv-year" value="2026" min="2020" max="2035" onchange="loadESFDivisaReal()"></div>
-        <div class="fg"><label>Trimestre</label>
-          <select id="esfdiv-quarter" onchange="loadESFDivisaReal()">
-            <option value="1">Q1 (Cierre MAR)</option>
-            <option value="2">Q2 (Cierre JUN)</option>
-            <option value="3">Q3 (Cierre SEPT)</option>
-            <option value="4">Q4 (Cierre DIC)</option>
+  <div id="esfdiv-loading" style="padding:20px;text-align:center;color:var(--mu)">Cargando...</div>
+  <div id="esfdiv-error" style="display:none;padding:12px;color:var(--red);font-size:12px"></div>
+
+  <div id="esfdiv-content" style="display:none">
+    <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+
+      <div class="card fullpage" style="flex:1;min-width:480px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-size:12px;font-weight:700">Estado de Situación Financiera — Divisa Real</div>
+          <select class="csel" id="esfdiv-year" onchange="loadESFDivisaReal()" style="padding:5px 8px">
+            <option value="2026">2026</option>
+            <option value="2025">2025</option>
+            <option value="2024">2024</option>
           </select>
         </div>
-      </div>
-    </div>
-
-    <div id="esfdiv-loading" style="padding:20px;text-align:center;color:var(--mu)">Cargando...</div>
-    <div id="esfdiv-error" style="display:none;padding:12px;color:var(--red);font-size:12px"></div>
-
-    <div id="esfdiv-content" style="display:none">
-      <div class="card" style="max-width:520px;margin-bottom:16px">
-        <div class="stitle">Saldo Efectivo y Equivalentes en Bs</div>
-        <div class="tw">
-          <table>
-            <tbody id="esfdiv-partidas-tbody"></tbody>
-          </table>
+        <div class="esf-qsel" id="esfdiv-qtabs">
+          <span class="esf-qtab active" data-q="1" onclick="switchESFDivQ(this,1)">Q1 (Cierre MAR)</span>
+          <span class="esf-qtab" data-q="2" onclick="switchESFDivQ(this,2)">Q2 (Cierre JUN)</span>
+          <span class="esf-qtab" data-q="3" onclick="switchESFDivQ(this,3)">Q3 (Cierre SEPT)</span>
+          <span class="esf-qtab" data-q="4" onclick="switchESFDivQ(this,4)">Q4 (Cierre DIC)</span>
+          <span class="esf-qtab" data-q="0" onclick="switchESFDivQ(this,0)">Todos los Quarters</span>
         </div>
-        <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);font-weight:700;font-size:12px">
-          <span>Total Bs</span><span id="esfdiv-total-bs" style="font-family:'DM Mono',monospace"></span>
-        </div>
+        <div id="esfdiv-completo-body"><p style="color:var(--mu);font-size:12px;padding:20px 0">Cargando...</p></div>
       </div>
 
-      <div class="card" style="max-width:520px;margin-bottom:16px">
-        <div class="stitle">Revalorización a Tasa Paralela de Cierre</div>
-        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
-          <span>Tasa Paralela Fin de Mes</span><span id="esfdiv-tasa" style="font-family:'DM Mono',monospace;font-weight:700;color:var(--green)"></span>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:12px">
-          <span>Saldo Revalorizado (USD)</span><span id="esfdiv-total-usd" style="font-family:'DM Mono',monospace;font-weight:700;color:var(--green)"></span>
+      <div style="flex:0 0 380px;min-width:340px">
+        <div class="card">
+          <div class="stitle">Saldo Efectivo y Equivalentes en Bs</div>
+          <div style="font-size:10px;color:var(--mu);margin-bottom:8px">Click en una cuenta para editar su valor.</div>
+          <div id="esfdiv-partidas-detalle"></div>
+          <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);font-weight:700;font-size:12px">
+            <span>Total Bs</span><span id="esfdiv-total-bs" style="font-family:'DM Mono',monospace"></span>
+          </div>
         </div>
       </div>
 
-      <div class="card" style="max-width:520px">
-        <div class="stitle">Ajuste por Diferencial Cambiario</div>
-        <div style="font-size:11px;color:var(--mu);margin-bottom:10px">Ganancia o pérdida real al comprar divisas por debajo o encima de la tasa de mercado de cierre del trimestre. Ingreso manual, consolidado, trimestral.</div>
-        <div class="fg"><label>Valor (Bs)</label><input type="number" id="esfdiv-ajuste-input" step="0.01" placeholder="Ej: 1500.00"></div>
-        <button class="btnm" onclick="saveESFAjuste()">Guardar Ajuste</button>
-      </div>
     </div>
   </div>
+</div>
 
   <!-- INDICADORES FINANCIEROS -->
   <div class="page" id="page-indicadores">
@@ -5376,71 +5375,344 @@ async function loadIndicadores(){
     </table></div>`;
 }
 
+let ESFDIV_YEAR = null;
+let ESFDIV_Q = 1;
+let ESFDIV_CACHE = {};
+let ESFDIV_ROWS = null;
+
+async function fetchESFDivQuarter(year, quarter){
+  const [res1, res2] = await Promise.all([
+    fetch(`/api/esf-divisa-real?year=${year}&quarter=${quarter}`),
+    fetch(`/api/esf-divisa-real/detalle-cuentas?year=${year}&quarter=${quarter}`)
+  ]);
+  const data = await res1.json();
+  const detalle = await res2.json();
+  if(!res1.ok){
+    throw new Error(data.error || 'Error al cargar datos.');
+  }
+  return {data, detalle};
+}
+
 async function loadESFDivisaReal(){
-  const year = G('esfdiv-year').value;
-  const quarter = G('esfdiv-quarter').value;
+  ESFDIV_YEAR = G('esfdiv-year').value;
+  ESFDIV_CACHE[ESFDIV_YEAR] = {};
+  await loadAndRenderESFDivQ(ESFDIV_Q || 1);
+}
+
+async function switchESFDivQ(tabEl, q){
+  document.querySelectorAll('#esfdiv-qtabs .esf-qtab').forEach(t => t.classList.remove('active'));
+  tabEl.classList.add('active');
+  ESFDIV_Q = q;
+  await loadAndRenderESFDivQ(q);
+}
+
+async function loadAndRenderESFDivQ(q){
   G('esfdiv-loading').style.display = 'block';
   G('esfdiv-content').style.display = 'none';
   G('esfdiv-error').style.display = 'none';
   try{
-    const res = await fetch(`/api/esf-divisa-real?year=${year}&quarter=${quarter}`);
-    const data = await res.json();
-    if(!res.ok){
-      G('esfdiv-loading').style.display = 'none';
-      G('esfdiv-error').style.display = 'block';
-      G('esfdiv-error').textContent = data.error || 'Error al cargar datos.';
-      return;
+    const year = ESFDIV_YEAR || G('esfdiv-year').value;
+    ESFDIV_CACHE[year] = ESFDIV_CACHE[year] || {};
+
+    if(q === 0){
+      const faltantes = [1,2,3,4].filter(qq => !ESFDIV_CACHE[year][qq]);
+      if(faltantes.length){
+        const resultados = await Promise.all(faltantes.map(qq => fetchESFDivQuarter(year, qq)));
+        faltantes.forEach((qq, idx) => { ESFDIV_CACHE[year][qq] = resultados[idx]; });
+      }
+      pintarESFDivisaRealTodos(year);
+    } else {
+      if(!ESFDIV_CACHE[year][q]){
+        ESFDIV_CACHE[year][q] = await fetchESFDivQuarter(year, q);
+      }
+      const {data, detalle} = ESFDIV_CACHE[year][q];
+      pintarESFDivisaReal(data, detalle);
     }
-    const tbody = G('esfdiv-partidas-tbody');
-    tbody.innerHTML = '';
-    for(const [nombre, valor] of Object.entries(data.partidas)){
-      tbody.innerHTML += `<tr><td style="font-size:11px">${nombre}</td><td style="text-align:right;font-family:'DM Mono',monospace;font-size:11px">${valor.toLocaleString('es-VE',{minimumFractionDigits:2})}</td></tr>`;
-    }
-    G('esfdiv-total-bs').textContent = data.saldo_total_bs.toLocaleString('es-VE',{minimumFractionDigits:2});
-    G('esfdiv-tasa').textContent = data.tasa_paralela_fin.toLocaleString('es-VE',{minimumFractionDigits:2});
-    G('esfdiv-total-usd').textContent = '$' + data.saldo_total_usd.toLocaleString('es-VE',{minimumFractionDigits:2});
-    G('esfdiv-ajuste-input').value = data.ajuste_diferencial_cambiario !== null ? data.ajuste_diferencial_cambiario : '';
     G('esfdiv-loading').style.display = 'none';
     G('esfdiv-content').style.display = 'block';
   }catch(e){
     G('esfdiv-loading').style.display = 'none';
     G('esfdiv-error').style.display = 'block';
-    G('esfdiv-error').textContent = 'Error de conexión.';
+    G('esfdiv-error').textContent = e.message || 'Error de conexión.';
   }
 }
 
-async function saveESFAjuste(){
-  const year = G('esfdiv-year').value;
-  const quarter = G('esfdiv-quarter').value;
-  const valor = parseFloat(G('esfdiv-ajuste-input').value);
-  if(isNaN(valor)){
-    G('al-esfdiv-er').textContent = 'Ingresa un valor numérico válido.';
-    G('al-esfdiv-er').style.display = 'block';
-    setTimeout(()=>G('al-esfdiv-er').style.display='none', 3000);
+function pintarESFDivisaReal(data, detalle){
+  renderESFDivisaPartidasDetalle(detalle);
+  G('esfdiv-total-bs').textContent = data.saldo_total_bs.toLocaleString('es-VE',{minimumFractionDigits:2});
+  renderESFDivisaCompleto(data.esf_completo);
+}
+
+function pintarESFDivisaRealTodos(year){
+  const base = ESFDIV_CACHE[year][1].data.esf_completo;
+  const merged = JSON.parse(JSON.stringify(base));
+  for(const row of merged.rows){
+    row.quarters = row.quarters || {};
+    for(const qq of [1,2,3,4]){
+      const src = ESFDIV_CACHE[year][qq].data.esf_completo.rows.find(r => r.partida === row.partida);
+      if(src && src.quarters){
+        row.quarters[qq] = src.quarters[qq];
+      }
+    }
+  }
+  renderESFDivisaPartidasDetalle(null);
+  G('esfdiv-total-bs').textContent = '—';
+  renderESFDivisaCompleto(merged);
+}
+
+function renderESFDivisaPartidasDetalle(detalle){
+  const cont = G('esfdiv-partidas-detalle');
+  if(ESFDIV_Q === 0 || detalle === null){
+    cont.innerHTML = `<p style="color:var(--mu);font-size:11px;padding:10px 0">Selecciona un trimestre específico (Q1–Q4) para ver y editar las cuentas.</p>`;
     return;
   }
-  try{
-    const res = await fetch('/api/esf-divisa-real/ajuste', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({year, quarter: parseInt(quarter), valor})
-    });
-    const data = await res.json();
-    if(!res.ok){
-      G('al-esfdiv-er').textContent = data.error || 'Error al guardar.';
-      G('al-esfdiv-er').style.display = 'block';
-      setTimeout(()=>G('al-esfdiv-er').style.display='none', 3000);
-      return;
+  let html = '';
+  for(const [partida, cuentas] of Object.entries(detalle.partidas)){
+    const totalPartida = cuentas.reduce((acc,c) => acc + (c.valor_override !== null ? c.valor_override : c.valor_real), 0);
+    html += `<div style="margin-bottom:8px">
+      <div style="font-size:11px;font-weight:700;padding:4px 0;border-bottom:1px solid var(--bd)">
+        ${partida} <span style="float:right;font-family:'DM Mono',monospace">${totalPartida.toLocaleString('es-VE',{minimumFractionDigits:2})}</span>
+      </div>`;
+    for(const c of cuentas){
+      const valorMostrado = c.valor_override !== null ? c.valor_override : c.valor_real;
+      const esOverride = c.valor_override !== null;
+      html += `<div onclick="editarOverrideDivisaReal('${c.odoo_code}', ${valorMostrado})"
+        style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0 3px 10px;cursor:pointer;${esOverride ? 'color:var(--green)':''}">
+        <span>${c.odoo_name}${esOverride ? ' ✎' : ''}</span>
+        <span style="font-family:'DM Mono',monospace">${valorMostrado.toLocaleString('es-VE',{minimumFractionDigits:2})}</span>
+      </div>`;
     }
-    G('al-esfdiv-ok').textContent = 'Ajuste guardado correctamente.';
-    G('al-esfdiv-ok').style.display = 'block';
-    setTimeout(()=>G('al-esfdiv-ok').style.display='none', 3000);
-    loadESF();
-  }catch(e){
-    G('al-esfdiv-er').textContent = 'Error de conexión.';
-    G('al-esfdiv-er').style.display = 'block';
-    setTimeout(()=>G('al-esfdiv-er').style.display='none', 3000);
+    html += `</div>`;
   }
+  cont.innerHTML = html;
+}
+
+async function editarOverrideDivisaReal(odoo_code, valorActual){
+  const nuevo = prompt(`Valor actual: ${fmt(valorActual)}\nIngresa el nuevo valor revalorizado:`, valorActual);
+  if(nuevo === null || nuevo === '') return;
+  const valor_nuevo = parseFloat(nuevo.replace(',', '.'));
+  if(isNaN(valor_nuevo)){ alert('Valor inválido'); return; }
+  const r = await fetch('/api/esf-divisa-real/override', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({year: ESFDIV_YEAR, quarter: parseInt(ESFDIV_Q), odoo_code, valor_nuevo})
+  });
+  const d = await r.json();
+  if(d.ok){
+    ESFDIV_CACHE[ESFDIV_YEAR] = {};
+    loadAndRenderESFDivQ(ESFDIV_Q);
+  } else {
+    alert('Error: ' + (d.error || 'desconocido'));
+  }
+}
+
+function renderESFDivisaCompleto(esfCompleto){
+  ESFDIV_ROWS = esfCompleto.rows;
+  const qAll = ESFDIV_Q === 0;
+  const quarters = qAll ? [1,2,3,4] : [ESFDIV_Q];
+  const rows = esfCompleto.rows;
+
+  const qCols = quarters.map(q => `90px`).join(' ');
+  const varCols = qAll ? '65px 65px 65px' : '';
+  const gridCols = `1fr 100px ${qCols}${qAll ? ' ' + varCols : ''}`;
+
+  function cleanPartidaName(name) {
+    return name.replace(/\s*\((CxC|PxC|CxP|PxP)\)/g, '');
+  }
+  function qVal(q, rowObj) {
+    return (rowObj.quarters && rowObj.quarters[q]) || 0;
+  }
+  function qVar(q1, q2, rowObj) {
+    const a = qVal(q1, rowObj), b = qVal(q2, rowObj);
+    if (!a) return null;
+    return ((b - a) / Math.abs(a) * 100).toFixed(1);
+  }
+  function numCells(rowObj) {
+    const prevVal = rowObj.year_prev || 0;
+    const prevColored = prevVal < 0 ? 'color:var(--red)' : '';
+    const prevCell = `<div class="esf-num" style="${prevColored}">${prevVal === 0 ? '—' : fmt(prevVal)}</div>`;
+    const vals = quarters.map(q => qVal(q, rowObj));
+    const nums = vals.map(v => {
+      const colored = v < 0 ? 'color:var(--red)' : '';
+      return `<div class="esf-num" style="${colored}">${v === 0 ? '—' : fmt(v)}</div>`;
+    }).join('');
+    let varHtml = '';
+    if (qAll) {
+      const v12 = qVar(1,2,rowObj), v23 = qVar(2,3,rowObj), v34 = qVar(3,4,rowObj);
+      const varCell = v => v === null ? '<div class="esf-var">—</div>' :
+        `<div class="esf-var ${parseFloat(v) >= 0 ? 'var-pos' : 'var-neg'}">${parseFloat(v) >= 0 ? '▲' : '▼'}${Math.abs(parseFloat(v))}%</div>`;
+      varHtml = varCell(v12) + varCell(v23) + varCell(v34);
+    }
+    return prevCell + nums + varHtml;
+  }
+
+  const isParent = new Array(rows.length).fill(false);
+  const parentIndices = new Array(rows.length).fill(null);
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (r.parent_name) {
+      for (let j = i - 1; j >= 0; j--) {
+        if (rows[j].partida === r.parent_name) {
+          parentIndices[i] = j;
+          isParent[j] = true;
+          break;
+        }
+      }
+    }
+  }
+
+  const totalActivosRow = rows.find(r => r.partida === 'TOTAL ACTIVOS');
+  const _HIDDEN_SUBS = new Set([
+    'Total Activos Corrientes','Total Activos No Corrientes',
+    'Total Pasivos Corrientes','Total Pasivos No Corrientes'
+  ]);
+
+  let htmlRows = '';
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (r.partida === 'TOTAL ACTIVOS') continue;
+
+    if (_HIDDEN_SUBS.has(r.partida)) {
+      if (r.partida === 'Total Activos No Corrientes' && totalActivosRow) {
+        htmlRows += `<div class="esfdiv-row esf-grand"
+                          data-esfdiv-row-id="total-activos-moved"
+                          data-level="0" data-expanded="true"
+                          data-partida="TOTAL ACTIVOS"
+                          style="grid-template-columns:${gridCols}">
+          <div style="padding-left:10px;font-weight:700">TOTAL ACTIVOS</div>
+          ${numCells(totalActivosRow)}
+        </div>`;
+      }
+      continue;
+    }
+
+    const cleanName = cleanPartidaName(r.partida);
+    const isHdr = r.is_header;
+    const level = r.level;
+    const isTotal = level === 0;
+    const useBold = r.bold || isHdr || isTotal;
+    const parentIdx = parentIndices[i];
+    const hasChildren = isParent[i];
+
+    let cls = 'esf-leaf';
+    if (level === 0) {
+      cls = 'esf-grand';
+    } else if (level === 1) {
+      cls = r.partida.startsWith('Total') || r.partida.startsWith('TOTAL') ? 'esf-sub' : 'esf-sec';
+    } else if (level === 2 && isHdr) {
+      cls = 'esf-sub';
+    }
+
+    const boldStyle = useBold ? 'font-weight:700' : '';
+    const padLeft = (r.indent * 12 + 10) + 'px';
+    const isAlwaysExpanded = level <= 1;
+    let saved = null;
+    try {
+      saved = localStorage.getItem('esfdiv_expanded_' + r.partida);
+    } catch (e) {
+      console.error('Error reading ESF Divisa Real expanded state:', e);
+    }
+    const initiallyExpanded = isAlwaysExpanded || saved === '1';
+
+    let toggleHtml = '';
+    if (hasChildren && !isAlwaysExpanded) {
+      const toggleChar = initiallyExpanded ? '▼' : '▶';
+      toggleHtml = `<span class="esf-toggle" onclick="toggleESFDivRow(event, ${i})"
+        style="cursor:pointer;margin-right:6px;display:inline-block;width:12px;font-family:monospace;color:var(--primary);font-weight:bold">${toggleChar}</span>`;
+    }
+
+    const escapedPartida = r.partida.replace(/"/g, '&quot;');
+
+    htmlRows += `<div class="esfdiv-row ${cls}"
+                      data-esfdiv-row-id="${i}"
+                      data-parent-id="${parentIdx !== null ? parentIdx : ''}"
+                      data-level="${level}"
+                      data-expanded="${initiallyExpanded ? 'true' : 'false'}"
+                      data-partida="${escapedPartida}"
+                      style="grid-template-columns:${gridCols}">
+      <div style="padding-left:${padLeft};${boldStyle}">${toggleHtml}${cleanName}</div>
+      ${numCells(r)}
+    </div>`;
+  }
+
+  const activos = rows.find(r => r.partida === 'TOTAL ACTIVOS');
+  const pasivos = rows.find(r => r.partida === 'TOTAL PASIVOS');
+  const patrimonio = rows.find(r => r.partida === 'Total Patrimonio');
+  const getDif = (q) => {
+    const a = activos ? qVal(q, activos) : 0;
+    const p = pasivos ? qVal(q, pasivos) : 0;
+    const pt = patrimonio ? qVal(q, patrimonio) : 0;
+    return a - p - pt;
+  };
+
+  htmlRows += `<div class="esfdiv-row esf-grand" style="grid-template-columns:${gridCols};border-top:2px solid var(--bd);margin-top:6px">
+    <div style="padding-left:10px;font-weight:700">DIFERENCIA (Activos - Pasivos - Patrimonio)</div>
+    <div class="esf-num"></div>
+    ${quarters.map(q => {
+      const d = getDif(q);
+      const c = Math.abs(d) > 1.0 ? 'color:var(--red)' : 'color:var(--green)';
+      return `<div style="${c};font-family:'DM Mono',monospace;text-align:right">${fmt(d)}</div>`;
+    }).join('')}
+    ${qAll ? '<div></div><div></div><div></div>' : ''}
+  </div>`;
+
+  const qLabels = {1:'Q1 (Ene–Mar)', 2:'Q2 (Abr–Jun)', 3:'Q3 (Jul–Sep)', 4:'Q4 (Oct–Dic)'};
+  const prevYearHdr = esfCompleto.year_prev || (parseInt(ESFDIV_YEAR) - 1).toString();
+  const qHdrs = quarters.map(q => `<div style="text-align:right">${qLabels[q]}</div>`).join('');
+  const varHdrs = qAll ? '<div style="text-align:right">Var Q1-2</div><div style="text-align:right">Var Q2-3</div><div style="text-align:right">Var Q3-4</div>' : '';
+  const hdrHtml = `<div class="esfdiv-hdr" style="grid-template-columns:${gridCols}">
+    <div>Partida</div>
+    <div style="text-align:right">Cierre ${prevYearHdr}</div>
+    ${qHdrs}
+    ${varHdrs}
+  </div>`;
+
+  G('esfdiv-completo-body').innerHTML = `<div class="esfdiv-wrap">${hdrHtml}${htmlRows}</div>`;
+  updateESFDivRowVisibility();
+}
+
+function updateESFDivRowVisibility() {
+  const rows = document.querySelectorAll('div.esfdiv-row[data-esfdiv-row-id]');
+  const expandedStates = {};
+  rows.forEach(r => {
+    const id = r.getAttribute('data-esfdiv-row-id');
+    expandedStates[id] = r.getAttribute('data-expanded') === 'true';
+  });
+  function isRowVisible(id, level, parentId) {
+    if (level <= 2) return true;
+    if (parentId === null || parentId === undefined || parentId === '') return false;
+    const parentRow = document.querySelector(`div.esfdiv-row[data-esfdiv-row-id="${parentId}"]`);
+    if (!parentRow) return false;
+    const parentLevel = parseInt(parentRow.getAttribute('data-level') || '0', 10);
+    const parentParentId = parentRow.getAttribute('data-parent-id');
+    return isRowVisible(parentId, parentLevel, parentParentId) && expandedStates[parentId];
+  }
+  rows.forEach(r => {
+    const id = r.getAttribute('data-esfdiv-row-id');
+    const level = parseInt(r.getAttribute('data-level') || '0', 10);
+    const parentId = r.getAttribute('data-parent-id');
+    r.style.display = isRowVisible(id, level, parentId) ? 'grid' : 'none';
+  });
+}
+
+function toggleESFDivRow(event, rowId) {
+  event.stopPropagation();
+  const rowEl = document.querySelector(`div.esfdiv-row[data-esfdiv-row-id="${rowId}"]`);
+  if (!rowEl) return;
+  const toggleBtn = rowEl.querySelector('.esf-toggle');
+  if (!toggleBtn) return;
+  const newExpanded = !(rowEl.getAttribute('data-expanded') === 'true');
+  rowEl.setAttribute('data-expanded', newExpanded ? 'true' : 'false');
+  toggleBtn.textContent = newExpanded ? '▼' : '▶';
+  const partida = rowEl.getAttribute('data-partida');
+  if (partida) {
+    try {
+      localStorage.setItem('esfdiv_expanded_' + partida, newExpanded ? '1' : '0');
+    } catch (e) {
+      console.error('Error saving ESF Divisa Real expanded state:', e);
+    }
+  }
+  updateESFDivRowVisibility();
 }
 
 

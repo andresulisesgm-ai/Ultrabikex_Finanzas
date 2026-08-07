@@ -696,7 +696,7 @@ ESF_STRUCTURE_V2 = [
 ]
 
 
-def esf_engine(year, unit):
+def esf_engine(year, unit='', overrides_divisa_real=None):
     import sqlite3
     import os
     
@@ -825,6 +825,18 @@ def esf_engine(year, unit):
                 partidas = groups_v2.get(name, [])
                 quarters_data[q][name] = sum(db_data.get((q, p), 0.0) for p in partidas)
                 
+        # ESF Divisa Real: sustituir el total de partidas revalorizables usando el detalle
+        # por cuenta, aplicando overrides puntuales cuando existan (no afecta ESF Normal).
+        if overrides_divisa_real is not None:
+            for name in PARTIDAS_ESF_DIVISA_REAL:
+                cuentas = detail_by_group.get(name, {})
+                total_ajustado = 0.0
+                for (odoo_code, odoo_name), q_vals in cuentas.items():
+                    valor_real = q_vals.get(q, 0.0)
+                    valor = overrides_divisa_real.get((q, odoo_code), valor_real)
+                    total_ajustado += valor
+                quarters_data[q][name] = total_ajustado
+                
         # Calcular headers de nivel 3 (suman sus hijos de nivel 4)
         for item in ESF_STRUCTURE_V2:
             name, is_header, level = item[0], item[1], item[5]
@@ -930,11 +942,14 @@ def esf_engine(year, unit):
 
 
 # ── ESF Divisa Real ──────────────────────────────────────────────────────────
-PARTIDAS_ESF_DIVISA_REAL = ['Caja en Bs', 'Fondo en Bs', 'Bancos en Bs', 'Bancos en transito en Bs']
+PARTIDAS_ESF_DIVISA_REAL = [
+    'Caja en Bs', 'Fondo en Bs', 'Bancos en Bs', 'Bancos en transito en Bs',
+    'Impuestos pagados por anticipado', 'Retenciones Laborales por pagar', 'Impuestos por pagar'
+]
 QUARTER_MONTH_CIERRE = {1: 'MAR', 2: 'JUN', 3: 'SEPT', 4: 'DIC'}
 
 
-def calcular_esf_divisa_real(year, quarter):
+def calcular_esf_divisa_real(year, quarter, overrides=None):
     import sqlite3
     import os
 
@@ -948,19 +963,21 @@ def calcular_esf_divisa_real(year, quarter):
         conn.close()
         return {'error': f'Quarter inválido: {quarter}'}
 
+    overrides = overrides or {}
+
     placeholders = ','.join('?' * len(PARTIDAS_ESF_DIVISA_REAL))
     rows = cursor.execute(f'''
-        SELECT mg.group_name, SUM(fd.amount_sign) as total
+        SELECT mg.group_name, fd.odoo_code, fd.amount_sign as total
         FROM financials_detail fd
         JOIN mapping_groups_v2 mg ON fd.odoo_code = mg.odoo_code AND mg.report_type = 'esf'
         WHERE fd.year = ? AND fd.report_type = 'esf' AND fd.month = ?
           AND mg.group_name IN ({placeholders})
-        GROUP BY mg.group_name
     ''', (year, month, *PARTIDAS_ESF_DIVISA_REAL)).fetchall()
 
     saldo_por_partida = {p: 0.0 for p in PARTIDAS_ESF_DIVISA_REAL}
     for r in rows:
-        saldo_por_partida[r['group_name']] = r['total']
+        valor = overrides.get(r['odoo_code'], r['total'])
+        saldo_por_partida[r['group_name']] += valor
 
     saldo_total_bs = sum(saldo_por_partida.values())
 
@@ -975,12 +992,6 @@ def calcular_esf_divisa_real(year, quarter):
 
     tasa_paralela_fin = tasa_row['tasa_paralela_fin']
 
-    ajuste_row = cursor.execute(
-        'SELECT valor FROM esf_ajuste_diferencial WHERE year=? AND quarter=?',
-        (year, quarter)
-    ).fetchone()
-    ajuste_diferencial = ajuste_row['valor'] if ajuste_row else None
-
     conn.close()
 
     saldo_total_usd = round(saldo_total_bs / tasa_paralela_fin, 2) if tasa_paralela_fin else None
@@ -992,8 +1003,7 @@ def calcular_esf_divisa_real(year, quarter):
         'tasa_paralela_fin': tasa_paralela_fin,
         'partidas': {k: round(v, 2) for k, v in saldo_por_partida.items()},
         'saldo_total_bs': round(saldo_total_bs, 2),
-        'saldo_total_usd': saldo_total_usd,
-        'ajuste_diferencial_cambiario': ajuste_diferencial
+        'saldo_total_usd': saldo_total_usd
     }
 
 
