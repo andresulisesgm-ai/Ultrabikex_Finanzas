@@ -679,6 +679,16 @@ def migrate_db():
             ('Naranjos', 2)
         ''')
 
+    cols_esf = {r[1] for r in conn.execute("PRAGMA table_info(esf_data)").fetchall()}
+    if 'empresa_id' not in cols_esf:
+        conn.execute("ALTER TABLE esf_data ADD COLUMN empresa_id INTEGER DEFAULT NULL")
+        conn.execute("UPDATE esf_data SET empresa_id = 2 WHERE unit = 'CONSOLIDADO' AND empresa_id IS NULL")
+
+    cols_hist = {r[1] for r in conn.execute("PRAGMA table_info(history)").fetchall()}
+    if 'empresa_id' not in cols_hist:
+        conn.execute("ALTER TABLE history ADD COLUMN empresa_id INTEGER DEFAULT NULL")
+        conn.execute("UPDATE history SET empresa_id = 2 WHERE is_esf = 1 AND empresa_id IS NULL")
+
 
 
     # Actualizar income_type en registros existentes del mapping inicial
