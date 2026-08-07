@@ -646,6 +646,39 @@ def migrate_db():
 
     conn.execute('DROP TABLE IF EXISTS esf_upload_history')
 
+    if 'empresas' not in tables:
+        conn.execute('''CREATE TABLE empresas (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre_corto    TEXT NOT NULL UNIQUE,
+            nombre_legal    TEXT NOT NULL,
+            color           TEXT NOT NULL,
+            created_at      TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        )''')
+        conn.execute('''INSERT INTO empresas (nombre_corto, nombre_legal, color) VALUES
+            ('Ultrabikex Holding', 'Ultrabikex Holding (consolidado)', 'var(--tx)'),
+            ('Ultrax C.A.', 'Ultrax C.A.', 'var(--blue)'),
+            ('Ultrabikex C.A.', 'Ultrabikex C.A.', 'var(--mu)'),
+            ('UxBarinas C.A.', 'UxBarinas C.A.', 'var(--indigo)'),
+            ('Grupo Ultra2000 C.A.', 'Grupo Ultra2000 C.A.', 'var(--teal)')
+        ''')
+
+    if 'unidades' not in tables:
+        conn.execute('''CREATE TABLE unidades (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre          TEXT NOT NULL UNIQUE,
+            empresa_id      INTEGER NOT NULL,
+            created_at      TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+            FOREIGN KEY (empresa_id) REFERENCES empresas(id)
+        )''')
+        conn.execute('''INSERT INTO unidades (nombre, empresa_id) VALUES
+            ('Rodeo', 2),
+            ('PiedeMonte', 2),
+            ('Terracota', 2),
+            ('Ucafe', 2),
+            ('Barinas', 2),
+            ('Naranjos', 2)
+        ''')
+
 
 
     # Actualizar income_type en registros existentes del mapping inicial
