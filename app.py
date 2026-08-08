@@ -5239,7 +5239,13 @@ def export_ai():
 
     # ── COMPARATIVA POR UNIDAD ────────────────────────────────────────────────
     if tipo == 'comparativa':
-        UNIDADES_COMPARABLES = {'Rodeo', 'Barinas', 'Naranjos', 'PiedeMonte', 'Terracota'}
+        empresa_id_comp = request.args.get('empresa_id', type=int) if request.method == 'GET' else data.get('empresa_id')
+        # Ucafe excluida: es venta de café, negocio distinto al resto (retail) — no es comparable, decisión de negocio.
+        if empresa_id_comp is not None:
+            rows_unidades = db.execute('SELECT nombre FROM unidades WHERE empresa_id=? AND nombre != ?', [empresa_id_comp, 'Ucafe']).fetchall()
+            UNIDADES_COMPARABLES = {r[0] for r in rows_unidades}
+        else:
+            UNIDADES_COMPARABLES = {r[0] for r in db.execute('SELECT nombre FROM unidades WHERE nombre != ?', ['Ucafe']).fetchall()}
 
         if request.method == 'POST':
             units = data.get('units') or []

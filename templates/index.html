@@ -822,7 +822,7 @@ input[type=file]{display:none;}
 
         <div style="margin-bottom:16px">
           <label style="font-size:10px;font-weight:600;color:var(--tx);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:6px">Empresa</label>
-          <select id="ai-empresa" onchange="updateAiUnitOptions(); updateAiBriefingPreview();" style="width:100%;font-size:12px;padding:6px 10px;border:0.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);height:34px;margin-bottom:10px">
+          <select id="ai-empresa" onchange="updateAiUnitOptions(); updateAiComparativaCheckboxes(); updateAiBriefingPreview();" style="width:100%;font-size:12px;padding:6px 10px;border:0.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);height:34px;margin-bottom:10px">
           </select>
           <label style="font-size:10px;font-weight:600;color:var(--tx);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:6px">Alcance</label>
           <div id="ai-unit-wrapper">
@@ -838,13 +838,7 @@ input[type=file]{display:none;}
           </div>
           <div id="ai-units-comparativa-wrapper" style="display:none">
             <div style="font-size:10px;color:var(--mu);margin-bottom:6px">Selecciona 2 o más unidades a comparar</div>
-            <div style="display:flex;flex-direction:column;gap:6px">
-              <label style="display:flex;align-items:center;gap:8px;font-size:12px"><input type="checkbox" class="ai-unit-check" value="Rodeo" onchange="updateAiBriefingPreview()"> Rodeo</label>
-              <label style="display:flex;align-items:center;gap:8px;font-size:12px"><input type="checkbox" class="ai-unit-check" value="Barinas" onchange="updateAiBriefingPreview()"> Barinas</label>
-              <label style="display:flex;align-items:center;gap:8px;font-size:12px"><input type="checkbox" class="ai-unit-check" value="Naranjos" onchange="updateAiBriefingPreview()"> Naranjos</label>
-              <label style="display:flex;align-items:center;gap:8px;font-size:12px"><input type="checkbox" class="ai-unit-check" value="PiedeMonte" onchange="updateAiBriefingPreview()"> PiedeMonte</label>
-              <label style="display:flex;align-items:center;gap:8px;font-size:12px"><input type="checkbox" class="ai-unit-check" value="Terracota" onchange="updateAiBriefingPreview()"> Terracota</label>
-            </div>
+            <div id="ai-units-comparativa-list" style="display:flex;flex-direction:column;gap:6px"></div>
           </div>
         </div>
 
@@ -2811,6 +2805,19 @@ function updateAiUnitOptions(){
   if(unitSel.value !== current) unitSel.value = '';
 }
 
+function updateAiComparativaCheckboxes(){
+  const empresaId = G('ai-empresa') ? parseInt(G('ai-empresa').value) : null;
+  const cont = G('ai-units-comparativa-list');
+  if(!cont) return;
+  // Ucafe excluida: es venta de café, negocio distinto al resto (retail) — no es comparable, decisión de negocio.
+  const unidadesEmpresa = (empresaId && !isNaN(empresaId))
+    ? UNIDADES_CACHE.filter(function(u){ return u.empresa_id === empresaId && u.nombre !== 'Ucafe'; })
+    : [];
+  cont.innerHTML = unidadesEmpresa.map(function(u){
+    return `<label style="display:flex;align-items:center;gap:8px;font-size:12px"><input type="checkbox" class="ai-unit-check" value="${u.nombre}" onchange="updateAiBriefingPreview()"> ${u.nombre}</label>`;
+  }).join('');
+}
+
 function updateUnitSelectorsForEmpresa(){
   const tieneUnidadesPropias = CURRENT_EMPRESA_ID !== null &&
     UNIDADES_CACHE.some(function(u){ return u.empresa_id === CURRENT_EMPRESA_ID; });
@@ -2851,9 +2858,16 @@ function updateUnitSelectorsForEmpresa(){
     if(!tieneUnidadesPropias) errDivisaUnit.value = '';
   }
 
+  // Ucafe excluida de Comparativas: es venta de café, negocio distinto al resto (retail) — no es comparable, decisión de negocio.
   const cmpUnit = G('cmp-unit');
-  repoblar(cmpUnit, '', 'Todas');
   if(cmpUnit){
+    cmpUnit.innerHTML = '<option value="">Todas</option>';
+    unidadesEmpresa.filter(function(u){ return u.nombre !== 'Ucafe'; }).forEach(function(u){
+      const opt = document.createElement('option');
+      opt.value = u.nombre;
+      opt.textContent = u.nombre;
+      cmpUnit.appendChild(opt);
+    });
     cmpUnit.disabled = !tieneUnidadesPropias;
     if(!tieneUnidadesPropias) cmpUnit.value = '';
   }
@@ -6953,6 +6967,7 @@ function toggleEERRRow(event, rowId) {
   await loadEmpresasDropdown();
   await loadUnidadesCache();
   updateAiUnitOptions();
+  updateAiComparativaCheckboxes();
   updateUnitSelectorsForEmpresa();
   updateSidebarForEmpresa();
 
