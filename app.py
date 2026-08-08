@@ -4426,11 +4426,20 @@ def import_budget():
 def comparativa():
     year = int(request.args.get('year', datetime.now().year))
     unit = request.args.get('unit', '')
+    empresa_id = request.args.get('empresa_id', type=int)
     prev = year - 1
     db   = get_db()
     ing_p, cos_p, gas_p = get_clasificacion(db)
-    uc = "AND unit=?" if unit else ''
-    uc_params = [unit] if unit else []
+    filtros = []
+    filtro_params = []
+    if unit:
+        filtros.append("unit=?")
+        filtro_params.append(unit)
+    if empresa_id is not None:
+        filtros.append("empresa_id=?")
+        filtro_params.append(empresa_id)
+    uc = ("AND " + " AND ".join(filtros)) if filtros else ''
+    uc_params = filtro_params
 
     def totals(yr):
         def s(partidas):

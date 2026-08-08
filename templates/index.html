@@ -2850,6 +2850,13 @@ function updateUnitSelectorsForEmpresa(){
     errDivisaUnit.disabled = !tieneUnidadesPropias;
     if(!tieneUnidadesPropias) errDivisaUnit.value = '';
   }
+
+  const cmpUnit = G('cmp-unit');
+  repoblar(cmpUnit, '', 'Todas');
+  if(cmpUnit){
+    cmpUnit.disabled = !tieneUnidadesPropias;
+    if(!tieneUnidadesPropias) cmpUnit.value = '';
+  }
 }
 
 function updateSidebarForEmpresa(){
@@ -5121,7 +5128,8 @@ async function loadEERR(){
 // ── COMPARATIVAS ──────────────────────────────────────────────────────────
 async function loadCmp(){
   const year=G('cmp-year').value, unit=G('cmp-unit').value;
-  const r=await fetch(`/api/comparativa?year=${year}&unit=${unit}`);
+  const empresaParam = (CURRENT_EMPRESA_ID !== null && CURRENT_EMPRESA_ID !== undefined) ? `&empresa_id=${CURRENT_EMPRESA_ID}` : '';
+  const r=await fetch(`/api/comparativa?year=${year}&unit=${unit}${empresaParam}`);
   const d=await r.json();
   const {actual:a,anterior:p,year:y,prev:py}=d;
   function delta(cur,ant){if(!ant)return'—';const pct2=(cur-ant)/Math.abs(ant)*100;const col=pct2>=0?'var(--green)':'var(--red)';return`<span style="color:${col};font-weight:600">${pct2>=0?'▲':'▼'} ${Math.abs(pct2).toFixed(1)}%</span>`;}
