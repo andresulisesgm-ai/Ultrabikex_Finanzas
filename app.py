@@ -4516,7 +4516,9 @@ def export_excel():
         db_conn = get_db()
         units = [r[0] for r in db_conn.execute('SELECT nombre FROM unidades WHERE empresa_id=?', [empresa_id]).fetchall()]
     else:
-        units = UNITS
+        # Holding (sin empresa_id explícito desde este flujo): agregado de todas las unidades reales de las 4 empresas.
+        db_conn = get_db()
+        units = [r[0] for r in db_conn.execute('SELECT nombre FROM unidades').fetchall()]
     exp    = ExcelExporter(year, units, sel, divisa_real=divisa, empresa_id=empresa_id)
     try:
         path = exp.generate()

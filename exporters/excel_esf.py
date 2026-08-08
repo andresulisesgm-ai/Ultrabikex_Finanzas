@@ -110,7 +110,9 @@ class ESFExporter:
             db_conn = get_db()
             units_export = [r[0] for r in db_conn.execute('SELECT nombre FROM unidades WHERE empresa_id=?', [self.empresa_id]).fetchall()]
         else:
-            units_export = self.UNITS
+            # Holding (sin empresa_id explícito): agregado de todas las unidades reales de las 4 empresas.
+            db_conn = get_db()
+            units_export = [r[0] for r in db_conn.execute('SELECT nombre FROM unidades').fetchall()]
 
         # 1. EERR ULTRAX (año actual): unidades reales + notas, reusando el exportador existente.
         eerr_meta = ExcelExporter(self.year, units_export, self.months, empresa_id=self.empresa_id).generate(

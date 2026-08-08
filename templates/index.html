@@ -2871,6 +2871,19 @@ function updateUnitSelectorsForEmpresa(){
     cmpUnit.disabled = !tieneUnidadesPropias;
     if(!tieneUnidadesPropias) cmpUnit.value = '';
   }
+
+  const exUnit = G('ex-unit');
+  if(exUnit){
+    exUnit.innerHTML = '<option value="">Consolidado — Todas</option>';
+    unidadesEmpresa.forEach(function(u){
+      const opt = document.createElement('option');
+      opt.value = u.nombre;
+      opt.textContent = u.nombre;
+      exUnit.appendChild(opt);
+    });
+    exUnit.disabled = !tieneUnidadesPropias;
+    if(!tieneUnidadesPropias) exUnit.value = '';
+  }
 }
 
 function updateSidebarForEmpresa(){
@@ -4879,6 +4892,7 @@ function openExcelModal(){
   const id = activePage ? activePage.id : '';
   G('ex-tipo').value = (id === 'page-esf') ? 'esf' : 'eerr';
   G('ex-year').value = getCurrentYear();
+  updateUnitSelectorsForEmpresa();
   G('ex-unit').value = getCurrentUnit();
   onExTipoChange();
   G('exmod').classList.add('show');
