@@ -782,10 +782,16 @@ def dashboard():
     ebt_mes, ebt     = get_eerr_values('Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)')
     un_mes, un       = get_eerr_values('Utilidad Neta')
 
-    # 2. Desglose por unidad (por_unidad)
+    # 2. Desglose por unidad (por_unidad) — solo si la empresa activa tiene unidades propias.
+    # Holding (empresa_id=None) no tiene desglose por unidad: es agregado de 4 empresas, no de unidades.
     por_unidad = []
-    for u in (UNITS if (empresa_id is None or empresa_id == 2) else []):
-        eerr_u = eerr_completo_v2_ui_adapter(year, u)
+    unidades_empresa = []
+    if empresa_id is not None:
+        unidades_empresa = [r['nombre'] for r in db.execute(
+            'SELECT nombre FROM unidades WHERE empresa_id=?', (empresa_id,)
+        ).fetchall()]
+    for u in unidades_empresa:
+        eerr_u = eerr_completo_v2_ui_adapter(year, u, empresa_id=empresa_id)
         
         def get_u_total(p_name):
             r = next((row for row in eerr_u['rows'] if row['partida'] == p_name), None)
@@ -885,9 +891,12 @@ def dashboard():
             }
 
     # 7. Meses cargados
-    loaded = db.execute(
-        'SELECT DISTINCT unit, month FROM financials WHERE year=? ORDER BY unit, month', (year,)
-    ).fetchall()
+    loaded = []
+    if empresa_id is not None:
+        loaded = db.execute(
+            'SELECT DISTINCT unit, month FROM financials WHERE year=? AND empresa_id IS ? ORDER BY unit, month',
+            (year, empresa_id)
+        ).fetchall()
 
     # 8. Indicadores Avanzados pasando ingresos y utilidad neta calculados
     indicadores_avanzados = compute_indicadores(db, year, '' if unit == 'TODAS' else unit, tI, un, empresa_id=empresa_id)
