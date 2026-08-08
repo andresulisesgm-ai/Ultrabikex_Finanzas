@@ -4991,6 +4991,11 @@ def save_briefing_prompt():
 
 # ── Exportar para IA ──────────────────────────────────────────────────────────
 
+def _nombre_empresa(db, empresa_id):
+    row = db.execute('SELECT nombre_corto FROM empresas WHERE id=?', (empresa_id,)).fetchone()
+    return row['nombre_corto'] if row else f"Empresa {empresa_id}"
+
+
 @app.route('/api/export/ai', methods=['GET', 'POST'])
 @admin_required
 def export_ai():
@@ -5008,12 +5013,14 @@ def export_ai():
         unit = data.get('unit') or request.args.get('unit', '')
         tipo = data.get('tipo') or request.args.get('tipo', 'eerr')
         prompt_text = data.get('prompt_text')
+        empresa_id = data.get('empresa_id') or request.args.get('empresa_id', type=int)
     else:
         year = request.args.get('year', str(datetime.now().year))
         month = request.args.get('month', '')
         unit = request.args.get('unit', '')
         tipo = request.args.get('tipo', 'eerr')
         prompt_text = request.args.get('prompt_text')
+        empresa_id = request.args.get('empresa_id', type=int)
 
     db = get_db()
 
@@ -5052,7 +5059,7 @@ def export_ai():
 
     # Encabezado
     periodo = f"{month} {year}" if month else f"Año completo {year}"
-    alcance = unit if unit else "Consolidado grupo"
+    alcance = unit if unit else ('Consolidado grupo' if empresa_id is None else _nombre_empresa(db, empresa_id))
     moneda = "USD Paralelo" if 'divisa' in tipo else "USD / Bs"
 
     lines.append(f"# BRIEFING FINANCIERO — ULTRABIKEX")
@@ -5068,7 +5075,7 @@ def export_ai():
     if tipo in ['eerr', 'eerr_divisa', 'completo']:
         lines.append('## ESTADO DE RESULTADOS')
         lines.append('')
-        data = eerr_completo_v2_ui_adapter(year, unit)
+        data = eerr_completo_v2_ui_adapter(year, unit, empresa_id=empresa_id)
         rows = data.get('rows', [])
 
         meses_disponibles = []
@@ -5107,7 +5114,7 @@ def export_ai():
     if tipo in ['esf', 'completo']:
         lines.append('## ESTADO DE SITUACIÓN FINANCIERA')
         lines.append('')
-        result_quarters, quarters_available = compute_esf(db, year, unit)
+        result_quarters, quarters_available = compute_esf(db, year, unit, empresa_id=empresa_id)
 
         for q in quarters_available:
             lines.append(f"### Q{q}")
