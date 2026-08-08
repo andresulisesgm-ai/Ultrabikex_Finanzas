@@ -2811,6 +2811,47 @@ function updateAiUnitOptions(){
   if(unitSel.value !== current) unitSel.value = '';
 }
 
+function updateUnitSelectorsForEmpresa(){
+  const tieneUnidadesPropias = CURRENT_EMPRESA_ID !== null &&
+    UNIDADES_CACHE.some(function(u){ return u.empresa_id === CURRENT_EMPRESA_ID; });
+
+  const unidadesEmpresa = CURRENT_EMPRESA_ID !== null
+    ? UNIDADES_CACHE.filter(function(u){ return u.empresa_id === CURRENT_EMPRESA_ID; })
+    : [];
+
+  function repoblar(sel, valorTodas, labelTodas){
+    if(!sel) return;
+    sel.innerHTML = `<option value="${valorTodas}">${labelTodas}</option>`;
+    unidadesEmpresa.forEach(function(u){
+      const opt = document.createElement('option');
+      opt.value = u.nombre;
+      opt.textContent = u.nombre;
+      sel.appendChild(opt);
+    });
+  }
+
+  const dashUnit = G('dash-unit');
+  repoblar(dashUnit, 'TODAS', 'Todas las Unidades');
+  if(dashUnit){
+    dashUnit.disabled = !tieneUnidadesPropias;
+    if(!tieneUnidadesPropias) dashUnit.value = 'TODAS';
+  }
+
+  const eerrUnit = G('eerr-unit');
+  repoblar(eerrUnit, '', 'Consolidado');
+  if(eerrUnit){
+    eerrUnit.disabled = !tieneUnidadesPropias;
+    if(!tieneUnidadesPropias) eerrUnit.value = '';
+  }
+
+  const errDivisaUnit = G('err-divisa-unit');
+  repoblar(errDivisaUnit, '', 'Consolidado');
+  if(errDivisaUnit){
+    errDivisaUnit.disabled = !tieneUnidadesPropias;
+    if(!tieneUnidadesPropias) errDivisaUnit.value = '';
+  }
+}
+
 function updateSidebarForEmpresa(){
   const esHolding = CURRENT_EMPRESA_ID === null;
   G('nav-cargar').style.display = esHolding ? 'none' : '';
@@ -2829,17 +2870,7 @@ function selectCompany(el,name,color,initials,empresaId){
   CURRENT_EMPRESA_ID = empresaId;
   updateSidebarForEmpresa();
 
-  const esUltraxOHolding = (empresaId === null || empresaId === 2);
-  const dashUnit = G('dash-unit');
-  if(dashUnit){
-    dashUnit.disabled = !esUltraxOHolding;
-    if(!esUltraxOHolding) dashUnit.value = 'TODAS';
-  }
-  const eerrUnit = G('eerr-unit');
-  if(eerrUnit){
-    eerrUnit.disabled = !esUltraxOHolding;
-    if(!esUltraxOHolding) eerrUnit.value = '';
-  }
+  updateUnitSelectorsForEmpresa();
 
   showPage('dashboard', G('nav-dashboard'));
 }
@@ -6914,6 +6945,7 @@ function toggleEERRRow(event, rowId) {
   await loadEmpresasDropdown();
   await loadUnidadesCache();
   updateAiUnitOptions();
+  updateUnitSelectorsForEmpresa();
   updateSidebarForEmpresa();
 
   G('dash-month').addEventListener('change', function() {
