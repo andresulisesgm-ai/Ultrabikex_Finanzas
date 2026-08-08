@@ -565,9 +565,9 @@ input[type=file]{display:none;}
   <div class="nav-item" onclick="showPage('presupuesto',this)" style="display:none"><span class="nav-icon"><i class="ph ph-target"></i></span>Presupuesto vs Real</div>
   <div class="nav-item" onclick="showPage('comparativa',this)"><span class="nav-icon"><i class="ph ph-arrows-down-up"></i></span>Comparativas</div>
   <div class="nav-sec">Configuración</div>
-  <div class="nav-item" onclick="showPage('carga',this)"><span class="nav-icon"><i class="ph ph-upload-simple"></i></span>Cargar Reportes</div>
+  <div class="nav-item" id="nav-cargar" onclick="showPage('carga',this)"><span class="nav-icon"><i class="ph ph-upload-simple"></i></span>Cargar Reportes</div>
   <div class="nav-item" onclick="showPage('mapping',this)"><span class="nav-icon"><i class="ph ph-arrows-left-right"></i></span>Mapeo de Cuentas</div>
-  <div class="nav-item" onclick="showPage('config_tasas',this)"><span class="nav-icon"><i class="ph ph-sliders"></i></span>Configuración de Tasas</div>
+  <div class="nav-item" id="nav-tasas" onclick="showPage('config_tasas',this)"><span class="nav-icon"><i class="ph ph-sliders"></i></span>Configuración de Tasas</div>
   <div class="nav-item" onclick="showPage('historial',this)"><span class="nav-icon"><i class="ph ph-clock-countdown"></i></span>Historial</div>
   <div class="nav-item" onclick="showPage('datos',this)"><span class="nav-icon"><i class="ph ph-table"></i></span>Ver Datos</div>
   <div class="nav-sec">Sistema</div>
@@ -2732,6 +2732,12 @@ function poblarSelectorEmpresaDatos(){
   sel.value = current;
 }
 
+function updateSidebarForEmpresa(){
+  const esHolding = CURRENT_EMPRESA_ID === null;
+  G('nav-cargar').style.display = esHolding ? 'none' : '';
+  G('nav-tasas').style.display = esHolding ? 'none' : '';
+}
+
 function selectCompany(el,name,color,initials,empresaId){
   document.getElementById('company-sel-label').textContent=name;
   document.getElementById('logo-icon').style.background=color;
@@ -2742,6 +2748,7 @@ function selectCompany(el,name,color,initials,empresaId){
   document.getElementById('company-sel').classList.remove('open');
 
   CURRENT_EMPRESA_ID = empresaId;
+  updateSidebarForEmpresa();
 
   const esUltraxOHolding = (empresaId === null || empresaId === 2);
   const dashUnit = G('dash-unit');
@@ -6808,6 +6815,7 @@ function toggleEERRRow(event, rowId) {
   initModalResize();
   await fillYears();
   await loadEmpresasDropdown();
+  updateSidebarForEmpresa();
 
   G('dash-month').addEventListener('change', function() {
     const hasMes = this.value !== '';
