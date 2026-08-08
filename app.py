@@ -929,6 +929,16 @@ def get_empresas():
     rows = db.execute('SELECT id, nombre_corto, nombre_legal, color FROM empresas ORDER BY id').fetchall()
     return jsonify([dict(r) for r in rows])
 
+@app.route('/api/unidades', methods=['GET'])
+def get_unidades():
+    """
+    Lista todas las unidades de negocio con su empresa_id.
+    Usado para poblar dinamicamente el selector de Alcance en Exportar Briefing IA.
+    """
+    db = get_db()
+    rows = db.execute('SELECT nombre, empresa_id FROM unidades ORDER BY empresa_id, nombre').fetchall()
+    return jsonify([dict(r) for r in rows])
+
 @app.route('/api/trazabilidad')
 def trazabilidad():
     """
@@ -3473,6 +3483,7 @@ def dashboard_divisa_real():
     year  = request.args.get('year', str(datetime.now().year))
     month = request.args.get('month')
     unit  = request.args.get('unit', 'TODAS')
+    empresa_id = request.args.get('empresa_id', type=int)
     db    = get_db()
 
     if not month:
@@ -3497,7 +3508,7 @@ def dashboard_divisa_real():
     diferencial = paralela / bcv
 
     eerr_unit_param = '' if unit == 'TODAS' else unit
-    eerr_data = _calcular_eerr_divisa_real(year, eerr_unit_param)
+    eerr_data = _calcular_eerr_divisa_real(year, eerr_unit_param, empresa_id=empresa_id)
 
     def get_mes_valor(partida_name):
         row = next((r for r in eerr_data['rows'] if r['partida'] == partida_name), None)
@@ -3649,7 +3660,7 @@ def divisa_real_resumen():
     })
 
 
-def _calcular_eerr_divisa_real(year, unit):
+def _calcular_eerr_divisa_real(year, unit, empresa_id=None):
     """
     Calcula el Estado de Resultados COMPLETO con ajuste de divisa real.
     Misma estructura que /api/eerr/completo (119 partidas, tipos A/B/C/D/E)
@@ -3664,8 +3675,23 @@ def _calcular_eerr_divisa_real(year, unit):
     db = get_db()
 
     year_prev = str(int(year) - 1)
-    uc = "AND unit=?" if unit else ''
-    uc_params = [unit] if unit else []
+    if unit:
+        uc = "AND unit=?"
+        uc_params = [unit]
+    elif empresa_id is not None:
+        unidades_empresa = [r['nombre'] for r in db.execute(
+            'SELECT nombre FROM unidades WHERE empresa_id=?', (empresa_id,)
+        ).fetchall()]
+        if unidades_empresa:
+            placeholders = ','.join('?' * len(unidades_empresa))
+            uc = f"AND unit IN ({placeholders})"
+            uc_params = unidades_empresa
+        else:
+            uc = "AND 1=0"
+            uc_params = []
+    else:
+        uc = ''
+        uc_params = []
 
     MONTH_TYPES = {
         'ENE': 'A', 'FEB': 'B', 'MAR': 'C', 'ABR': 'B', 'MAY': 'B', 'JUN': 'D',
@@ -4156,7 +4182,8 @@ def _calcular_eerr_divisa_real(year, unit):
 def eerr_divisa_real():
     year = request.args.get('year', str(datetime.now().year))
     unit = request.args.get('unit', '')
-    return jsonify(_calcular_eerr_divisa_real(year, unit))
+    empresa_id = request.args.get('empresa_id', type=int)
+    return jsonify(_calcular_eerr_divisa_real(year, unit, empresa_id=empresa_id))
 
 
 # ── Presupuesto ───────────────────────────────────────────────────────────────
@@ -5014,6 +5041,7 @@ def export_ai():
         tipo = data.get('tipo') or request.args.get('tipo', 'eerr')
         prompt_text = data.get('prompt_text')
         empresa_id = data.get('empresa_id') or request.args.get('empresa_id', type=int)
+        quarter = data.get('quarter') or request.args.get('quarter', type=int)
     else:
         year = request.args.get('year', str(datetime.now().year))
         month = request.args.get('month', '')
@@ -5021,6 +5049,7 @@ def export_ai():
         tipo = request.args.get('tipo', 'eerr')
         prompt_text = request.args.get('prompt_text')
         empresa_id = request.args.get('empresa_id', type=int)
+        quarter = request.args.get('quarter', type=int)
 
     db = get_db()
 
@@ -5072,7 +5101,7 @@ def export_ai():
     lines.append('')
 
     # ── EERR ──────────────────────────────────────────────────────────────────
-    if tipo in ['eerr', 'eerr_divisa', 'completo']:
+    if tipo in ['eerr', 'completo']:
         lines.append('## ESTADO DE RESULTADOS')
         lines.append('')
         data = eerr_completo_v2_ui_adapter(year, unit, empresa_id=empresa_id)
@@ -5084,7 +5113,6 @@ def export_ai():
             if month:
                 meses_disponibles = [m for m in meses_disponibles if m == month.upper()]
 
-        # Encabezado tabla
         header = '| Partida | ' + ' | '.join(meses_disponibles) + ' | ACUM |' if meses_disponibles else '| Partida | ACUM |'
         separator = '|---' * (len(meses_disponibles) + 2) + '|'
         lines.append(header)
@@ -5097,9 +5125,43 @@ def export_ai():
             meses_data = {m['month']: m.get('ejecutado', {}).get('valor', 0) for m in row.get('meses', [])}
 
             if meses_disponibles:
-                valores = ' | '.join(
-                    f"{meses_data.get(m, 0):,.0f}" for m in meses_disponibles
-                )
+                valores = ' | '.join(f"{meses_data.get(m, 0):,.0f}" for m in meses_disponibles)
+                acum = sum(m.get('ejecutado', {}).get('valor', 0) for m in row.get('meses', []))
+                lines.append(f"| {prefix}{partida}{suffix} | {valores} | {acum:,.0f} |")
+            else:
+                acum = sum(m.get('ejecutado', {}).get('valor', 0) for m in row.get('meses', []))
+                lines.append(f"| {prefix}{partida}{suffix} | {acum:,.0f} |")
+
+        lines.append('')
+        lines.append('---')
+        lines.append('')
+
+    # ── EERR DIVISA REAL ─────────────────────────────────────────────────────
+    if tipo in ['eerr_divisa', 'completo']:
+        lines.append('## ESTADO DE RESULTADOS — DIVISA REAL')
+        lines.append('')
+        data_dr = _calcular_eerr_divisa_real(year, unit, empresa_id=empresa_id)
+        rows_dr = data_dr.get('rows', [])
+
+        meses_disponibles_dr = []
+        if rows_dr:
+            meses_disponibles_dr = [m['month'] for m in rows_dr[0].get('meses', [])]
+            if month:
+                meses_disponibles_dr = [m for m in meses_disponibles_dr if m == month.upper()]
+
+        header_dr = '| Partida | ' + ' | '.join(meses_disponibles_dr) + ' | ACUM |' if meses_disponibles_dr else '| Partida | ACUM |'
+        separator_dr = '|---' * (len(meses_disponibles_dr) + 2) + '|'
+        lines.append(header_dr)
+        lines.append(separator_dr)
+
+        for row in rows_dr:
+            partida = row.get('partida', '')
+            prefix = '**' if row.get('bold') else ''
+            suffix = '**' if row.get('bold') else ''
+            meses_data = {m['month']: m.get('ejecutado', {}).get('valor', 0) for m in row.get('meses', [])}
+
+            if meses_disponibles_dr:
+                valores = ' | '.join(f"{meses_data.get(m, 0):,.0f}" for m in meses_disponibles_dr)
                 acum = sum(m.get('ejecutado', {}).get('valor', 0) for m in row.get('meses', []))
                 lines.append(f"| {prefix}{partida}{suffix} | {valores} | {acum:,.0f} |")
             else:
@@ -5130,6 +5192,39 @@ def export_ai():
                 val = totales.get(clave, 0)
                 lines.append(f"| {clave} | {val:,.0f} |")
             lines.append('')
+
+    # ── ESF DIVISA REAL ─────────────────────────────────────────────────────
+    if tipo in ['esf_divisa', 'completo']:
+        lines.append('## ESTADO DE SITUACIÓN FINANCIERA — DIVISA REAL')
+        lines.append('')
+        if not quarter:
+            lines.append('_No se especificó trimestre; sección omitida._')
+            lines.append('')
+        else:
+            from engine import calcular_esf_divisa_real
+            overrides_rows = db.execute(
+                'SELECT odoo_code, valor_override FROM esf_divisa_real_overrides WHERE year=? AND quarter=? AND empresa_id IS ?',
+                (year, quarter, empresa_id)
+            ).fetchall()
+            overrides_flat = {r['odoo_code']: r['valor_override'] for r in overrides_rows}
+            result_dr = calcular_esf_divisa_real(year, quarter, overrides=overrides_flat, empresa_id=empresa_id)
+            if 'error' in result_dr:
+                lines.append(f"_{result_dr['error']}_")
+                lines.append('')
+            else:
+                lines.append(f"**Trimestre:** Q{quarter} | **Tasa paralela fin de mes:** {result_dr['tasa_paralela_fin']}")
+                lines.append('')
+                lines.append('| Partida | Bs |')
+                lines.append('|---|---|')
+                for k, v in result_dr['partidas'].items():
+                    lines.append(f"| {k} | {v:,.2f} |")
+                lines.append(f"| **Saldo Total** | **{result_dr['saldo_total_bs']:,.2f}** |")
+                lines.append('')
+                usd_txt = f"{result_dr['saldo_total_usd']:,.2f}" if result_dr['saldo_total_usd'] is not None else "N/D"
+                lines.append(f"**Saldo Total USD (paralelo):** {usd_txt}")
+                lines.append('')
+        lines.append('---')
+        lines.append('')
 
     # ── COMPARATIVA POR UNIDAD ────────────────────────────────────────────────
     if tipo == 'comparativa':

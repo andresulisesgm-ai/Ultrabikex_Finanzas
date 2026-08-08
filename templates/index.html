@@ -803,9 +803,13 @@ input[type=file]{display:none;}
               <span style="font-size:12px;font-weight:600;color:var(--tx);display:block">ESF</span>
               <span style="font-size:10px;color:var(--mu);display:block;margin-top:2px;line-height:1.4">Balance general consolidado</span>
             </button>
+            <button id="ai-tipo-esf_divisa" onclick="setAiTipo('esf_divisa',this)" style="background:var(--bg);border:0.5px solid var(--bd);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer">
+              <span style="font-size:12px;font-weight:600;color:var(--tx);display:block">ESF Divisa Real</span>
+              <span style="font-size:10px;color:var(--mu);display:block;margin-top:2px;line-height:1.4">Balance ajustado a divisa real, por trimestre</span>
+            </button>
             <button id="ai-tipo-completo" onclick="setAiTipo('completo',this)" style="background:var(--bg);border:0.5px solid var(--bd);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer">
               <span style="font-size:12px;font-weight:600;color:var(--tx);display:block">Completo</span>
-              <span style="font-size:10px;color:var(--mu);display:block;margin-top:2px;line-height:1.4">EERR + ESF en un solo archivo</span>
+              <span style="font-size:10px;color:var(--mu);display:block;margin-top:2px;line-height:1.4">EERR + EERR Divisa Real + ESF + ESF Divisa Real</span>
             </button>
             <button id="ai-tipo-comparativa" onclick="setAiTipo('comparativa',this)" style="background:var(--bg);border:0.5px solid var(--bd);border-radius:6px;padding:10px 12px;text-align:left;cursor:pointer;grid-column:span 2">
               <span style="font-size:12px;font-weight:600;color:var(--tx);display:block">Comparativa</span>
@@ -817,6 +821,9 @@ input[type=file]{display:none;}
         <div style="border-top:0.5px solid var(--bd);margin:16px 0"></div>
 
         <div style="margin-bottom:16px">
+          <label style="font-size:10px;font-weight:600;color:var(--tx);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:6px">Empresa</label>
+          <select id="ai-empresa" onchange="updateAiUnitOptions(); updateAiBriefingPreview();" style="width:100%;font-size:12px;padding:6px 10px;border:0.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);height:34px;margin-bottom:10px">
+          </select>
           <label style="font-size:10px;font-weight:600;color:var(--tx);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:6px">Alcance</label>
           <div id="ai-unit-wrapper">
             <select id="ai-unit" onchange="updateAiBriefingPreview()" style="width:100%;font-size:12px;padding:6px 10px;border:0.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);height:34px">
@@ -862,6 +869,16 @@ input[type=file]{display:none;}
               <option value="OCT">Octubre</option>
               <option value="NOV">Noviembre</option>
               <option value="DIC">Diciembre</option>
+            </select>
+          </div>
+          <div id="ai-quarter-wrapper" style="display:none;margin-top:8px">
+            <label style="font-size:10px;font-weight:600;color:var(--tx);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:6px">Trimestre (para Divisa Real)</label>
+            <select id="ai-quarter" onchange="updateAiBriefingPreview()" style="width:100%;font-size:12px;padding:6px 10px;border:0.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);height:34px">
+              <option value="">Selecciona trimestre</option>
+              <option value="1">Q1</option>
+              <option value="2">Q2</option>
+              <option value="3">Q3</option>
+              <option value="4">Q4</option>
             </select>
           </div>
         </div>
@@ -1414,6 +1431,7 @@ input[type=file]{display:none;}
 // ── UTILS ─────────────────────────────────────────────────────────────────
 const G=id=>document.getElementById(id);
 let CURRENT_EMPRESA_ID = null;   // null = Holding (sin filtro, suma de las 4 empresas)
+let UNIDADES_CACHE = [];
 let CURRENT_PAGE = 'dashboard';
 let EMPRESAS_CACHE = [];
 const fmt=n=>n==null?'—':'$'+Number(n).toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -2701,6 +2719,7 @@ async function loadEmpresasDropdown(){
     });
     poblarSelectorEmpresaESF();
     poblarSelectorEmpresaDatos();
+    poblarSelectorEmpresaBriefing();
   }catch(e){
     console.error('Error cargando empresas', e);
   }
@@ -2730,6 +2749,66 @@ function poblarSelectorEmpresaDatos(){
     sel.appendChild(opt);
   });
   sel.value = current;
+}
+
+function poblarSelectorEmpresaBriefing(){
+  const sel = G('ai-empresa');
+  if(!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '';
+  EMPRESAS_CACHE.forEach(function(emp){
+    const opt = document.createElement('option');
+    opt.value = emp.id;
+    opt.textContent = emp.nombre_corto;
+    sel.appendChild(opt);
+  });
+  sel.value = current || (CURRENT_EMPRESA_ID !== null ? CURRENT_EMPRESA_ID : '1');
+}
+
+async function loadUnidadesCache(){
+  try{
+    const res = await fetch('/api/unidades');
+    UNIDADES_CACHE = await res.json();
+  }catch(e){
+    console.error('Error cargando unidades', e);
+  }
+}
+
+function updateAiUnitOptions(){
+  const empresaSel = G('ai-empresa');
+  const unitSel = G('ai-unit');
+  if(!empresaSel || !unitSel) return;
+  const empresaIdRaw = empresaSel.value;
+  const current = unitSel.value;
+  unitSel.innerHTML = '<option value="">Consolidado grupo</option>';
+
+  if(empresaIdRaw === '1'){
+    // Holding: todas las unidades reales + empresas sin unidad propia como opcion equivalente
+    UNIDADES_CACHE.forEach(function(u){
+      const opt = document.createElement('option');
+      opt.value = u.nombre;
+      opt.textContent = u.nombre;
+      unitSel.appendChild(opt);
+    });
+    const empresasConUnidad = new Set(UNIDADES_CACHE.map(function(u){ return u.empresa_id; }));
+    EMPRESAS_CACHE.filter(function(e){ return e.id !== 1 && !empresasConUnidad.has(e.id); }).forEach(function(emp){
+      const opt = document.createElement('option');
+      opt.value = 'EMPRESA:' + emp.id;
+      opt.textContent = emp.nombre_corto + ' (empresa completa)';
+      unitSel.appendChild(opt);
+    });
+  } else {
+    const empresaId = parseInt(empresaIdRaw);
+    UNIDADES_CACHE.filter(function(u){ return u.empresa_id === empresaId; }).forEach(function(u){
+      const opt = document.createElement('option');
+      opt.value = u.nombre;
+      opt.textContent = u.nombre;
+      unitSel.appendChild(opt);
+    });
+  }
+
+  unitSel.value = current;
+  if(unitSel.value !== current) unitSel.value = '';
 }
 
 function updateSidebarForEmpresa(){
@@ -5095,6 +5174,11 @@ function setAiTipo(tipo, el) {
   const unitSel = document.getElementById('ai-unit');
   const unitWrapper = document.getElementById('ai-unit-wrapper');
   const unitsCompWrapper = document.getElementById('ai-units-comparativa-wrapper');
+  const quarterWrapper = document.getElementById('ai-quarter-wrapper');
+
+  if (quarterWrapper) {
+    quarterWrapper.style.display = (tipo === 'esf_divisa' || tipo === 'completo') ? 'block' : 'none';
+  }
 
   if (tipo === 'comparativa') {
     if (unitWrapper) unitWrapper.style.display = 'none';
@@ -5103,7 +5187,7 @@ function setAiTipo(tipo, el) {
     if (unitWrapper) unitWrapper.style.display = 'block';
     if (unitsCompWrapper) unitsCompWrapper.style.display = 'none';
     if (unitSel) {
-      if (tipo === 'esf') {
+      if (tipo === 'esf' || tipo === 'esf_divisa') {
         unitSel.value = '';
         unitSel.disabled = true;
         unitSel.style.opacity = '0.4';
@@ -5231,11 +5315,20 @@ async function downloadAiBriefing() {
     unit = document.getElementById('ai-unit').value;
   }
 
+  let empresa_id_raw = document.getElementById('ai-empresa') ? document.getElementById('ai-empresa').value : '';
+  if (unit.startsWith('EMPRESA:')) {
+    empresa_id_raw = unit.split(':')[1];
+    unit = '';
+  }
+  const empresa_id = empresa_id_raw === '1' ? null : (empresa_id_raw ? parseInt(empresa_id_raw) : null);
+  const quarter_raw = document.getElementById('ai-quarter') ? document.getElementById('ai-quarter').value : '';
+  const quarter = quarter_raw ? parseInt(quarter_raw) : null;
+
   try {
     const r = await fetch('/api/export/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ year, month, unit, units, tipo, prompt_text })
+      body: JSON.stringify({ year, month, unit, units, tipo, prompt_text, empresa_id, quarter })
     });
     if (!r.ok) { alert('Error al generar el briefing. Verifica los datos seleccionados.'); return; }
     const blob = await r.blob();
@@ -6815,6 +6908,8 @@ function toggleEERRRow(event, rowId) {
   initModalResize();
   await fillYears();
   await loadEmpresasDropdown();
+  await loadUnidadesCache();
+  updateAiUnitOptions();
   updateSidebarForEmpresa();
 
   G('dash-month').addEventListener('change', function() {
