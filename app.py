@@ -893,10 +893,14 @@ def dashboard():
     # 7. Meses cargados
     loaded = []
     if empresa_id is not None:
-        loaded = db.execute(
-            'SELECT DISTINCT unit, month FROM financials WHERE year=? AND empresa_id IS ? ORDER BY unit, month',
-            (year, empresa_id)
-        ).fetchall()
+        unidades_rows = db.execute('SELECT nombre FROM unidades WHERE empresa_id=?', [empresa_id]).fetchall()
+        unidades_list = [r['nombre'] for r in unidades_rows]
+        if unidades_list:
+            placeholders = ','.join(['?'] * len(unidades_list))
+            loaded = db.execute(
+                f'SELECT DISTINCT unit, month FROM financials WHERE year=? AND unit IN ({placeholders}) ORDER BY unit, month',
+                [year] + unidades_list
+            ).fetchall()
 
     # 8. Indicadores Avanzados pasando ingresos y utilidad neta calculados
     indicadores_avanzados = compute_indicadores(db, year, '' if unit == 'TODAS' else unit, tI, un, empresa_id=empresa_id)
