@@ -5734,6 +5734,10 @@ function renderESFDivisaPartidasDetalle(detalle){
 }
 
 async function editarOverrideDivisaReal(odoo_code, valorActual){
+  if(CURRENT_EMPRESA_ID === null){
+    alert('No se pueden editar overrides mientras Holding está seleccionado. Elige una empresa específica.');
+    return;
+  }
   const nuevo = prompt(`Valor actual: ${fmt(valorActual)}\nIngresa el nuevo valor revalorizado:`, valorActual);
   if(nuevo === null || nuevo === '') return;
   const valor_nuevo = parseFloat(nuevo.replace(',', '.'));

@@ -3287,6 +3287,8 @@ def save_esf_divisa_real_override():
     empresa_id = body.get('empresa_id')
     if None in (year, quarter, odoo_code, valor_nuevo):
         return jsonify({'error': 'Faltan campos obligatorios'}), 400
+    if empresa_id is None:
+        return jsonify({'error': 'Holding no permite edicion de overrides de ESF Divisa Real'}), 400
 
     db = get_db()
     row_prev = db.execute(
