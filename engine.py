@@ -967,7 +967,7 @@ PARTIDAS_ESF_DIVISA_REAL = [
 QUARTER_MONTH_CIERRE = {1: 'MAR', 2: 'JUN', 3: 'SEPT', 4: 'DIC'}
 
 
-def calcular_esf_divisa_real(year, quarter, overrides=None):
+def calcular_esf_divisa_real(year, quarter, overrides=None, empresa_id=None):
     import sqlite3
     import os
 
@@ -984,13 +984,15 @@ def calcular_esf_divisa_real(year, quarter, overrides=None):
     overrides = overrides or {}
 
     placeholders = ','.join('?' * len(PARTIDAS_ESF_DIVISA_REAL))
+    empresa_clause = ' AND fd.empresa_id = ?' if empresa_id is not None else ''
+    empresa_params = (empresa_id,) if empresa_id is not None else ()
     rows = cursor.execute(f'''
         SELECT mg.group_name, fd.odoo_code, fd.amount_sign as total
         FROM financials_detail fd
         JOIN mapping_groups_v2 mg ON fd.odoo_code = mg.odoo_code AND mg.report_type = 'esf'
         WHERE fd.year = ? AND fd.report_type = 'esf' AND fd.month = ?
-          AND mg.group_name IN ({placeholders})
-    ''', (year, month, *PARTIDAS_ESF_DIVISA_REAL)).fetchall()
+          AND mg.group_name IN ({placeholders}){empresa_clause}
+    ''', (year, month, *PARTIDAS_ESF_DIVISA_REAL, *empresa_params)).fetchall()
 
     saldo_por_partida = {p: 0.0 for p in PARTIDAS_ESF_DIVISA_REAL}
     for r in rows:

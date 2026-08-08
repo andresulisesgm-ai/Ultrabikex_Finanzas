@@ -5515,9 +5515,10 @@ let ESFDIV_CACHE = {};
 let ESFDIV_ROWS = null;
 
 async function fetchESFDivQuarter(year, quarter){
+  const empresaParam = CURRENT_EMPRESA_ID ? `&empresa_id=${CURRENT_EMPRESA_ID}` : '';
   const [res1, res2] = await Promise.all([
-    fetch(`/api/esf-divisa-real?year=${year}&quarter=${quarter}`),
-    fetch(`/api/esf-divisa-real/detalle-cuentas?year=${year}&quarter=${quarter}`)
+    fetch(`/api/esf-divisa-real?year=${year}&quarter=${quarter}${empresaParam}`),
+    fetch(`/api/esf-divisa-real/detalle-cuentas?year=${year}&quarter=${quarter}${empresaParam}`)
   ]);
   const data = await res1.json();
   const detalle = await res2.json();
@@ -5640,7 +5641,7 @@ async function editarOverrideDivisaReal(odoo_code, valorActual){
   const r = await fetch('/api/esf-divisa-real/override', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({year: ESFDIV_YEAR, quarter: parseInt(ESFDIV_Q), odoo_code, valor_nuevo})
+    body: JSON.stringify({year: ESFDIV_YEAR, quarter: parseInt(ESFDIV_Q), odoo_code, valor_nuevo, empresa_id: CURRENT_EMPRESA_ID})
   });
   const d = await r.json();
   if(d.ok){
