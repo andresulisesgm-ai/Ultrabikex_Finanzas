@@ -87,9 +87,10 @@ class ESFExporter:
 
     UNITS = ['Rodeo', 'Barinas', 'Naranjos', 'PiedeMonte', 'Terracota', 'Ucafe']
 
-    def __init__(self, year, months):
+    def __init__(self, year, months, empresa_id=None):
         self.year = year
         self.months = months  # lista completa de meses del año, ej. ENE..DIC
+        self.empresa_id = empresa_id
 
     def generate(self):
         import openpyxl, os, tempfile
@@ -97,19 +98,27 @@ class ESFExporter:
         from openpyxl.utils import get_column_letter
         from engine import esf_engine, ESF_STRUCTURE_V2
         from exporters.excel_eerr import ExcelExporter
+        from db import get_db
 
         year_prev = str(int(self.year) - 1)
 
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
 
-        # 1. EERR ULTRAX (año actual): 6 unidades + notas, reusando el exportador existente.
-        eerr_meta = ExcelExporter(self.year, self.UNITS, self.months).generate(
+        # Unidades reales de la empresa activa (o la lista fija de Ultrax si no se especifica empresa_id, comportamiento default sin cambios).
+        if self.empresa_id is not None:
+            db_conn = get_db()
+            units_export = [r[0] for r in db_conn.execute('SELECT nombre FROM unidades WHERE empresa_id=?', [self.empresa_id]).fetchall()]
+        else:
+            units_export = self.UNITS
+
+        # 1. EERR ULTRAX (año actual): unidades reales + notas, reusando el exportador existente.
+        eerr_meta = ExcelExporter(self.year, units_export, self.months, empresa_id=self.empresa_id).generate(
             wb=wb, save=False, return_meta=True
         )
         # 2. EERR ULTRAX (Año Anterior): solo consolidado, sin unidades ni notas
         #    (units=[] hace que sheets_to_build solo contenga el nombre consolidado).
-        eerr_prev_meta = ExcelExporter(year_prev, [], self.months).generate(
+        eerr_prev_meta = ExcelExporter(year_prev, [], self.months, empresa_id=self.empresa_id).generate(
             wb=wb, save=False, return_meta=True, consolidado_name='EERR ULTRAX (Año Anterior)'
         )
 
@@ -122,8 +131,8 @@ class ESFExporter:
         cols_prev = eerr_prev_meta['month_start_cols']
 
         # 3. Datos ESF vía motor central — año actual (Q1-Q4) y año anterior (se usa Q4).
-        data_curr = esf_engine(self.year, '')
-        data_prev = esf_engine(year_prev, '')
+        data_curr = esf_engine(self.year, '', empresa_id=self.empresa_id)
+        data_prev = esf_engine(year_prev, '', empresa_id=self.empresa_id)
 
         expected_levels = {item[0]: item[5] for item in ESF_STRUCTURE_V2}
         qdata_curr = {}

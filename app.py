@@ -4499,6 +4499,7 @@ def export_excel():
     unit = request.args.get('unit', '')
     mf   = request.args.get('month_from', '')
     mt   = request.args.get('month_to', '')
+    empresa_id = request.args.get('empresa_id', type=int)
 
     if mf and mt and mf in MONTHS and mt in MONTHS:
         fi, ti = MONTHS.index(mf), MONTHS.index(mt)
@@ -4509,8 +4510,14 @@ def export_excel():
         sel = MONTHS
 
     divisa = request.args.get('divisa', '') == '1'
-    units  = [unit] if unit else UNITS
-    exp    = ExcelExporter(year, units, sel, divisa_real=divisa)
+    if unit:
+        units = [unit]
+    elif empresa_id is not None:
+        db_conn = get_db()
+        units = [r[0] for r in db_conn.execute('SELECT nombre FROM unidades WHERE empresa_id=?', [empresa_id]).fetchall()]
+    else:
+        units = UNITS
+    exp    = ExcelExporter(year, units, sel, divisa_real=divisa, empresa_id=empresa_id)
     try:
         path = exp.generate()
     except ValueError as e:
@@ -4524,6 +4531,7 @@ def export_esf():
     from exporters.excel_esf import ESFExporter
     year = request.args.get('year', str(datetime.now().year))
     quarter = request.args.get('quarter', '')
+    empresa_id = request.args.get('empresa_id', type=int)
     QUARTER_MESES = {
         '1': ['ENE', 'FEB', 'MAR'],
         '2': ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN'],
@@ -4531,7 +4539,7 @@ def export_esf():
         '4': MONTHS,
     }
     meses = QUARTER_MESES.get(quarter, MONTHS)
-    exp  = ESFExporter(year, meses)
+    exp  = ESFExporter(year, meses, empresa_id=empresa_id)
     path = exp.generate()
     suf  = f'_Q{quarter}' if quarter else ''
     return send_file(path, as_attachment=True, download_name=f'ESF_ULTRAX_{year}{suf}_CONSOLIDADO.xlsx')

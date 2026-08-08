@@ -241,11 +241,12 @@ def _reordenar_estructura_para_notas(estructura):
 class ExcelExporter:
     """Genera Excel del EERR usando eerr_completo_v2_ui_adapter() — subtotales como valores del engine."""
 
-    def __init__(self, year, units, months, divisa_real=False):
+    def __init__(self, year, units, months, divisa_real=False, empresa_id=None):
         self.year   = year
         self.units  = units
         self.months = months
         self.divisa_real = divisa_real
+        self.empresa_id = empresa_id
 
     def generate(self, wb=None, save=True, return_meta=False, consolidado_name='EERR ULTRAX'):
         import openpyxl
@@ -299,7 +300,7 @@ class ExcelExporter:
         for unit in sheets_to_build:
             engine_unit = unit if unit != NOMBRE_CONSOLIDADO else ''
             if self.divisa_real:
-                data = _calcular_eerr_divisa_real(self.year, engine_unit)
+                data = _calcular_eerr_divisa_real(self.year, engine_unit, empresa_id=self.empresa_id)
                 if not isinstance(data, dict) or 'rows' not in data:
                     raise ValueError(
                         f"No se pudo generar el EERR en Divisa Real para {self.year}: "
@@ -307,7 +308,7 @@ class ExcelExporter:
                         f"Verifica en Configuración de Tasas."
                     )
             else:
-                data = eerr_completo_v2_ui_adapter(self.year, engine_unit)
+                data = eerr_completo_v2_ui_adapter(self.year, engine_unit, empresa_id=self.empresa_id)
             rows = data.get('rows', [])
 
             ws = wb.create_sheet(unit)

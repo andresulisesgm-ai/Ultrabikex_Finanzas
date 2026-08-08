@@ -4886,15 +4886,16 @@ function openExcelModal(){
 function closeExcel(){G('exmod').classList.remove('show');}
 function doExport(){
   const tipo = G('ex-tipo').value, year = G('ex-year').value, u = G('ex-unit').value;
+  const empresaParam = (CURRENT_EMPRESA_ID !== null && CURRENT_EMPRESA_ID !== undefined) ? `&empresa_id=${CURRENT_EMPRESA_ID}` : '';
   let url;
   if (tipo === 'esf') {
     const q = G('ex-quarter').value;
-    url = `/api/export/esf?year=${year}`;
+    url = `/api/export/esf?year=${year}${empresaParam}`;
     if (q) url += `&quarter=${q}`;
   } else if (tipo === 'indicadores') {
     url = `/api/export/excel?tipo=indicadores&year=${year}`;
   } else {
-    url = `/api/export/excel?year=${year}`;
+    url = `/api/export/excel?year=${year}${empresaParam}`;
     if (tipo === 'eerr_divisa') url += `&divisa=1`;
     if (u) url += `&unit=${encodeURIComponent(u)}`;
   }
