@@ -4551,6 +4551,16 @@ def export_esf():
     return send_file(path, as_attachment=True, download_name=f'ESF_ULTRAX_{year}{suf}_CONSOLIDADO.xlsx')
 
 
+@app.route('/api/export/esf-divisa-real', methods=['GET'])
+def export_esf_divisa_real():
+    from exporters.excel_esf_divisa import ESFDivisaRealExporter
+    year = request.args.get('year', str(datetime.now().year))
+    empresa_id = request.args.get('empresa_id', type=int)
+    exp = ESFDivisaRealExporter(year, empresa_id=empresa_id)
+    path = exp.generate()
+    return send_file(path, as_attachment=True, download_name=f'ESF_DIVISA_REAL_ULTRAX_{year}.xlsx')
+
+
 @app.route('/api/export/esf/pdf', methods=['GET'])
 def export_esf_pdf():
     try:
