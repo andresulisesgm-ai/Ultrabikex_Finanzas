@@ -2260,7 +2260,7 @@ def eerr_completo_v2_ui_adapter(year, unit, empresa_id=None):
     }
 
 
-def validate_eerr_v2_integrity(year, unit, adapter_output, db):
+def validate_eerr_v2_integrity(year, unit, adapter_output, db, empresa_id=None):
     """
     Guarda de integridad para EERR V2 y el adaptador V1.
     Realiza validaciones de coherencia financiera y de contrato de interfaz,
@@ -2530,16 +2530,16 @@ def validate_eerr_v2_integrity(year, unit, adapter_output, db):
                             discrepancies.append(f"Fila [{partida}] mes index {m_idx}: Falta 'var_ppto_prom' en mes tipo D")
 
     if discrepancies:
-        logger.warning(f"--- DETECTADAS DISCREPANCIAS DE INTEGRIDAD (EERR V2) - Unidad={unit}, Año={year} ---")
+        logger.warning(f"--- DETECTADAS DISCREPANCIAS DE INTEGRIDAD (EERR V2) - Unidad={unit}, Empresa={empresa_id}, Año={year} ---")
         for d in discrepancies:
             logger.warning(d)
         return False, discrepancies
     else:
-        logger.info(f"Integridad validada exitosamente para Unidad={unit}, Año={year}. Sin descuadres.")
+        logger.info(f"Integridad validada exitosamente para Unidad={unit}, Empresa={empresa_id}, Año={year}. Sin descuadres.")
         return True, []
 
 
-def validate_esf_integrity(year, unit, esf_output, db):
+def validate_esf_integrity(year, unit, esf_output, db, empresa_id=None):
     """
     Guarda de integridad para ESF.
     No replica el patrón de EERR 1:1 porque la identidad Activo=Pasivo+Patrimonio
@@ -2609,11 +2609,11 @@ def validate_esf_integrity(year, unit, esf_output, db):
                 discrepancies.append(msg_signo)
 
     if discrepancies:
-        logger.warning(f"--- DETECTADAS DISCREPANCIAS DE INTEGRIDAD (ESF) - Unidad={unit}, Año={year} ---")
+        logger.warning(f"--- DETECTADAS DISCREPANCIAS DE INTEGRIDAD (ESF) - Unidad={unit}, Empresa={empresa_id}, Año={year} ---")
         for d in discrepancies:
             logger.warning(d)
     else:
-        logger.info(f"Integridad ESF validada exitosamente para Unidad={unit}, Año={year}. Sin descuadres.")
+        logger.info(f"Integridad ESF validada exitosamente para Unidad={unit}, Empresa={empresa_id}, Año={year}. Sin descuadres.")
 
     return discrepancies
 
@@ -2628,7 +2628,7 @@ def eerr_completo():
     
     try:
         db = get_db()
-        validate_eerr_v2_integrity(year, unit, data, db)
+        validate_eerr_v2_integrity(year, unit, data, db, empresa_id=empresa_id)
     except Exception as e:
         app.logger.error(f"Error al ejecutar validacion de integridad: {str(e)}")
 
@@ -2659,7 +2659,7 @@ def compute_esf(db, year, unit='', empresa_id=None):
 
     res = esf_engine(year, unit, empresa_id=empresa_id)
     try:
-        validate_esf_integrity(year, unit, res, db)
+        validate_esf_integrity(year, unit, res, db, empresa_id=empresa_id)
     except Exception as e:
         app.logger.error(f"Error al ejecutar validacion de integridad ESF: {str(e)}")
     
@@ -3077,7 +3077,7 @@ def esf_completo():
     result = esf_engine(year, unit, empresa_id=empresa_id)
     try:
         db = get_db()
-        validate_esf_integrity(year, unit, result, db)
+        validate_esf_integrity(year, unit, result, db, empresa_id=empresa_id)
     except Exception as e:
         app.logger.error(f"Error al ejecutar validacion de integridad ESF: {str(e)}")
 
