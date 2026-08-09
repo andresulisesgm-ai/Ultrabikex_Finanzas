@@ -2961,7 +2961,7 @@ function showPage(name,el){
   if(name==='esf_divisa') loadESFDivisaReal();
   if(name==='export_ai') cargarPromptConfigurado();
 
-  const PAGES_WITH_EXCEL = ['eerr','err_divisa','esf','presupuesto','comparativa','indicadores'];
+  const PAGES_WITH_EXCEL = ['eerr','err_divisa','esf','esf_divisa','presupuesto','comparativa','indicadores'];
   const btnExcel = document.getElementById('btn-export-excel');
   if (btnExcel) {
     btnExcel.style.display = PAGES_WITH_EXCEL.includes(name) ? '' : 'none';
@@ -4890,7 +4890,7 @@ function onExTipoChange(){
 function openExcelModal(){
   const activePage = document.querySelector('.page.active');
   const id = activePage ? activePage.id : '';
-  G('ex-tipo').value = (id === 'page-esf') ? 'esf' : 'eerr';
+  G('ex-tipo').value = (id === 'page-esf') ? 'esf' : (id === 'page-esf_divisa') ? 'esf_divisa' : 'eerr';
   G('ex-year').value = getCurrentYear();
   updateUnitSelectorsForEmpresa();
   G('ex-unit').value = getCurrentUnit();
