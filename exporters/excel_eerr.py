@@ -706,6 +706,12 @@ class ExcelExporter:
         from db import get_db
         db_conn_path = get_db()
         nombre_emp_path = _nombre_empresa_display(db_conn_path, self.empresa_id)
+        hojas_creadas = sheets_to_build
+        if NOMBRE_CONSOLIDADO in wb.sheetnames:
+            idx_actual = wb.sheetnames.index(NOMBRE_CONSOLIDADO)
+            primera_hoja_de_esta_llamada = wb.sheetnames.index(hojas_creadas[0]) if hojas_creadas[0] in wb.sheetnames else idx_actual
+            wb.move_sheet(NOMBRE_CONSOLIDADO, offset=-(idx_actual - primera_hoja_de_esta_llamada))
+
         path = os.path.join(tempfile.gettempdir(), f'EEFF_{nombre_emp_path}_{self.year}.xlsx')
         if save:
             wb.save(path)
