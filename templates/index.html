@@ -5779,51 +5779,25 @@ function pintarESFDivisaRealTodos(year){
 function renderESFDivisaPartidasDetalle(detalle){
   const cont = G('esfdiv-partidas-detalle');
   if(ESFDIV_Q === 0 || detalle === null){
-    cont.innerHTML = `<p style="color:var(--mu);font-size:11px;padding:10px 0">Selecciona un trimestre específico (Q1–Q4) para ver y editar las cuentas.</p>`;
+    cont.innerHTML = `<p style="color:var(--mu);font-size:11px;padding:10px 0">Selecciona un trimestre específico (Q1–Q4) para ver las cuentas.</p>`;
     return;
   }
   let html = '';
   for(const [partida, cuentas] of Object.entries(detalle.partidas)){
-    const totalPartida = cuentas.reduce((acc,c) => acc + (c.valor_override !== null ? c.valor_override : c.valor_real), 0);
+    const totalPartida = cuentas.reduce((acc,c) => acc + c.valor_real, 0);
     html += `<div style="margin-bottom:8px">
       <div style="font-size:11px;font-weight:700;padding:4px 0;border-bottom:1px solid var(--bd)">
         ${partida} <span style="float:right;font-family:'DM Mono',monospace">${totalPartida.toLocaleString('es-VE',{minimumFractionDigits:2})}</span>
       </div>`;
     for(const c of cuentas){
-      const valorMostrado = c.valor_override !== null ? c.valor_override : c.valor_real;
-      const esOverride = c.valor_override !== null;
-      html += `<div onclick="editarOverrideDivisaReal('${c.odoo_code}', ${valorMostrado})"
-        style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0 3px 10px;cursor:pointer;${esOverride ? 'color:var(--green)':''}">
-        <span>${c.odoo_name}${esOverride ? ' ✎' : ''}</span>
-        <span style="font-family:'DM Mono',monospace">${valorMostrado.toLocaleString('es-VE',{minimumFractionDigits:2})}</span>
+      html += `<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0 3px 10px">
+        <span>${c.odoo_name}</span>
+        <span style="font-family:'DM Mono',monospace">${c.valor_real.toLocaleString('es-VE',{minimumFractionDigits:2})}</span>
       </div>`;
     }
     html += `</div>`;
   }
   cont.innerHTML = html;
-}
-
-async function editarOverrideDivisaReal(odoo_code, valorActual){
-  if(CURRENT_EMPRESA_ID === null){
-    alert('No se pueden editar overrides mientras Holding está seleccionado. Elige una empresa específica.');
-    return;
-  }
-  const nuevo = prompt(`Valor actual: ${fmt(valorActual)}\nIngresa el nuevo valor revalorizado:`, valorActual);
-  if(nuevo === null || nuevo === '') return;
-  const valor_nuevo = parseFloat(nuevo.replace(',', '.'));
-  if(isNaN(valor_nuevo)){ alert('Valor inválido'); return; }
-  const r = await fetch('/api/esf-divisa-real/override', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({year: ESFDIV_YEAR, quarter: parseInt(ESFDIV_Q), odoo_code, valor_nuevo, empresa_id: CURRENT_EMPRESA_ID})
-  });
-  const d = await r.json();
-  if(d.ok){
-    ESFDIV_CACHE[ESFDIV_YEAR] = {};
-    loadAndRenderESFDivQ(ESFDIV_Q);
-  } else {
-    alert('Error: ' + (d.error || 'desconocido'));
-  }
 }
 
 function renderESFDivisaCompleto(esfCompleto){

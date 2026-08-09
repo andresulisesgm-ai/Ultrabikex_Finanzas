@@ -696,7 +696,7 @@ ESF_STRUCTURE_V2 = [
 ]
 
 
-def esf_engine(year, unit='', overrides_divisa_real=None, empresa_id=None):
+def esf_engine(year, unit='', aplicar_divisa_real=False, empresa_id=None):
     import sqlite3
     import os
     
@@ -824,6 +824,20 @@ def esf_engine(year, unit='', overrides_divisa_real=None, empresa_id=None):
             )
         except Exception:
             pass
+
+    tasas_por_quarter = {}
+    if aplicar_divisa_real:
+        conn_tasas = sqlite3.connect(DB_PATH)
+        conn_tasas.row_factory = sqlite3.Row
+        cursor_tasas = conn_tasas.cursor()
+        for q_num, month_cierre in QUARTER_MONTH_CIERRE.items():
+            row_tasa = cursor_tasas.execute(
+                'SELECT tasa_bcv_fin, tasa_paralela_fin FROM tasas_periodo WHERE year=? AND month=?',
+                (year, month_cierre)
+            ).fetchone()
+            if row_tasa and row_tasa['tasa_bcv_fin'] and row_tasa['tasa_paralela_fin']:
+                tasas_por_quarter[q_num] = (row_tasa['tasa_bcv_fin'], row_tasa['tasa_paralela_fin'])
+        conn_tasas.close()
         
     # 4. Calcular los saldos trimestrales para cada partida
     quarters_data = {q: {} for q in [1, 2, 3, 4]}
@@ -843,15 +857,20 @@ def esf_engine(year, unit='', overrides_divisa_real=None, empresa_id=None):
                 partidas = groups_v2.get(name, [])
                 quarters_data[q][name] = sum(db_data.get((q, p), 0.0) for p in partidas)
                 
-        # ESF Divisa Real: sustituir el total de partidas revalorizables usando el detalle
-        # por cuenta, aplicando overrides puntuales cuando existan (no afecta ESF Normal).
-        if overrides_divisa_real is not None:
+        # ESF Divisa Real: sustituir el total de partidas revalorizables aplicando
+        # automáticamente el ratio BCV_fin/Paralela_fin del trimestre (no afecta ESF Normal).
+        # Sin tasa cargada para el trimestre, la cuenta queda en su valor real sin ajuste.
+        if aplicar_divisa_real:
             for name in PARTIDAS_ESF_DIVISA_REAL:
                 cuentas = detail_by_group.get(name, {})
                 total_ajustado = 0.0
+                ratio = tasas_por_quarter.get(q)
                 for (odoo_code, odoo_name), q_vals in cuentas.items():
                     valor_real = q_vals.get(q, 0.0)
-                    valor = overrides_divisa_real.get((q, odoo_code), valor_real)
+                    if ratio:
+                        valor = valor_real * (ratio[0] / ratio[1])
+                    else:
+                        valor = valor_real
                     total_ajustado += valor
                 quarters_data[q][name] = total_ajustado
                 
@@ -967,7 +986,7 @@ PARTIDAS_ESF_DIVISA_REAL = [
 QUARTER_MONTH_CIERRE = {1: 'MAR', 2: 'JUN', 3: 'SEPT', 4: 'DIC'}
 
 
-def calcular_esf_divisa_real(year, quarter, overrides=None, empresa_id=None):
+def calcular_esf_divisa_real(year, quarter, empresa_id=None):
     import sqlite3
     import os
 
@@ -981,7 +1000,18 @@ def calcular_esf_divisa_real(year, quarter, overrides=None, empresa_id=None):
         conn.close()
         return {'error': f'Quarter inválido: {quarter}'}
 
-    overrides = overrides or {}
+    tasa_row = cursor.execute(
+        'SELECT tasa_bcv_fin, tasa_paralela_fin FROM tasas_periodo WHERE year=? AND month=?',
+        (year, month)
+    ).fetchone()
+
+    if not tasa_row or not tasa_row['tasa_bcv_fin'] or not tasa_row['tasa_paralela_fin']:
+        conn.close()
+        return {'error': f'No hay tasa BCV/paralela fin de mes configurada para {month} {year}'}
+
+    tasa_bcv_fin = tasa_row['tasa_bcv_fin']
+    tasa_paralela_fin = tasa_row['tasa_paralela_fin']
+    ratio = tasa_bcv_fin / tasa_paralela_fin
 
     placeholders = ','.join('?' * len(PARTIDAS_ESF_DIVISA_REAL))
     empresa_clause = ' AND fd.empresa_id = ?' if empresa_id is not None else ''
@@ -996,21 +1026,10 @@ def calcular_esf_divisa_real(year, quarter, overrides=None, empresa_id=None):
 
     saldo_por_partida = {p: 0.0 for p in PARTIDAS_ESF_DIVISA_REAL}
     for r in rows:
-        valor = overrides.get(r['odoo_code'], r['total'])
-        saldo_por_partida[r['group_name']] += valor
+        valor_ajustado = r['total'] * ratio
+        saldo_por_partida[r['group_name']] += valor_ajustado
 
     saldo_total_bs = sum(saldo_por_partida.values())
-
-    tasa_row = cursor.execute(
-        'SELECT tasa_paralela_fin FROM tasas_periodo WHERE year=? AND month=?',
-        (year, month)
-    ).fetchone()
-
-    if not tasa_row or not tasa_row['tasa_paralela_fin']:
-        conn.close()
-        return {'error': f'No hay tasa paralela fin de mes configurada para {month} {year}'}
-
-    tasa_paralela_fin = tasa_row['tasa_paralela_fin']
 
     conn.close()
 
@@ -1020,6 +1039,7 @@ def calcular_esf_divisa_real(year, quarter, overrides=None, empresa_id=None):
         'year': year,
         'quarter': quarter,
         'month_cierre': month,
+        'tasa_bcv_fin': tasa_bcv_fin,
         'tasa_paralela_fin': tasa_paralela_fin,
         'partidas': {k: round(v, 2) for k, v in saldo_por_partida.items()},
         'saldo_total_bs': round(saldo_total_bs, 2),
