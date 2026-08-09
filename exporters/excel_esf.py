@@ -105,13 +105,15 @@ class ESFExporter:
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
 
-        # Unidades reales de la empresa activa (o la lista fija de Ultrax si no se especifica empresa_id, comportamiento default sin cambios).
+        from app import _nombre_empresa_display
+        db_conn = get_db()
+        nombre_emp = _nombre_empresa_display(db_conn, self.empresa_id)
+
+        # Unidades reales de la empresa activa (o la lista de todas las unidades si es Holding/empresa_id=None).
         if self.empresa_id is not None:
-            db_conn = get_db()
             units_export = [r[0] for r in db_conn.execute('SELECT nombre FROM unidades WHERE empresa_id=?', [self.empresa_id]).fetchall()]
         else:
             # Holding (sin empresa_id explícito): agregado de todas las unidades reales de las 4 empresas.
-            db_conn = get_db()
             units_export = [r[0] for r in db_conn.execute('SELECT nombre FROM unidades').fetchall()]
 
         # 1. EERR ULTRAX (año actual): unidades reales + notas, reusando el exportador existente.
@@ -121,7 +123,7 @@ class ESFExporter:
         # 2. EERR ULTRAX (Año Anterior): solo consolidado, sin unidades ni notas
         #    (units=[] hace que sheets_to_build solo contenga el nombre consolidado).
         eerr_prev_meta = ExcelExporter(year_prev, [], self.months, empresa_id=self.empresa_id).generate(
-            wb=wb, save=False, return_meta=True, consolidado_name='EERR ULTRAX (Año Anterior)'
+            wb=wb, save=False, return_meta=True, consolidado_name=f'EERR {nombre_emp} (Año Ant.)'[:31]
         )
 
         sheet_curr = eerr_meta['sheet_name_consolidado']
@@ -191,7 +193,8 @@ class ESFExporter:
         thin      = Side(style='thin', color='D9D9D9')
         border    = Border(left=thin, right=thin, top=thin, bottom=thin)
 
-        ws = wb.create_sheet('ESF ULTRAX')
+        nombre_hoja_esf = f'ESF {nombre_emp}'[:31]
+        ws = wb.create_sheet(nombre_hoja_esf)
         ws.sheet_view.showGridLines = False
 
         headers = ['PARTIDA', 'Año Anterior', 'Q1', 'Vari Rel.', 'Q2', 'Vari Rel.', 'Q3', 'Vari Rel.', 'Q4', 'Vari Rel.', 'Vari Rel. actual vs anterior']
@@ -204,7 +207,7 @@ class ESFExporter:
 
         ws.merge_cells('A1:K1')
         title = ws['A1']
-        title.value = f'ESTADO DE SITUACIÓN FINANCIERA — ULTRAX — {self.year}'
+        title.value = f'ESTADO DE SITUACIÓN FINANCIERA — {nombre_emp.upper()} — {self.year}'
         title.font = Font(name='Arial', bold=True, color='FFFFFF', size=12)
         title.fill = HDR_FILL
         title.alignment = Alignment(horizontal='center', vertical='center')
@@ -376,10 +379,10 @@ class ESFExporter:
 
         ws.freeze_panes = 'B3'
 
-        # ESF ULTRAX visible como primera pestaña.
-        wb.move_sheet('ESF ULTRAX', offset=-(len(wb.sheetnames) - 1))
-        wb.move_sheet('EERR ULTRAX', offset=-(wb.sheetnames.index('EERR ULTRAX') - 1))
+        # ESF visible como primera pestaña.
+        wb.move_sheet(nombre_hoja_esf, offset=-(len(wb.sheetnames) - 1))
+        wb.move_sheet(eerr_meta['sheet_name_consolidado'], offset=-(wb.sheetnames.index(eerr_meta['sheet_name_consolidado']) - 1))
 
-        path = os.path.join(tempfile.gettempdir(), f'ESF_ULTRAX_{self.year}.xlsx')
+        path = os.path.join(tempfile.gettempdir(), f'ESF_{nombre_emp}_{self.year}.xlsx')
         wb.save(path)
         return path

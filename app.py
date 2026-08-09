@@ -4514,22 +4514,22 @@ def export_excel():
         sel = MONTHS
 
     divisa = request.args.get('divisa', '') == '1'
+    db_conn = get_db()
     if unit:
         units = [unit]
     elif empresa_id is not None:
-        db_conn = get_db()
         units = [r[0] for r in db_conn.execute('SELECT nombre FROM unidades WHERE empresa_id=?', [empresa_id]).fetchall()]
     else:
         # Holding (sin empresa_id explícito desde este flujo): agregado de todas las unidades reales de las 4 empresas.
-        db_conn = get_db()
         units = [r[0] for r in db_conn.execute('SELECT nombre FROM unidades').fetchall()]
     exp    = ExcelExporter(year, units, sel, divisa_real=divisa, empresa_id=empresa_id)
     try:
         path = exp.generate()
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
+    nombre_emp_dl = _nombre_empresa_display(db_conn, empresa_id) if unit == '' else unit
     suf   = (f'_{unit}' if unit else '_CONSOLIDADO') + ('_DIVISA_REAL' if divisa else '') + (f'_{mf}-{mt}' if mf and mt else '')
-    return send_file(path, as_attachment=True, download_name=f'EERR_ULTRAX_{year}{suf}.xlsx')
+    return send_file(path, as_attachment=True, download_name=f'EERR_{nombre_emp_dl}_{year}{suf}.xlsx')
 
 
 @app.route('/api/export/esf', methods=['GET'])
@@ -4547,8 +4547,10 @@ def export_esf():
     meses = QUARTER_MESES.get(quarter, MONTHS)
     exp  = ESFExporter(year, meses, empresa_id=empresa_id)
     path = exp.generate()
+    db_conn_esf = get_db()
+    nombre_emp_esf = _nombre_empresa_display(db_conn_esf, empresa_id)
     suf  = f'_Q{quarter}' if quarter else ''
-    return send_file(path, as_attachment=True, download_name=f'ESF_ULTRAX_{year}{suf}_CONSOLIDADO.xlsx')
+    return send_file(path, as_attachment=True, download_name=f'ESF_{nombre_emp_esf}_{year}{suf}.xlsx')
 
 
 @app.route('/api/export/esf-divisa-real', methods=['GET'])
@@ -4558,7 +4560,9 @@ def export_esf_divisa_real():
     empresa_id = request.args.get('empresa_id', type=int)
     exp = ESFDivisaRealExporter(year, empresa_id=empresa_id)
     path = exp.generate()
-    return send_file(path, as_attachment=True, download_name=f'ESF_DIVISA_REAL_ULTRAX_{year}.xlsx')
+    db_conn_dr = get_db()
+    nombre_emp_dr = _nombre_empresa_display(db_conn_dr, empresa_id)
+    return send_file(path, as_attachment=True, download_name=f'ESF_DIVISA_REAL_{nombre_emp_dr}_{year}.xlsx')
 
 
 @app.route('/api/export/esf/pdf', methods=['GET'])
@@ -5056,6 +5060,19 @@ def save_briefing_prompt():
 def _nombre_empresa(db, empresa_id):
     row = db.execute('SELECT nombre_corto FROM empresas WHERE id=?', (empresa_id,)).fetchone()
     return row['nombre_corto'] if row else f"Empresa {empresa_id}"
+
+
+def _nombre_empresa_display(db, empresa_id):
+    """Nombre corto para uso en exportables (títulos de hoja, nombres de archivo).
+    'Holding' para empresa_id=None (agregado de las 4 empresas); nombre comercial
+    sin sufijo legal (' C.A.') para empresas individuales."""
+    if empresa_id is None:
+        return 'Holding'
+    row = db.execute('SELECT nombre_corto FROM empresas WHERE id=?', (empresa_id,)).fetchone()
+    nombre = row['nombre_corto'] if row else f"Empresa {empresa_id}"
+    if nombre.endswith(' C.A.'):
+        nombre = nombre[:-5]
+    return nombre.strip()
 
 
 @app.route('/api/export/ai', methods=['GET', 'POST'])

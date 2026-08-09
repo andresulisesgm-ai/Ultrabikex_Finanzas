@@ -97,6 +97,9 @@ class ESFDivisaRealExporter:
 
         db_conn = get_db()
 
+        from app import _nombre_empresa_display
+        nombre_emp = _nombre_empresa_display(db_conn, self.empresa_id)
+
         # Unidades reales de la empresa activa (o la lista de todas si es Holding/empresa_id=None).
         if self.empresa_id is not None:
             units_export = [r[0] for r in db_conn.execute('SELECT nombre FROM unidades WHERE empresa_id=?', [self.empresa_id]).fetchall()]
@@ -127,7 +130,7 @@ class ESFDivisaRealExporter:
         )
         # 2. EERR ULTRAX (Año Anterior): solo consolidado, sin unidades ni notas.
         eerr_prev_meta = ExcelExporter(year_prev, [], self.months, empresa_id=self.empresa_id).generate(
-            wb=wb, save=False, return_meta=True, consolidado_name='EERR ULTRAX (Año Anterior)'
+            wb=wb, save=False, return_meta=True, consolidado_name=f'EERR {nombre_emp} (Año Ant.)'[:31]
         )
 
         sheet_curr = eerr_meta['sheet_name_consolidado']
@@ -197,7 +200,8 @@ class ESFDivisaRealExporter:
         thin      = Side(style='thin', color='D9D9D9')
         border    = Border(left=thin, right=thin, top=thin, bottom=thin)
 
-        ws = wb.create_sheet('ESF ULTRAX DIVISA REAL')
+        nombre_hoja_esf_dr = f'ESF {nombre_emp} DIVISA REAL'[:31]
+        ws = wb.create_sheet(nombre_hoja_esf_dr)
         ws.sheet_view.showGridLines = False
 
         headers = ['PARTIDA', 'Año Anterior', 'Q1', 'Vari Rel.', 'Q2', 'Vari Rel.', 'Q3', 'Vari Rel.', 'Q4', 'Vari Rel.', 'Vari Rel. actual vs anterior']
@@ -210,7 +214,7 @@ class ESFDivisaRealExporter:
 
         ws.merge_cells('A1:K1')
         title = ws['A1']
-        title.value = f'ESTADO DE SITUACIÓN FINANCIERA — DIVISA REAL — ULTRAX — {self.year}'
+        title.value = f'ESTADO DE SITUACIÓN FINANCIERA — DIVISA REAL — {nombre_emp.upper()} — {self.year}'
         title.font = Font(name='Arial', bold=True, color='FFFFFF', size=12)
         title.fill = HDR_FILL
         title.alignment = Alignment(horizontal='center', vertical='center')
@@ -400,7 +404,7 @@ class ESFDivisaRealExporter:
 
         ws_dr.merge_cells('A1:E1')
         t_dr = ws_dr['A1']
-        t_dr.value = f'PARTIDAS REVALORIZABLES — DIVISA REAL — ULTRAX — {self.year}'
+        t_dr.value = f'PARTIDAS REVALORIZABLES — DIVISA REAL — {nombre_emp.upper()} — {self.year}'
         t_dr.font = FONT_TITLE_DR
         t_dr.fill = HDR_FILL_DR
         t_dr.alignment = Alignment(horizontal='center', vertical='center')
@@ -510,10 +514,10 @@ class ESFDivisaRealExporter:
                 c.value = panel_q.get('saldo_total_usd', 0.0)
         current_row += 1
 
-        wb.move_sheet('ESF ULTRAX DIVISA REAL', offset=-(wb.sheetnames.index('ESF ULTRAX DIVISA REAL')))
+        wb.move_sheet(nombre_hoja_esf_dr, offset=-(wb.sheetnames.index(nombre_hoja_esf_dr)))
         wb.move_sheet('Divisa Real - Detalle', offset=-(wb.sheetnames.index('Divisa Real - Detalle') - 1))
-        wb.move_sheet('EERR ULTRAX', offset=-(wb.sheetnames.index('EERR ULTRAX') - 2))
+        wb.move_sheet(eerr_meta['sheet_name_consolidado'], offset=-(wb.sheetnames.index(eerr_meta['sheet_name_consolidado']) - 2))
 
-        path = os.path.join(tempfile.gettempdir(), f'ESF_DIVISA_REAL_ULTRAX_{self.year}.xlsx')
+        path = os.path.join(tempfile.gettempdir(), f'ESF_DIVISA_REAL_{nombre_emp}_{self.year}.xlsx')
         wb.save(path)
         return path

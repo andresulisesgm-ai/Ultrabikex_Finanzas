@@ -248,7 +248,13 @@ class ExcelExporter:
         self.divisa_real = divisa_real
         self.empresa_id = empresa_id
 
-    def generate(self, wb=None, save=True, return_meta=False, consolidado_name='EERR ULTRAX'):
+    def generate(self, wb=None, save=True, return_meta=False, consolidado_name=None):
+        if consolidado_name is None:
+            from app import _nombre_empresa_display
+            from db import get_db
+            db_conn_nombre = get_db()
+            nombre_emp = _nombre_empresa_display(db_conn_nombre, self.empresa_id)
+            consolidado_name = f'EERR {nombre_emp}'[:31]
         import openpyxl
         from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
@@ -696,7 +702,11 @@ class ExcelExporter:
                         c_g = ws.cell(row=r, column=col_prom_g, value=f'={get_column_letter(col_acum_g)}{r}')
                         c_g.number_format = PCT_FMT
 
-        path = os.path.join(tempfile.gettempdir(), f'EEFF_ULTRAX_{self.year}.xlsx')
+        from app import _nombre_empresa_display
+        from db import get_db
+        db_conn_path = get_db()
+        nombre_emp_path = _nombre_empresa_display(db_conn_path, self.empresa_id)
+        path = os.path.join(tempfile.gettempdir(), f'EEFF_{nombre_emp_path}_{self.year}.xlsx')
         if save:
             wb.save(path)
 
