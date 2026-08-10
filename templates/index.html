@@ -4228,7 +4228,7 @@ var EERR_DIVISA_DATA = null;
 
 async function loadERRDivisa(){
   const year=G('err-divisa-year').value, unit=G('err-divisa-unit').value;
-  const r=await fetch(`/api/eerr/divisa_real?year=${year}&unit=${encodeURIComponent(unit)}`);
+  const r=await fetch(`/api/eerr/divisa_real?year=${year}&unit=${encodeURIComponent(unit)}&empresa_id=${CURRENT_EMPRESA_ID||''}`);
   if(!r.ok){
     const err=await r.json();
     G('err-divisa-body').innerHTML=`<div style="padding:30px;text-align:center;color:var(--red)">⚠️ No se puede calcular el EERR Divisa Real.<br><br>${err.error||'Error desconocido'}<br><br><span style="color:var(--mu);font-size:11px">Carga las tasas faltantes en Configuración → Tasas de Cambio.</span></div>`;
