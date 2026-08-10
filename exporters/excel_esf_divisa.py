@@ -141,8 +141,12 @@ class ESFDivisaRealExporter:
         row_islr_prev = eerr_prev_meta['partida_rows_consolidado'].get('Utilidad Neta despues de ISLR')
         cols_prev = eerr_prev_meta['month_start_cols']
 
-        # 3. Datos ESF vía motor central (con overrides de divisa real para año actual)
-        data_curr = esf_engine(self.year, '', overrides_divisa_real=overrides_combinado, empresa_id=self.empresa_id)
+        # 3. Datos ESF vía orquestador de metodología EERR Real / ESF Real (ago-2026):
+        # Acumulados fijo (=BCV), diferencia mandada como plug al EERR Real -- ver
+        # calcular_estados_reales en engine.py.
+        from engine import calcular_estados_reales
+        estados_reales = calcular_estados_reales(self.year, '', empresa_id=self.empresa_id)
+        data_curr = estados_reales['esf_real']
         data_prev = esf_engine(year_prev, '', empresa_id=self.empresa_id)
 
         expected_levels = {item[0]: item[5] for item in ESF_STRUCTURE_V2}
@@ -321,13 +325,10 @@ class ESFDivisaRealExporter:
             3: 'SEPT',
             4: self.months[-1] if self.months else 'DIC',
         }
-        if row_islr_curr:
-            for q, col in zip((1, 2, 3, 4), (COL_Q1, COL_Q2, COL_Q3, COL_Q4)):
-                m = ultimo_mes_q[q]
-                if m in cols_curr:
-                    col_acum = cols_curr[m] + 4
-                    ref = f"'{sheet_curr}'!{L(col_acum)}{row_islr_curr}"
-                    set_formula('Resultados del ejercicio', col, f'={ref}')
+        # Metodología EERR Real / ESF Real (ago-2026): "Resultados del ejercicio" del
+        # año actual ya NO referencia la hoja EERR BCV embebida -- el valor correcto
+        # (Utilidad Neta real preliminar, sin la línea cambiaria) ya quedó escrito
+        # como literal en el loop de población inicial, desde data_curr.
         if row_islr_prev:
             meses_prev = [m for m in self.months if m in cols_prev]
             if meses_prev:
@@ -336,16 +337,10 @@ class ESFDivisaRealExporter:
                 ref = f"'{sheet_prev}'!{L(col_acum_prev)}{row_islr_prev}"
                 set_formula('Resultados del ejercicio', COL_AA, f'={ref}')
 
-        # --- Resultados acumulados: plug ---
-        r_cap = row_of.get('Capital social')
-        r_res = row_of.get('Reservas legales y estatutarias')
-        r_sup = row_of.get('Superavit por revaluacion')
-        r_rej = row_of.get('Resultados del ejercicio')
-        if r_ta and r_tp and r_cap and r_res and r_sup and r_rej:
-            for col in (COL_Q1, COL_Q2, COL_Q3, COL_Q4):
-                formula = (f'={L(col)}{r_ta}-{L(col)}{r_tp}-{L(col)}{r_cap}'
-                           f'-{L(col)}{r_res}-{L(col)}{r_sup}-{L(col)}{r_rej}')
-                set_formula('Resultados acumulados', col, formula)
+        # Metodología EERR Real / ESF Real (ago-2026): "Resultados acumulados" ya NO
+        # se recalcula como plug/cuadre en Excel -- queda fijo, idéntico al de BCV,
+        # tal como exige la regla de Yocelin. El valor ya está escrito como literal
+        # en el loop de población inicial, desde data_curr (esf_real).
 
         # --- Vari Rel. ---
         VARI_PARES = [

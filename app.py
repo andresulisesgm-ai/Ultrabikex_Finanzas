@@ -2049,7 +2049,7 @@ def eerr_completo_v2_ui_adapter(year, unit, empresa_id=None):
         ingresos_operativos = sum(by_partida.get(p, {}).get(m, 0) for p in op_ing_partidas)
         otros_ing = subtotales_por_mes[m].get('Otros Ingresos no Operacionales', 0)
         costo_ventas = sum(by_partida.get(p, {}).get(m, 0) for p in cos_p)
-        utilidad_bruta = ingresos_operativos - costo_ventas
+        utilidad_bruta = ingresos_operativos + otros_ing - costo_ventas
 
         gastos_operacionales = 0
         for nombre in ['Subtotal Gastos de Administración',
@@ -2076,14 +2076,14 @@ def eerr_completo_v2_ui_adapter(year, unit, empresa_id=None):
         ebit = utilidad_bruta - gastos_operacionales + gastos_intereses + gastos_impuestos
         ebitda = ebit + depreciaciones
 
-        utilidad_neta = utilidad_despues_comisiones + otros_ing - otros_gastos
+        utilidad_neta = utilidad_despues_comisiones - otros_gastos
         islr = subtotales_por_mes[m].get('ISLR', 0)
         utilidad_neta_despues_islr = utilidad_neta - islr
 
         totales_mes = {
             'Total Ingresos Operativos': ingresos_operativos,
             'Otros Ingresos no Operacionales': otros_ing,
-            'Total Ingresos': ingresos_operativos,
+            'Total Ingresos': ingresos_operativos + otros_ing,
             'Total Costo de Ventas': costo_ventas,
             'Utilidad Bruta': utilidad_bruta,
             'Total Gastos Operacionales': gastos_operacionales,
@@ -3211,13 +3211,18 @@ def get_esf_divisa_real():
     empresa_id = request.args.get('empresa_id', type=int)
     if not year or not quarter:
         return jsonify({'error': 'year y quarter son requeridos'}), 400
-    from engine import calcular_esf_divisa_real, esf_engine
+    from engine import calcular_esf_divisa_real, calcular_estados_reales, esf_engine
 
     result = calcular_esf_divisa_real(year, quarter, empresa_id=empresa_id)
     if 'error' in result:
         return jsonify(result), 404
 
-    esf_completo = esf_engine(year, '', aplicar_divisa_real=True, empresa_id=empresa_id)
+    # Metodología EERR Real / ESF Real (ago-2026): esf_completo ya no llama a esf_engine
+    # directo con aplicar_divisa_real=True (eso mandaba la diferencia a Resultados
+    # Acumulados, comportamiento incorrecto para el real) -- ahora usa el orquestador,
+    # que mantiene Acumulados fijo (=BCV) y manda la diferencia como plug al EERR Real.
+    estados = calcular_estados_reales(year, '', empresa_id=empresa_id)
+    esf_completo = estados['esf_real']
 
     year_prev = str(int(year) - 1)
     result_prev = esf_engine(year_prev, '', empresa_id=empresa_id)
@@ -3454,8 +3459,9 @@ def dashboard_divisa_real():
 
     diferencial = paralela / bcv
 
+    from engine import calcular_estados_reales
     eerr_unit_param = '' if unit == 'TODAS' else unit
-    eerr_data = _calcular_eerr_divisa_real(year, eerr_unit_param, empresa_id=empresa_id)
+    eerr_data = calcular_estados_reales(year, eerr_unit_param, empresa_id=empresa_id)['eerr_real']
 
     def get_mes_valor(partida_name):
         row = next((r for r in eerr_data['rows'] if r['partida'] == partida_name), None)
@@ -3607,7 +3613,7 @@ def divisa_real_resumen():
     })
 
 
-def _calcular_eerr_divisa_real(year, unit, empresa_id=None):
+def _calcular_eerr_divisa_real(year, unit, empresa_id=None, plug_divisa_q=None):
     """
     Calcula el Estado de Resultados COMPLETO con ajuste de divisa real.
     Misma estructura que /api/eerr/completo (119 partidas, tipos A/B/C/D/E)
@@ -3668,60 +3674,66 @@ def _calcular_eerr_divisa_real(year, unit, empresa_id=None):
             'diferencial': diferencial
         }
 
-    # ── PASO 1: LEER DATOS REALES DE financials ──
+    # ── PASO 1+2+3 (REESCRITO): LEER DETALLE POR CUENTA DESDE financials_detail ──
     rows_curr = db.execute(
-        f'''SELECT partida, month, unit, amount FROM financials
-            WHERE year=? {uc}''',
+        f'''SELECT partida, month, unit, odoo_code, amount_sign as amount FROM financials_detail
+            WHERE year=? AND report_type='eerr' {uc}''',
         [year] + uc_params
     ).fetchall()
 
-    # Validar que existan tasas para todos los meses que contienen transacciones (Paso 4)
     months_in_data = set(r['month'] for r in rows_curr)
     for m in months_in_data:
         if m not in tasas_by_month:
             return jsonify({'error': f"Faltan tasas de cambio (tasas_periodo) para el periodo {year}/{m}"}), 400
 
-    # ── PASO 2: OBTENER UN SOLO odoo_code REPRESENTATIVO POR PARTIDA ──
-    mapping_rows = db.execute(
-        'SELECT partida, odoo_code FROM mapping'
-    ).fetchall()
-    partida_to_code = {}
-    for r in mapping_rows:
-        p = r['partida']
-        code = r['odoo_code']
-        if p not in partida_to_code or len(code.split('.')) > len(partida_to_code[p].split('.')):
-            partida_to_code[p] = code
-
-    # ── PASO 3: CARGAR CONFIGURACIÓN DE % Cash/BCV ──
     metodos_rows = db.execute(
         'SELECT month, unit, odoo_code, pct_cash FROM metodo_pago_cuenta WHERE year=?',
         [year]
     ).fetchall()
     metodos_map = {(r['month'], r['unit'], r['odoo_code']): r['pct_cash'] for r in metodos_rows}
 
-    # ── PASO 5 & 6: APLICAR AJUSTE DE DIVISA REAL Y AGRUPAR POR PARTIDA/MES ──
+    cuentas_sin_ajuste = {r['odoo_code'] for r in db.execute(
+        'SELECT odoo_code FROM mapping WHERE excluir_divisa_real=1'
+    ).fetchall()}
+
     by_partida = {}
     for r in rows_curr:
         partida = r['partida']
         month = r['month']
         row_unit = r['unit']
+        odoo_code = r['odoo_code']
         amount_literal = r['amount']
-        
-        # Obtener odoo_code representativo
-        odoo_code = partida_to_code.get(partida)
-        pct_cash = 100.0
-        
-        if odoo_code:
-            pct_cash = metodos_map.get((month, row_unit, odoo_code))
-            if pct_cash is None:
-                # FALLBACK EXPLÍCITO: Si no hay configuración para la cuenta/unidad, asumir 100% Cash (factor = 1)
-                pct_cash = 100.0
-                
+
+        if odoo_code in cuentas_sin_ajuste:
+            # Metodología EERR Real / ESF Real (ago-2026): estas cuentas se excluyen
+            # por completo del EERR Real. El valor de Ganancia/Pérdida en tasa cambiaria
+            # ya no viene de Odoo -- se recalcula como plug desde ESF Real y se inyecta
+            # aparte en el mes de cierre de cada trimestre (ver calcular_estados_reales).
+            continue
+
+        pct_cash = metodos_map.get((month, row_unit, odoo_code))
         diferencial = tasas_by_month[month]['diferencial']
         amount_ajustado = aplicar_factor_divisa(amount_literal, pct_cash, diferencial)
-        
-        # Agrupación segura (Paso 6)
+
         by_partida.setdefault(partida, {})[month] = by_partida.get(partida, {}).get(month, 0) + amount_ajustado
+
+    # Metodología EERR Real / ESF Real (ago-2026): inyectar el plug de Ganancia/Pérdida
+    # en tasa cambiaria (calculado por calcular_estados_reales desde el ESF Real) en el
+    # mes de cierre del trimestre correspondiente, ANTES de calcular subtotales/totales,
+    # para que la cascada completa (Otros Gastos no Operacionales, Utilidad Neta, EBIT,
+    # etc.) quede consistente con el ajuste.
+    if plug_divisa_q is not None:
+        quarter_close_month = {1: 'MAR', 2: 'JUN', 3: 'SEPT', 4: 'DIC'}
+        for q, valor_plug in plug_divisa_q.items():
+            month = quarter_close_month.get(q)
+            if not month or valor_plug == 0:
+                continue
+            if valor_plug > 0:
+                partida_destino = 'Ganancia por tasa cambiaria'
+            else:
+                partida_destino = 'Pérdida en tasa cambiaria'
+            by_partida.setdefault(partida_destino, {})
+            by_partida[partida_destino][month] = by_partida[partida_destino].get(month, 0) + abs(valor_plug)
 
     # Año anterior (sin ajuste - usar literal)
     rows_prev = db.execute(
@@ -3914,7 +3926,7 @@ def _calcular_eerr_divisa_real(year, unit, empresa_id=None):
         ingresos_operativos = sum(by_partida.get(p, {}).get(m, 0) for p in op_ing_partidas)
         otros_ing = subtotales_por_mes[m].get('Otros Ingresos no Operacionales', 0)
         costo_ventas = sum(by_partida.get(p, {}).get(m, 0) for p in cos_p)
-        utilidad_bruta = ingresos_operativos - costo_ventas
+        utilidad_bruta = ingresos_operativos + otros_ing - costo_ventas
 
         gastos_operacionales = 0
         for nombre in ['Subtotal Gastos de Administración',
@@ -3941,14 +3953,14 @@ def _calcular_eerr_divisa_real(year, unit, empresa_id=None):
         ebit = utilidad_bruta - gastos_operacionales + gastos_intereses + gastos_impuestos
         ebitda = ebit + depreciaciones
 
-        utilidad_neta = utilidad_despues_comisiones + otros_ing - otros_gastos
+        utilidad_neta = utilidad_despues_comisiones - otros_gastos
         islr = subtotales_por_mes[m].get('ISLR', 0)
         utilidad_neta_despues_islr = utilidad_neta - islr
 
         totales_mes = {
             'Total Ingresos Operativos': ingresos_operativos,
             'Otros Ingresos no Operacionales': otros_ing,
-            'Total Ingresos': ingresos_operativos,
+            'Total Ingresos': ingresos_operativos + otros_ing,
             'Total Costo de Ventas': costo_ventas,
             'Utilidad Bruta': utilidad_bruta,
             'Total Gastos Operacionales': gastos_operacionales,
@@ -4127,10 +4139,12 @@ def _calcular_eerr_divisa_real(year, unit, empresa_id=None):
 @app.route('/api/eerr/divisa_real', methods=['GET'])
 @login_required
 def eerr_divisa_real():
+    from engine import calcular_estados_reales
     year = request.args.get('year', str(datetime.now().year))
     unit = request.args.get('unit', '')
     empresa_id = request.args.get('empresa_id', type=int)
-    return jsonify(_calcular_eerr_divisa_real(year, unit, empresa_id=empresa_id))
+    estados = calcular_estados_reales(year, unit, empresa_id=empresa_id)
+    return jsonify(estados['eerr_real'])
 
 
 # ── Presupuesto ───────────────────────────────────────────────────────────────
