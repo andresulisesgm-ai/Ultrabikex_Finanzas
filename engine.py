@@ -756,16 +756,20 @@ def esf_engine(year, unit='', aplicar_divisa_real=False, empresa_id=None,
     if unit:
         detail_unit_clause = 'AND fd.unit = ?'
         detail_args.append(unit)
-    elif empresa_id:
-        unidades_rows = cursor.execute('SELECT nombre FROM unidades WHERE empresa_id=?', (empresa_id,)).fetchall()
-        unidades_list = [r['nombre'] for r in unidades_rows]
-        if unidades_list:
-            placeholders = ','.join(['?'] * len(unidades_list))
-            detail_unit_clause = f'AND fd.unit IN ({placeholders})'
-            detail_args.extend(unidades_list)
+    else:
+        # Bug confirmado ago-2026 (10-ago): ESF es exclusivamente consolidado --
+        # financials_detail.unit SIEMPRE es 'CONSOLIDADO' para report_type='esf',
+        # nunca el nombre de una unidad de negocio individual. El filtro anterior
+        # (lista de nombres de unidad vía empresa_id) nunca coincidía, dejando
+        # detail_by_group vacío y borrando (poniendo en 0.0) las 7 partidas
+        # revalorizables de Divisa Real en cualquier llamada consolidada por empresa.
+        # empresa_id sigue filtrando (Holding=None trae todas las empresas; una
+        # empresa_id especifica trae solo esa).
+        if empresa_id is not None:
+            detail_unit_clause = "AND fd.unit = 'CONSOLIDADO' AND fd.empresa_id = ?"
+            detail_args.append(empresa_id)
         else:
-            detail_unit_clause = 'AND fd.unit = ?'
-            detail_args.append('__EMPRESA_SIN_UNIDADES__')
+            detail_unit_clause = "AND fd.unit = 'CONSOLIDADO'"
         
     detail_rows_raw = cursor.execute(f'''
         SELECT fd.quarter, mg.group_name, fd.odoo_code, fd.odoo_name,
