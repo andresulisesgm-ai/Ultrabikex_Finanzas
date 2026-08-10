@@ -2118,6 +2118,102 @@ def eerr_completo_v2_ui_adapter(year, unit, empresa_id=None):
         ingresos_ppto_mes[m] = sum(by_budget.get(p, {}).get(m, 0) for p in op_ing_partidas)
         gastos_ppto_mes[m] = sum(by_budget.get(p, {}).get(m, 0) for p in gas_p)
 
+    # ── Subtotales jerárquicos y totales para AÑO ANTERIOR (fix ago-2026, 10-ago) ──
+    # Mismo bug que en _calcular_eerr_divisa_real: prev_val para partidas header
+    # usaba valores_calculados_por_mes.get('DIC', {}) -- diciembre del AÑO ACTUAL,
+    # no datos reales de by_prev_raw (año anterior).
+    subtotales_prev = {}
+    for name, is_header, level in structure_with_levels:
+        if not is_header:
+            subtotales_prev[name] = resolve_leaf_value_prev(name, by_prev_raw)
+
+    for i, (name, is_header, level) in enumerate(structure_with_levels):
+        if is_header:
+            total = 0
+            j = i + 1
+            while j < len(structure_with_levels):
+                c_name, c_is_header, c_level = structure_with_levels[j]
+                if c_level <= level:
+                    break
+                if not c_is_header:
+                    if c_name in SUBTOTAL_EXCLUSIONS.get(name, []):
+                        pass
+                    else:
+                        total += subtotales_prev.get(c_name, 0)
+                j += 1
+            subtotales_prev[name] = total
+            if name == 'Subtotal Gastos de Comercialización y Logistica':
+                subtotales_prev[name] += (
+                    subtotales_prev.get('Gastos de comisiones empleados', 0)
+                    + subtotales_prev.get('Gastos de comisiones por venta de personal externo', 0)
+                )
+
+    ingresos_operativos_prev = sum(by_prev_raw.get(p, 0) for p in op_ing_partidas)
+    otros_ing_prev = subtotales_prev.get('Otros Ingresos no Operacionales', 0)
+    costo_ventas_prev = sum(by_prev_raw.get(p, 0) for p in cos_p)
+    utilidad_bruta_prev = ingresos_operativos_prev + otros_ing_prev - costo_ventas_prev
+
+    gastos_operacionales_prev = 0
+    for nombre in ['Subtotal Gastos de Administración',
+                   'Subtotal Gastos de Recursos Humanos',
+                   'Subtotal Gastos de Comercialización y Logistica',
+                   'Subtotal Gastos de Mercadeo',
+                   'Gastos de TI+I']:
+        gastos_operacionales_prev += subtotales_prev.get(nombre, 0)
+
+    comisiones_prev = 0
+    for nombre in ['Gastos de comisiones empleados',
+                   'Gastos de comisiones empleados del taller',
+                   'Gastos de comisiones por venta de personal externo']:
+        comisiones_prev += subtotales_prev.get(nombre, 0)
+
+    utilidad_despues_comisiones_prev = utilidad_bruta_prev - gastos_operacionales_prev
+    utilidad_antes_comisiones_prev = utilidad_despues_comisiones_prev + comisiones_prev
+
+    otros_gastos_prev = subtotales_prev.get('Otros Gastos no Operacionales', 0)
+    gastos_impuestos_prev = subtotales_prev.get('Gastos de impuestos, tasas y contribuciones', 0)
+    gastos_intereses_prev = subtotales_prev.get('Gastos de intereses sobre préstamos', 0)
+    depreciaciones_prev = subtotales_prev.get('Depreciaciones, deterioro y Amortización', 0)
+
+    ebit_prev = utilidad_bruta_prev - gastos_operacionales_prev + gastos_intereses_prev + gastos_impuestos_prev
+    ebitda_prev = ebit_prev + depreciaciones_prev
+
+    utilidad_neta_prev = utilidad_despues_comisiones_prev - otros_gastos_prev
+    islr_prev = subtotales_prev.get('ISLR', 0)
+    utilidad_neta_despues_islr_prev = utilidad_neta_prev - islr_prev
+
+    totales_prev_dict = {
+        'Total Ingresos Operativos': ingresos_operativos_prev,
+        'Otros Ingresos no Operacionales': otros_ing_prev,
+        'Total Ingresos': ingresos_operativos_prev + otros_ing_prev,
+        'Total Costo de Ventas': costo_ventas_prev,
+        'Utilidad Bruta': utilidad_bruta_prev,
+        'Total Gastos Operacionales': gastos_operacionales_prev,
+        'Utilidad antes de Comisiones por Ventas': utilidad_antes_comisiones_prev,
+        'Utilidad después de Comisiones por Ventas': utilidad_despues_comisiones_prev,
+        'Otros Gastos no Operacionales': otros_gastos_prev,
+        'Total Gastos Operacionales y No Operacionales': gastos_operacionales_prev + otros_gastos_prev,
+        'Utilidad antes de Intereses e Impuestos (EBIT)': ebit_prev,
+        'Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)': ebitda_prev,
+        'Utilidad Neta': utilidad_neta_prev,
+        'ISLR': islr_prev,
+        'Utilidad Neta despues de ISLR': utilidad_neta_despues_islr_prev,
+        'Utilidad Bruta por Venta de Mercancia y Taller': (
+            subtotales_prev.get('Subtotal Ingresos por Venta de Mercancia', 0)
+            + subtotales_prev.get('Subtotal Ingresos por Taller', 0)
+            - subtotales_prev.get('Subtotal Costo de Ventas por Mercancia', 0)
+        ),
+        'Utilidad Bruta por Servicios': (
+            subtotales_prev.get('Subtotal Ingresos por Servicios', 0)
+            - subtotales_prev.get('Subtotal Costo de Ventas por Servicios', 0)
+        ),
+        'Utilidad Bruta por Eventos': (
+            subtotales_prev.get('Subtotal Ingresos por Eventos', 0)
+            - subtotales_prev.get('Subtotal Costo de Ventas por Eventos', 0)
+        )
+    }
+    valores_calculados_prev = {**subtotales_prev, **totales_prev_dict}
+
     ingresos_prev = sum(by_prev_raw.get(p, 0) for p in op_ing_partidas)
     gastos_prev = sum(by_prev_raw.get(p, 0) for p in gas_p)
 
@@ -2140,7 +2236,7 @@ def eerr_completo_v2_ui_adapter(year, unit, empresa_id=None):
         indent = node['indent']
 
         if is_header:
-            prev_val = valores_calculados_por_mes.get('DIC', {}).get(partida_name, 0)
+            prev_val = valores_calculados_prev.get(partida_name, 0)
         else:
             prev_val = resolve_leaf_value_prev(partida_name, by_prev_raw)
 
@@ -3995,6 +4091,183 @@ def _calcular_eerr_divisa_real(year, unit, empresa_id=None, plug_divisa_q=None):
         ingresos_ppto_mes[m] = sum(by_budget.get(p, {}).get(m, 0) for p in op_ing_partidas)
         gastos_ppto_mes[m] = sum(by_budget.get(p, {}).get(m, 0) for p in gas_p)
 
+    # ── Subtotales jerárquicos y totales para AÑO ANTERIOR (fix ago-2026, 10-ago) ──
+    # Antes, prev_val para partidas header usaba valores_calculados_por_mes.get('DIC', {})
+    # -- es decir, diciembre del AÑO ACTUAL, no datos reales de by_prev_raw (año anterior).
+    # Esto mostraba en pantalla un numero que no correspondia al año anterior real.
+    subtotales_prev = {}
+    for name, is_header, level in structure_with_levels:
+        if not is_header:
+            subtotales_prev[name] = resolve_leaf_value_prev(name, by_prev_raw)
+
+    for i, (name, is_header, level) in enumerate(structure_with_levels):
+        if is_header:
+            total = 0
+            j = i + 1
+            while j < len(structure_with_levels):
+                c_name, c_is_header, c_level = structure_with_levels[j]
+                if c_level <= level:
+                    break
+                if not c_is_header:
+                    if name == 'Subtotal Gastos de Administración' and c_name in [
+                        'Gasto por impuesto a las pensiones',
+                        'Gastos de IGTF',
+                        'Gastos de comisiones bancarias',
+                        'Gastos de intereses de mora',
+                        'Gastos de mantenimiento y reparación a la propiedad alq.',
+                        'Gastos de mantenimiento y reparación de edificaciones',
+                        'Gastos de mantenimiento y reparación de maquinarias y equipos',
+                        'Gastos de mantenimiento y reparación de mobiliario y equipo',
+                        'Gastos de mantenimiento y reparación de vehiculo',
+                        'Gastos de comida por viáticos administrativos',
+                        'Gastos de hospedaje por viáticos administrativos',
+                        'Gastos de pasajes por viáticos administrativos',
+                        'Gastos de transporte por viáticos administrativos',
+                        'Otros gastos de viáticos administrativos',
+                        'Gastos de seguro de edificaciones',
+                        'Gastos de seguro de vehiculos',
+                        'Gasto por otras tasas',
+                        'Gastos de impuesto por licencia de actividades economicas',
+                        'Gastos de impuesto por publicidad',
+                        'Gastos de patente vehicular',
+                        'Gastos de tasa sencamer',
+                        'Gastos de tasas de notaria y registro',
+                        'Gastos de amortización de software',
+                        'Gastos de depreciación de edificaciones',
+                        'Gastos de depreciación de maquinarias y equipos',
+                        'Gastos de depreciación de mobiliario y equipo',
+                        'Gastos de depreciación de vehículos',
+                        'Gastos de deterioro de edificaciones',
+                        'Gastos de deterioro de maquinarias y equipos',
+                        'Gastos de deterioro de mobiliario y equipo',
+                        'Gastos de deterioro de vehículos',
+                        'Gastos de deterioro por cuentas incobrables',
+                        'Gastos de intereses sobre préstamos bancarios',
+                        'Gastos de intereses sobre préstamos de terceros'
+                    ]:
+                        pass
+                    elif name == 'Subtotal Gastos de Recursos Humanos' and c_name in [
+                        'Gastos de uniformes y dotación al personal'
+                    ]:
+                        pass
+                    elif name == 'Subtotal Gastos de Mercadeo' and c_name in [
+                        'Gastos de impresiones de material gráfico',
+                        'Gastos de patrocinio y donación'
+                    ]:
+                        pass
+                    elif name == 'Subtotal Gastos de Comercialización y Logistica' and c_name in [
+                        'Gastos de comida por viáticos comerciales',
+                        'Gastos de hospedaje por viáticos comerciales',
+                        'Gastos de pasajes por viáticos comerciales',
+                        'Gastos de transporte por viáticos comerciales',
+                        'Otros gastos de viáticos comerciales',
+                        'Gastos de almacenaje sobre compras no incluídos en el costo',
+                        'Gastos de armado de bicicletas no incluídos en el costo',
+                        'Gastos de bolsas no incluídos en el costo',
+                        'Gastos de embalaje no incluídos en el costo',
+                        'Gastos de etiquetas no incluídos en el costo',
+                        'Gastos de importación no incluídos en el costo',
+                        'Gastos de seguro de mercancía no incluídos en el costo',
+                        'Gastos de títulos de propiedad no incluídos en el costo',
+                        'Gastos por gasoil',
+                        'Gastos por gasolina',
+                        'Gastos de alquiler Stand y/o ferias comerciales',
+                        'Gastos de otros viáticos Stand y/o ferias comerciales',
+                        'Gastos de pasajes Stand y/o ferias comerciales',
+                        'Gastos de premiaciones, donaciones Stand y/o ferias comerciales',
+                        'Gastos de publicidad Stand y/o ferias comerciales',
+                        'Gastos de viáticos comida Stand y/o ferias comerciales',
+                        'Gastos de viáticos hospedaje Stand y/o ferias comerciales',
+                        'Gastos de viáticos transporte Stand y/o ferias comerciales'
+                    ]:
+                        pass
+                    elif name == 'Gastos de TI+I' and c_name in [
+                        'Gastos de dominio de página web',
+                        'Gastos de servidores',
+                        'Gastos de software tecnológico'
+                    ]:
+                        pass
+                    elif name == 'Otros Gastos no Operacionales' and c_name in [
+                        'Deterioro de inventarios',
+                        'Faltante de inventarios'
+                    ]:
+                        pass
+                    else:
+                        total += subtotales_prev.get(c_name, 0)
+                j += 1
+            subtotales_prev[name] = total
+            if name == 'Subtotal Gastos de Comercialización y Logistica':
+                subtotales_prev[name] += (
+                    subtotales_prev.get('Gastos de comisiones empleados', 0)
+                    + subtotales_prev.get('Gastos de comisiones por venta de personal externo', 0)
+                )
+
+    ingresos_operativos_prev = sum(by_prev_raw.get(p, 0) for p in op_ing_partidas)
+    otros_ing_prev = subtotales_prev.get('Otros Ingresos no Operacionales', 0)
+    costo_ventas_prev = sum(by_prev_raw.get(p, 0) for p in cos_p)
+    utilidad_bruta_prev = ingresos_operativos_prev + otros_ing_prev - costo_ventas_prev
+
+    gastos_operacionales_prev = 0
+    for nombre in ['Subtotal Gastos de Administración',
+                   'Subtotal Gastos de Recursos Humanos',
+                   'Subtotal Gastos de Comercialización y Logistica',
+                   'Subtotal Gastos de Mercadeo',
+                   'Gastos de TI+I']:
+        gastos_operacionales_prev += subtotales_prev.get(nombre, 0)
+
+    comisiones_prev = 0
+    for nombre in ['Gastos de comisiones empleados',
+                   'Gastos de comisiones empleados del taller',
+                   'Gastos de comisiones por venta de personal externo']:
+        comisiones_prev += subtotales_prev.get(nombre, 0)
+
+    utilidad_despues_comisiones_prev = utilidad_bruta_prev - gastos_operacionales_prev
+    utilidad_antes_comisiones_prev = utilidad_despues_comisiones_prev + comisiones_prev
+
+    otros_gastos_prev = subtotales_prev.get('Otros Gastos no Operacionales', 0)
+    gastos_impuestos_prev = subtotales_prev.get('Gastos de impuestos, tasas y contribuciones', 0)
+    gastos_intereses_prev = subtotales_prev.get('Gastos de intereses sobre préstamos', 0)
+    depreciaciones_prev = subtotales_prev.get('Depreciaciones, deterioro y Amortización', 0)
+
+    ebit_prev = utilidad_bruta_prev - gastos_operacionales_prev + gastos_intereses_prev + gastos_impuestos_prev
+    ebitda_prev = ebit_prev + depreciaciones_prev
+
+    utilidad_neta_prev = utilidad_despues_comisiones_prev - otros_gastos_prev
+    islr_prev = subtotales_prev.get('ISLR', 0)
+    utilidad_neta_despues_islr_prev = utilidad_neta_prev - islr_prev
+
+    totales_prev_dict = {
+        'Total Ingresos Operativos': ingresos_operativos_prev,
+        'Otros Ingresos no Operacionales': otros_ing_prev,
+        'Total Ingresos': ingresos_operativos_prev + otros_ing_prev,
+        'Total Costo de Ventas': costo_ventas_prev,
+        'Utilidad Bruta': utilidad_bruta_prev,
+        'Total Gastos Operacionales': gastos_operacionales_prev,
+        'Utilidad antes de Comisiones por Ventas': utilidad_antes_comisiones_prev,
+        'Utilidad después de Comisiones por Ventas': utilidad_despues_comisiones_prev,
+        'Otros Gastos no Operacionales': otros_gastos_prev,
+        'Total Gastos Operacionales y No Operacionales': gastos_operacionales_prev + otros_gastos_prev,
+        'Utilidad antes de Intereses e Impuestos (EBIT)': ebit_prev,
+        'Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)': ebitda_prev,
+        'Utilidad Neta': utilidad_neta_prev,
+        'ISLR': islr_prev,
+        'Utilidad Neta despues de ISLR': utilidad_neta_despues_islr_prev,
+        'Utilidad Bruta por Venta de Mercancia y Taller': (
+            subtotales_prev.get('Subtotal Ingresos por Venta de Mercancia', 0)
+            + subtotales_prev.get('Subtotal Ingresos por Taller', 0)
+            - subtotales_prev.get('Subtotal Costo de Ventas por Mercancia', 0)
+        ),
+        'Utilidad Bruta por Servicios': (
+            subtotales_prev.get('Subtotal Ingresos por Servicios', 0)
+            - subtotales_prev.get('Subtotal Costo de Ventas por Servicios', 0)
+        ),
+        'Utilidad Bruta por Eventos': (
+            subtotales_prev.get('Subtotal Ingresos por Eventos', 0)
+            - subtotales_prev.get('Subtotal Costo de Ventas por Eventos', 0)
+        )
+    }
+    valores_calculados_prev = {**subtotales_prev, **totales_prev_dict}
+
     ingresos_prev = sum(by_prev_raw.get(p, 0) for p in op_ing_partidas)
     gastos_prev = sum(by_prev_raw.get(p, 0) for p in gas_p)
 
@@ -4017,7 +4290,7 @@ def _calcular_eerr_divisa_real(year, unit, empresa_id=None, plug_divisa_q=None):
         indent = node['indent']
 
         if is_header:
-            prev_val = valores_calculados_por_mes.get('DIC', {}).get(partida_name, 0)
+            prev_val = valores_calculados_prev.get(partida_name, 0)
         else:
             prev_val = resolve_leaf_value_prev(partida_name, by_prev_raw)
 
