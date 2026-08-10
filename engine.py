@@ -1166,6 +1166,21 @@ def calcular_estados_reales(year, unit='', empresa_id=None):
     )
     plug_divisa_q = esf_real.get('plug_divisa_q', {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0})
 
+    # Corrección ago-2026 (10-ago), confirmada contra el Excel de Yocelin: "Resultados del
+    # ejercicio" en su hoja 'N ESF ULTRAX' YA INCLUYE la ganancia/perdida en tasa cambiaria
+    # (Fila 26 esta ANTES de Utilidad Neta en su hoja, dentro de Total Ingresos No
+    # Operativos) -- no es una utilidad "limpia" sin esa linea como se asumio al principio.
+    # utilidad_final_q = preliminar + plug reproduce exactamente ese comportamiento
+    # (verificado: 30389.95 + 15395.36 = 45785.31, exacto contra el Excel). Se parchea
+    # solo 'Resultados del ejercicio' en esf_real -- TOTAL ACTIVOS/PASIVOS/Acumulados no
+    # cambian, ya son correctos y no dependen de la utilidad.
+    utilidad_final_q = {q: utilidad_externa_q[q] + plug_divisa_q[q] for q in [1, 2, 3, 4]}
+    for row in esf_real.get('rows', []):
+        if row.get('partida') == 'Resultados del ejercicio':
+            for q in [1, 2, 3, 4]:
+                row['quarters'][q] = round(utilidad_final_q[q], 2)
+            break
+
     # 4. EERR Real final: reinyectar el plug en el mes de cierre correspondiente.
     # Regla confirmada contra el Excel de Yocelin (10-ago-2026): el ajuste consolidado de
     # Ganancia/Perdida en tasa cambiaria SOLO aparece en la unidad Rodeo y en el consolidado
