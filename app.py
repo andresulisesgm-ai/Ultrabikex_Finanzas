@@ -3820,16 +3820,19 @@ def _calcular_eerr_divisa_real(year, unit, empresa_id=None, plug_divisa_q=None):
     # etc.) quede consistente con el ajuste.
     if plug_divisa_q is not None:
         quarter_close_month = {1: 'MAR', 2: 'JUN', 3: 'SEPT', 4: 'DIC'}
-        for q, valor_plug in plug_divisa_q.items():
+        for q in sorted(plug_divisa_q.keys()):
+            valor_acum_q = plug_divisa_q[q]
+            valor_acum_prev = plug_divisa_q.get(q - 1, 0.0)
+            valor_incremental = valor_acum_q - valor_acum_prev
             month = quarter_close_month.get(q)
-            if not month or valor_plug == 0:
+            if not month or valor_incremental == 0:
                 continue
-            if valor_plug > 0:
+            if valor_incremental > 0:
                 partida_destino = 'Ganancia por tasa cambiaria'
             else:
                 partida_destino = 'Pérdida en tasa cambiaria'
             by_partida.setdefault(partida_destino, {})
-            by_partida[partida_destino][month] = by_partida[partida_destino].get(month, 0) + abs(valor_plug)
+            by_partida[partida_destino][month] = by_partida[partida_destino].get(month, 0) + abs(valor_incremental)
 
     # Año anterior (sin ajuste - usar literal)
     rows_prev = db.execute(
