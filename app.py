@@ -2049,7 +2049,7 @@ def eerr_completo_v2_ui_adapter(year, unit, empresa_id=None):
         ingresos_operativos = sum(by_partida.get(p, {}).get(m, 0) for p in op_ing_partidas)
         otros_ing = subtotales_por_mes[m].get('Otros Ingresos no Operacionales', 0)
         costo_ventas = sum(by_partida.get(p, {}).get(m, 0) for p in cos_p)
-        utilidad_bruta = ingresos_operativos + otros_ing - costo_ventas
+        utilidad_bruta = ingresos_operativos - costo_ventas
 
         gastos_operacionales = 0
         for nombre in ['Subtotal Gastos de Administración',
@@ -2076,14 +2076,14 @@ def eerr_completo_v2_ui_adapter(year, unit, empresa_id=None):
         ebit = utilidad_bruta - gastos_operacionales + gastos_intereses + gastos_impuestos
         ebitda = ebit + depreciaciones
 
-        utilidad_neta = utilidad_despues_comisiones - otros_gastos
+        utilidad_neta = utilidad_despues_comisiones - otros_gastos + otros_ing
         islr = subtotales_por_mes[m].get('ISLR', 0)
         utilidad_neta_despues_islr = utilidad_neta - islr
 
         totales_mes = {
             'Total Ingresos Operativos': ingresos_operativos,
             'Otros Ingresos no Operacionales': otros_ing,
-            'Total Ingresos': ingresos_operativos + otros_ing,
+            'Total Ingresos': ingresos_operativos,
             'Total Costo de Ventas': costo_ventas,
             'Utilidad Bruta': utilidad_bruta,
             'Total Gastos Operacionales': gastos_operacionales,
@@ -4025,7 +4025,7 @@ def _calcular_eerr_divisa_real(year, unit, empresa_id=None, plug_divisa_q=None):
         ingresos_operativos = sum(by_partida.get(p, {}).get(m, 0) for p in op_ing_partidas)
         otros_ing = subtotales_por_mes[m].get('Otros Ingresos no Operacionales', 0)
         costo_ventas = sum(by_partida.get(p, {}).get(m, 0) for p in cos_p)
-        utilidad_bruta = ingresos_operativos + otros_ing - costo_ventas
+        utilidad_bruta = ingresos_operativos - costo_ventas
 
         gastos_operacionales = 0
         for nombre in ['Subtotal Gastos de Administración',
@@ -4052,14 +4052,14 @@ def _calcular_eerr_divisa_real(year, unit, empresa_id=None, plug_divisa_q=None):
         ebit = utilidad_bruta - gastos_operacionales + gastos_intereses + gastos_impuestos
         ebitda = ebit + depreciaciones
 
-        utilidad_neta = utilidad_despues_comisiones - otros_gastos
+        utilidad_neta = utilidad_despues_comisiones - otros_gastos + otros_ing
         islr = subtotales_por_mes[m].get('ISLR', 0)
         utilidad_neta_despues_islr = utilidad_neta - islr
 
         totales_mes = {
             'Total Ingresos Operativos': ingresos_operativos,
             'Otros Ingresos no Operacionales': otros_ing,
-            'Total Ingresos': ingresos_operativos + otros_ing,
+            'Total Ingresos': ingresos_operativos,
             'Total Costo de Ventas': costo_ventas,
             'Utilidad Bruta': utilidad_bruta,
             'Total Gastos Operacionales': gastos_operacionales,
