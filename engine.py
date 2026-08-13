@@ -720,7 +720,6 @@ def esf_engine(year, unit='', aplicar_divisa_real=False, empresa_id=None,
         conn_adapter = sqlite3.connect(DB_PATH)
         conn_adapter.row_factory = sqlite3.Row
         try:
-            from app import eerr_completo_v2_ui_adapter
             eerr_data = eerr_completo_v2_ui_adapter(conn_adapter, year, unit, empresa_id=empresa_id)
             net_income_row = None
             for r in eerr_data.get('rows', []):
@@ -1120,3 +1119,473 @@ def calcular_estados_reales(year, unit='', empresa_id=None):
         }
     finally:
         conn_estados.close()
+
+def eerr_completo_v2_ui_adapter(db, year, unit, empresa_id=None):
+    from app import (
+        get_clasificacion, get_grouped_partidas_v2, calcular_muestra_pct_gastos,
+        divisor_ejec, divisor_ppto_mes, divisor_prev
+    )
+
+    year_prev = str(int(year) - 1)
+    if unit:
+        uc = "AND unit=?"
+        uc_params = [unit]
+    elif empresa_id:
+        unidades_rows = db.execute('SELECT nombre FROM unidades WHERE empresa_id=?', [empresa_id]).fetchall()
+        unidades_list = [r['nombre'] for r in unidades_rows]
+        if unidades_list:
+            placeholders = ','.join(['?'] * len(unidades_list))
+            uc = f"AND unit IN ({placeholders})"
+            uc_params = unidades_list
+        else:
+            uc = "AND unit=?"
+            uc_params = ['__EMPRESA_SIN_UNIDADES__']
+    else:
+        uc = ''
+        uc_params = []
+
+    MONTH_TYPES = {
+        'ENE': 'A',
+        'FEB': 'B',
+        'MAR': 'C',
+        'ABR': 'B',
+        'MAY': 'B',
+        'JUN': 'D',
+        'JUL': 'B',
+        'AGO': 'B',
+        'SEPT': 'C',
+        'OCT': 'B',
+        'NOV': 'B',
+        'DIC': 'E',
+    }
+
+    # 1. Clasificación
+    ing_p, cos_p, gas_p = get_clasificacion(db)
+
+    # 2. Obtener grupos de presentación de mapping_groups_v2
+    groups_v2, _ = get_grouped_partidas_v2(db, 'eerr')
+
+    # 3. Leer datos año actual por partida y mes
+    rows_curr = db.execute(
+        f'''SELECT partida, month, SUM(amount) amount FROM financials
+            WHERE year=? {uc} GROUP BY partida, month''',
+        [year] + uc_params
+    ).fetchall()
+
+    by_partida = {}
+    for r in rows_curr:
+        by_partida.setdefault(r['partida'], {})[r['month']] = r['amount']
+
+    # Leer datos año anterior (total anual por partida)
+    rows_prev = db.execute(
+        f'''SELECT partida, SUM(amount) amount FROM financials
+            WHERE year=? {uc} GROUP BY partida''',
+        [year_prev] + uc_params
+    ).fetchall()
+    by_prev_raw = {r['partida']: r['amount'] for r in rows_prev}
+
+    # Leer presupuesto por partida y mes
+    rows_budget = db.execute(
+        f'''SELECT partida, month, SUM(amount) amount FROM budget
+            WHERE year=? {uc} GROUP BY partida, month''',
+        [year] + uc_params
+    ).fetchall()
+    by_budget = {}
+    for r in rows_budget:
+        by_budget.setdefault(r['partida'], {})[r['month']] = r['amount']
+
+    import unicodedata
+    def norm(s):
+        if not s: return ''
+        s = ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
+        return s.lower().strip()
+
+    def resolve_leaf_value(partida_name, month, data_dict):
+        if partida_name in groups_v2:
+            return sum(data_dict.get(p, {}).get(month, 0) for p in groups_v2[partida_name])
+        val = data_dict.get(partida_name, {}).get(month, 0)
+        if val == 0:
+            pn_norm = norm(partida_name)
+            for k, v in data_dict.items():
+                if norm(k) == pn_norm:
+                    return v.get(month, 0)
+        return val
+
+    def resolve_leaf_value_prev(partida_name, data_dict):
+        if partida_name in groups_v2:
+            return sum(data_dict.get(p, 0) for p in groups_v2[partida_name])
+        val = data_dict.get(partida_name, 0)
+        if val == 0:
+            pn_norm = norm(partida_name)
+            for k, v in data_dict.items():
+                if norm(k) == pn_norm:
+                    return v
+        return val
+
+    db_overrides = db.execute('SELECT partida_name, target_subtotal FROM eerr_nodes').fetchall()
+    effective = build_effective_structure(EERR_STRUCTURE, db_overrides=db_overrides)
+    muestra_pct_gastos_map = calcular_muestra_pct_gastos(effective)
+    structure_with_levels = [(node['partida_name'], node['is_header'], node['level']) for node in effective]
+
+    # Pre-calcular subtotales para todos los meses
+    subtotales_por_mes = {}
+    for m in MONTHS:
+        subtotales_por_mes[m] = {}
+        # Primero popular nodos hoja
+        for name, is_header, level in structure_with_levels:
+            if not is_header:
+                subtotales_por_mes[m][name] = resolve_leaf_value(name, m, by_partida)
+
+        # Luego calcular subtotales jerárquicos de forma recursiva/bottom-up
+        for i, (name, is_header, level) in enumerate(structure_with_levels):
+            if is_header:
+                total = 0
+                j = i + 1
+                while j < len(structure_with_levels):
+                    c_name, c_is_header, c_level = structure_with_levels[j]
+                    if c_level <= level:
+                        break
+                    if not c_is_header:
+                        # Excluir cuentas que se duplicarían
+                        if c_name in SUBTOTAL_EXCLUSIONS.get(name, []):
+                            pass
+                        else:
+                            total += subtotales_por_mes[m].get(c_name, 0)
+                    j += 1
+                subtotales_por_mes[m][name] = total
+                if name == 'Subtotal Gastos de Comercialización y Logistica':
+                    subtotales_por_mes[m][name] += (
+                        subtotales_por_mes[m].get('Gastos de comisiones empleados', 0)
+                        + subtotales_por_mes[m].get('Gastos de comisiones por venta de personal externo', 0)
+                    )
+
+    # Definición de partidas operativas para Total Ingresos
+    op_ing_partidas = ing_p - {
+        'Ingresos por alquileres',
+        'Ingresos por intereses',
+        'Ingresos por comisiones',
+        'Ingresos por servicios administrativos',
+        'Sobrante en ventas',
+        'Sobrante de inventarios',
+        'Ganancia en venta de activos',
+        'Ganancia por tasa cambiaria',
+        'Ganancia por diferencias en pagos'
+    }
+
+    valores_calculados_por_mes = {}
+    ingresos_ejec_mes = {}
+    gastos_ejec_mes = {}
+    ingresos_ppto_mes = {}
+    gastos_ppto_mes = {}
+
+    for m in MONTHS:
+        ingresos_operativos = sum(by_partida.get(p, {}).get(m, 0) for p in op_ing_partidas)
+        otros_ing = subtotales_por_mes[m].get('Otros Ingresos no Operacionales', 0)
+        costo_ventas = sum(by_partida.get(p, {}).get(m, 0) for p in cos_p)
+        utilidad_bruta = ingresos_operativos - costo_ventas
+
+        gastos_operacionales = 0
+        for nombre in ['Subtotal Gastos de Administración',
+                       'Subtotal Gastos de Recursos Humanos',
+                       'Subtotal Gastos de Comercialización y Logistica',
+                       'Subtotal Gastos de Mercadeo',
+                       'Gastos de TI+I']:
+            gastos_operacionales += subtotales_por_mes[m].get(nombre, 0)
+
+        comisiones = 0
+        for nombre in ['Gastos de comisiones empleados',
+                       'Gastos de comisiones empleados del taller',
+                       'Gastos de comisiones por venta de personal externo']:
+            comisiones += subtotales_por_mes[m].get(nombre, 0)
+
+        utilidad_despues_comisiones = utilidad_bruta - gastos_operacionales
+        utilidad_antes_comisiones = utilidad_despues_comisiones + comisiones
+
+        otros_gastos = subtotales_por_mes[m].get('Otros Gastos no Operacionales', 0)
+        gastos_impuestos = subtotales_por_mes[m].get('Gastos de impuestos, tasas y contribuciones', 0)
+        gastos_intereses = subtotales_por_mes[m].get('Gastos de intereses sobre préstamos', 0)
+        depreciaciones = subtotales_por_mes[m].get('Depreciaciones, deterioro y Amortización', 0)
+
+        ebit = utilidad_bruta - gastos_operacionales + gastos_intereses + gastos_impuestos
+        ebitda = ebit + depreciaciones
+
+        utilidad_neta = utilidad_despues_comisiones - otros_gastos + otros_ing
+        islr = subtotales_por_mes[m].get('ISLR', 0)
+        utilidad_neta_despues_islr = utilidad_neta - islr
+
+        totales_mes = {
+            'Total Ingresos Operativos': ingresos_operativos,
+            'Otros Ingresos no Operacionales': otros_ing,
+            'Total Ingresos': ingresos_operativos,
+            'Total Costo de Ventas': costo_ventas,
+            'Utilidad Bruta': utilidad_bruta,
+            'Total Gastos Operacionales': gastos_operacionales,
+            'Utilidad antes de Comisiones por Ventas': utilidad_antes_comisiones,
+            'Utilidad después de Comisiones por Ventas': utilidad_despues_comisiones,
+            'Otros Gastos no Operacionales': otros_gastos,
+            'Total Gastos Operacionales y No Operacionales': gastos_operacionales + otros_gastos,
+            'Utilidad antes de Intereses e Impuestos (EBIT)': ebit,
+            'Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)': ebitda,
+            'Utilidad Neta': utilidad_neta,
+            'ISLR': islr,
+            'Utilidad Neta despues de ISLR': utilidad_neta_despues_islr,
+            'Utilidad Bruta por Venta de Mercancia y Taller': (
+                subtotales_por_mes[m].get('Subtotal Ingresos por Venta de Mercancia', 0)
+                + subtotales_por_mes[m].get('Subtotal Ingresos por Taller', 0)
+                - subtotales_por_mes[m].get('Subtotal Costo de Ventas por Mercancia', 0)
+            ),
+            'Utilidad Bruta por Servicios': (
+                subtotales_por_mes[m].get('Subtotal Ingresos por Servicios', 0)
+                - subtotales_por_mes[m].get('Subtotal Costo de Ventas por Servicios', 0)
+            ),
+            'Utilidad Bruta por Eventos': (
+                subtotales_por_mes[m].get('Subtotal Ingresos por Eventos', 0)
+                - subtotales_por_mes[m].get('Subtotal Costo de Ventas por Eventos', 0)
+            )
+        }
+
+        valores_calculados_por_mes[m] = {**subtotales_por_mes[m], **totales_mes}
+
+        ingresos_ejec_mes[m] = ingresos_operativos
+        gastos_ejec_mes[m] = gastos_operacionales + otros_gastos
+        ingresos_ppto_mes[m] = sum(by_budget.get(p, {}).get(m, 0) for p in op_ing_partidas)
+        gastos_ppto_mes[m] = sum(by_budget.get(p, {}).get(m, 0) for p in gas_p)
+
+    # ── Subtotales jerárquicos y totales para AÑO ANTERIOR (fix ago-2026, 10-ago) ──
+    # Mismo bug que en _calcular_eerr_divisa_real: prev_val para partidas header
+    # usaba valores_calculados_por_mes.get('DIC', {}) -- diciembre del AÑO ACTUAL,
+    # no datos reales de by_prev_raw (año anterior).
+    subtotales_prev = {}
+    for name, is_header, level in structure_with_levels:
+        if not is_header:
+            subtotales_prev[name] = resolve_leaf_value_prev(name, by_prev_raw)
+
+    for i, (name, is_header, level) in enumerate(structure_with_levels):
+        if is_header:
+            total = 0
+            j = i + 1
+            while j < len(structure_with_levels):
+                c_name, c_is_header, c_level = structure_with_levels[j]
+                if c_level <= level:
+                    break
+                if not c_is_header:
+                    if c_name in SUBTOTAL_EXCLUSIONS.get(name, []):
+                        pass
+                    else:
+                        total += subtotales_prev.get(c_name, 0)
+                j += 1
+            subtotales_prev[name] = total
+            if name == 'Subtotal Gastos de Comercialización y Logistica':
+                subtotales_prev[name] += (
+                    subtotales_prev.get('Gastos de comisiones empleados', 0)
+                    + subtotales_prev.get('Gastos de comisiones por venta de personal externo', 0)
+                )
+
+    ingresos_operativos_prev = sum(by_prev_raw.get(p, 0) for p in op_ing_partidas)
+    otros_ing_prev = subtotales_prev.get('Otros Ingresos no Operacionales', 0)
+    costo_ventas_prev = sum(by_prev_raw.get(p, 0) for p in cos_p)
+    utilidad_bruta_prev = ingresos_operativos_prev + otros_ing_prev - costo_ventas_prev
+
+    gastos_operacionales_prev = 0
+    for nombre in ['Subtotal Gastos de Administración',
+                   'Subtotal Gastos de Recursos Humanos',
+                   'Subtotal Gastos de Comercialización y Logistica',
+                   'Subtotal Gastos de Mercadeo',
+                   'Gastos de TI+I']:
+        gastos_operacionales_prev += subtotales_prev.get(nombre, 0)
+
+    comisiones_prev = 0
+    for nombre in ['Gastos de comisiones empleados',
+                   'Gastos de comisiones empleados del taller',
+                   'Gastos de comisiones por venta de personal externo']:
+        comisiones_prev += subtotales_prev.get(nombre, 0)
+
+    utilidad_despues_comisiones_prev = utilidad_bruta_prev - gastos_operacionales_prev
+    utilidad_antes_comisiones_prev = utilidad_despues_comisiones_prev + comisiones_prev
+
+    otros_gastos_prev = subtotales_prev.get('Otros Gastos no Operacionales', 0)
+    gastos_impuestos_prev = subtotales_prev.get('Gastos de impuestos, tasas y contribuciones', 0)
+    gastos_intereses_prev = subtotales_prev.get('Gastos de intereses sobre préstamos', 0)
+    depreciaciones_prev = subtotales_prev.get('Depreciaciones, deterioro y Amortización', 0)
+
+    ebit_prev = utilidad_bruta_prev - gastos_operacionales_prev + gastos_intereses_prev + gastos_impuestos_prev
+    ebitda_prev = ebit_prev + depreciaciones_prev
+
+    utilidad_neta_prev = utilidad_despues_comisiones_prev - otros_gastos_prev
+    islr_prev = subtotales_prev.get('ISLR', 0)
+    utilidad_neta_despues_islr_prev = utilidad_neta_prev - islr_prev
+
+    totales_prev_dict = {
+        'Total Ingresos Operativos': ingresos_operativos_prev,
+        'Otros Ingresos no Operacionales': otros_ing_prev,
+        'Total Ingresos': ingresos_operativos_prev + otros_ing_prev,
+        'Total Costo de Ventas': costo_ventas_prev,
+        'Utilidad Bruta': utilidad_bruta_prev,
+        'Total Gastos Operacionales': gastos_operacionales_prev,
+        'Utilidad antes de Comisiones por Ventas': utilidad_antes_comisiones_prev,
+        'Utilidad después de Comisiones por Ventas': utilidad_despues_comisiones_prev,
+        'Otros Gastos no Operacionales': otros_gastos_prev,
+        'Total Gastos Operacionales y No Operacionales': gastos_operacionales_prev + otros_gastos_prev,
+        'Utilidad antes de Intereses e Impuestos (EBIT)': ebit_prev,
+        'Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)': ebitda_prev,
+        'Utilidad Neta': utilidad_neta_prev,
+        'ISLR': islr_prev,
+        'Utilidad Neta despues de ISLR': utilidad_neta_despues_islr_prev,
+        'Utilidad Bruta por Venta de Mercancia y Taller': (
+            subtotales_prev.get('Subtotal Ingresos por Venta de Mercancia', 0)
+            + subtotales_prev.get('Subtotal Ingresos por Taller', 0)
+            - subtotales_prev.get('Subtotal Costo de Ventas por Mercancia', 0)
+        ),
+        'Utilidad Bruta por Servicios': (
+            subtotales_prev.get('Subtotal Ingresos por Servicios', 0)
+            - subtotales_prev.get('Subtotal Costo de Ventas por Servicios', 0)
+        ),
+        'Utilidad Bruta por Eventos': (
+            subtotales_prev.get('Subtotal Ingresos por Eventos', 0)
+            - subtotales_prev.get('Subtotal Costo de Ventas por Eventos', 0)
+        )
+    }
+    valores_calculados_prev = {**subtotales_prev, **totales_prev_dict}
+
+    ingresos_prev = sum(by_prev_raw.get(p, 0) for p in op_ing_partidas)
+    gastos_prev = sum(by_prev_raw.get(p, 0) for p in gas_p)
+
+    def safe_pct(num, den):
+        return round(num / den * 100, 1) if den != 0 else 0
+
+    def safe_var(val, base):
+        if base == 0: return None
+        return round((val - base) / abs(base) * 100, 1)
+
+    rows = []
+    for node in effective:
+        partida_name = node['partida_name']
+        is_header = node['is_header']
+        parent = None
+        bold = node['bold']
+        bg_color = node['bg_color']
+        es_nota = node['es_nota']
+        parent_name = node['parent_name']
+        indent = node['indent']
+
+        if is_header:
+            prev_val = valores_calculados_prev.get(partida_name, 0)
+        else:
+            prev_val = resolve_leaf_value_prev(partida_name, by_prev_raw)
+
+        prev_pct_vtas = safe_pct(prev_val, divisor_prev(partida_name, by_prev_raw, ingresos_prev, ing_p))
+        prev_pct_gastos = safe_pct(prev_val, gastos_prev)
+
+        meses_data = []
+        acum_ejec = 0
+        acum_ppto = 0
+        acum_ing_ejec = 0
+        acum_ing_ppto = 0
+        acum_gas_ejec = 0
+        acum_gas_ppto = 0
+        val_ejec_mes_anterior = None
+
+        for m in MONTHS:
+            month_type = MONTH_TYPES[m]
+
+            if is_header:
+                val_ejec = valores_calculados_por_mes[m].get(partida_name, 0)
+                val_ppto = 0
+            else:
+                val_ejec = resolve_leaf_value(partida_name, m, by_partida)
+                val_ppto = resolve_leaf_value(partida_name, m, by_budget)
+
+            divisor_vtas_mes = divisor_ejec(partida_name, subtotales_por_mes[m], ingresos_ejec_mes[m], by_partida, m, ing_p)
+            divisor_vtas_ppto = divisor_ppto_mes(partida_name, by_budget, m, ingresos_ppto_mes[m], ing_p)
+
+            acum_ejec += val_ejec
+            acum_ppto += val_ppto
+            acum_ing_ejec += divisor_vtas_mes
+            acum_ing_ppto += divisor_vtas_ppto
+            acum_gas_ejec += gastos_ejec_mes[m]
+            acum_gas_ppto += gastos_ppto_mes[m]
+
+            pct_vtas_ejec = safe_pct(val_ejec, divisor_vtas_mes)
+            pct_gastos_ejec = safe_pct(val_ejec, gastos_ejec_mes[m])
+
+            mes_data = {
+                'type': month_type,
+                'month': m,
+                'ejecutado': {
+                    'valor': round(val_ejec, 2),
+                    'pct_vtas': pct_vtas_ejec,
+                    'pct_gastos': pct_gastos_ejec,
+                }
+            }
+
+            if month_type != 'A':
+                mes_data['vari_rel'] = safe_var(val_ejec, val_ejec_mes_anterior) if val_ejec_mes_anterior is not None else None
+
+                if month_type == 'E':  # DIC
+                    mes_data['anio'] = {
+                        'valor': round(acum_ejec, 2),
+                        'pct_vtas': safe_pct(acum_ejec, acum_ing_ejec),
+                        'pct_gastos': safe_pct(acum_ejec, acum_gas_ejec),
+                    }
+                else:
+                    mes_data['acum_ejecutado'] = {
+                        'valor': round(acum_ejec, 2),
+                        'pct_vtas': safe_pct(acum_ejec, acum_ing_ejec),
+                        'pct_gastos': safe_pct(acum_ejec, acum_gas_ejec),
+                    }
+
+                if month_type in ('C', 'D', 'E'):
+                    mes_data['acum_ppto'] = {
+                        'valor': round(acum_ppto, 2),
+                        'pct_vtas': safe_pct(acum_ppto, acum_ing_ppto),
+                    }
+                    mes_data['var_ppto'] = safe_var(acum_ejec, acum_ppto)
+
+                    if month_type == 'D':  # JUN
+                        prom_ejec = acum_ejec / 6
+                        prom_ppto = acum_ppto / 6
+                        prom_ing_ejec = acum_ing_ejec / 6
+                        prom_ing_ppto = acum_ing_ppto / 6
+                        prom_gas_ejec = acum_gas_ejec / 6
+                        prom_gas_ppto = acum_gas_ppto / 6
+
+                        mes_data['prom_6_ejec'] = {
+                            'valor': round(prom_ejec, 2),
+                            'pct_vtas': safe_pct(prom_ejec, prom_ing_ejec),
+                            'pct_gastos': safe_pct(prom_ejec, prom_gas_ejec),
+                        }
+                        mes_data['prom_6_ppto'] = {
+                            'valor': round(prom_ppto, 2),
+                            'pct_vtas': safe_pct(prom_ppto, prom_ing_ppto),
+                        }
+                        mes_data['var_ppto_prom'] = safe_var(prom_ejec, prom_ppto)
+
+            meses_data.append(mes_data)
+            val_ejec_mes_anterior = val_ejec
+
+        rows.append({
+            'partida': partida_name,
+            'is_header': is_header,
+            'parent': parent,
+            'bold': bold,
+            'bg_color': bg_color,
+            'es_nota': es_nota,
+            'parent_name': parent_name,
+            'indent': indent,
+            'muestra_pct_gastos': muestra_pct_gastos_map.get(partida_name, False),
+            'year_prev': {
+                'valor': round(prev_val, 2),
+                'pct_vtas': prev_pct_vtas,
+                'pct_gastos': prev_pct_gastos,
+            },
+            'meses': meses_data,
+        })
+
+    return {
+        'year': year,
+        'year_prev': year_prev,
+        'unit': unit,
+        'rows': rows,
+    }
+
+

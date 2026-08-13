@@ -258,7 +258,7 @@ class ExcelExporter:
         import openpyxl
         from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
-        from app import eerr_completo_v2_ui_adapter, _calcular_eerr_divisa_real, PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO
+        from engine import eerr_completo_v2_ui_adapter, _calcular_eerr_divisa_real, PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO
         import os, tempfile
 
         NOMBRE_CONSOLIDADO = consolidado_name
@@ -306,7 +306,7 @@ class ExcelExporter:
         for unit in sheets_to_build:
             engine_unit = unit if unit != NOMBRE_CONSOLIDADO else ''
             if self.divisa_real:
-                data = _calcular_eerr_divisa_real(self.year, engine_unit, empresa_id=self.empresa_id)
+                data = _calcular_eerr_divisa_real(db_conn, self.year, engine_unit, empresa_id=self.empresa_id)
                 if not isinstance(data, dict) or 'rows' not in data:
                     raise ValueError(
                         f"No se pudo generar el EERR en Divisa Real para {self.year}: "
@@ -314,7 +314,7 @@ class ExcelExporter:
                         f"Verifica en Configuración de Tasas."
                     )
             else:
-                data = eerr_completo_v2_ui_adapter(self.year, engine_unit, empresa_id=self.empresa_id)
+                data = eerr_completo_v2_ui_adapter(db_conn, self.year, engine_unit, empresa_id=self.empresa_id)
             rows = data.get('rows', [])
 
             ws = wb.create_sheet(unit)
@@ -731,7 +731,7 @@ class ExcelExporter:
         from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
         from collections import defaultdict
-        from app import eerr_completo_v2_ui_adapter
+        from engine import eerr_completo_v2_ui_adapter
         from engine import EERR_STRUCTURE
 
         HDR_FILL  = PatternFill('solid', start_color='1F3864')
@@ -748,7 +748,7 @@ class ExcelExporter:
         ws = wb.create_sheet(notes_sheet_name)
         ws.sheet_view.showGridLines = False
 
-        data_adapter = eerr_completo_v2_ui_adapter(self.year, engine_unit)
+        data_adapter = eerr_completo_v2_ui_adapter(db_conn, self.year, engine_unit)
         rows_by_partida = {r['partida']: r for r in data_adapter.get('rows', [])}
 
         N = len(self.months)
