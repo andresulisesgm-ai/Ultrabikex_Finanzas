@@ -3557,7 +3557,10 @@ def dashboard_divisa_real():
 
     from engine import calcular_estados_reales
     eerr_unit_param = '' if unit == 'TODAS' else unit
-    eerr_data = calcular_estados_reales(year, eerr_unit_param, empresa_id=empresa_id)['eerr_real']
+    estados_real = calcular_estados_reales(year, eerr_unit_param, empresa_id=empresa_id)
+    if 'error' in estados_real:
+        return jsonify(estados_real), 400
+    eerr_data = estados_real['eerr_real']
 
     def get_mes_valor(partida_name):
         row = next((r for r in eerr_data['rows'] if r['partida'] == partida_name), None)
@@ -3761,9 +3764,9 @@ def _calcular_eerr_divisa_real(year, unit, empresa_id=None, plug_divisa_q=None):
         
         # Validación de tasas
         if bcv is None or bcv <= 0:
-            return jsonify({'error': f"Tasa BCV promedio inválida o cero para el mes {m} {year}"}), 400
+            return {'error': f"Tasa BCV promedio inválida o cero para el mes {m} {year}"}
         if paralela is None or paralela <= 0:
-            return jsonify({'error': f"Tasa paralela promedio inválida o cero para el mes {m} {year}"}), 400
+            return {'error': f"Tasa paralela promedio inválida o cero para el mes {m} {year}"}
             
         diferencial = paralela / bcv
         tasas_by_month[m] = {
@@ -3780,7 +3783,7 @@ def _calcular_eerr_divisa_real(year, unit, empresa_id=None, plug_divisa_q=None):
     months_in_data = set(r['month'] for r in rows_curr)
     for m in months_in_data:
         if m not in tasas_by_month:
-            return jsonify({'error': f"Faltan tasas de cambio (tasas_periodo) para el periodo {year}/{m}"}), 400
+            return {'error': f"Faltan tasas de cambio (tasas_periodo) para el periodo {year}/{m}"}
 
     metodos_rows = db.execute(
         'SELECT month, unit, odoo_code, pct_cash FROM metodo_pago_cuenta WHERE year=?',
@@ -4420,6 +4423,8 @@ def eerr_divisa_real():
     unit = request.args.get('unit', '')
     empresa_id = request.args.get('empresa_id', type=int)
     estados = calcular_estados_reales(year, unit, empresa_id=empresa_id)
+    if 'error' in estados:
+        return jsonify(estados), 400
     return jsonify(estados['eerr_real'])
 
 

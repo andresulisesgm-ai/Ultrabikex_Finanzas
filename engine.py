@@ -1042,6 +1042,8 @@ def calcular_estados_reales(year, unit='', empresa_id=None):
     # consolidado -- el plug debe calcularse sobre la utilidad de TODA la empresa,
     # sin importar qué unidad pidió el llamante; ver Paso 4 para el EERR de la unidad).
     eerr_preliminar = _calcular_eerr_divisa_real(year, '', empresa_id=empresa_id)
+    if 'error' in eerr_preliminar:
+        return eerr_preliminar
 
     # Extraer Utilidad Neta despues de ISLR por trimestre (mismo agrupamiento que esf_engine)
     q_months = {
@@ -1104,6 +1106,8 @@ def calcular_estados_reales(year, unit='', empresa_id=None):
     unit_recibe_plug = unit in ('', 'Rodeo')
     plug_a_inyectar = plug_divisa_q if unit_recibe_plug else None
     eerr_real = _calcular_eerr_divisa_real(year, unit, empresa_id=empresa_id, plug_divisa_q=plug_a_inyectar)
+    if 'error' in eerr_real:
+        return eerr_real
 
     return {
         'eerr_real': eerr_real,
