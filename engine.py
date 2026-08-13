@@ -333,9 +333,6 @@ ESF_STRUCTURE = [
     ('TOTAL PATRIMONIO', True, None),
 ]
 
-# Partidas ESF que son cuentas de balance (tienen datos en esf_data)
-ESF_LEAF_PARTIDAS = {row[0] for row in ESF_STRUCTURE if not row[1]}
-
 
 class OdooParser:
     """
