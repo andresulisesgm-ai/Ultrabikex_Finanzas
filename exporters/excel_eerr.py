@@ -258,8 +258,8 @@ class ExcelExporter:
         import openpyxl
         from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
-        from engine import eerr_completo_v2_ui_adapter
-        from app import _calcular_eerr_divisa_real, PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO
+        from engine import eerr_completo_v2_ui_adapter, _calcular_eerr_divisa_real
+        from app import PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO
         import os, tempfile
 
         NOMBRE_CONSOLIDADO = consolidado_name
