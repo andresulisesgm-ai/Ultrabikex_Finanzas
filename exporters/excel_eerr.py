@@ -249,16 +249,17 @@ class ExcelExporter:
         self.empresa_id = empresa_id
 
     def generate(self, wb=None, save=True, return_meta=False, consolidado_name=None):
+        from db import get_db
+        db_conn = get_db()
         if consolidado_name is None:
             from app import _nombre_empresa_display
-            from db import get_db
-            db_conn_nombre = get_db()
-            nombre_emp = _nombre_empresa_display(db_conn_nombre, self.empresa_id)
+            nombre_emp = _nombre_empresa_display(db_conn, self.empresa_id)
             consolidado_name = f'EERR {nombre_emp}'[:31]
         import openpyxl
         from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
-        from engine import eerr_completo_v2_ui_adapter, _calcular_eerr_divisa_real, PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO
+        from engine import eerr_completo_v2_ui_adapter
+        from app import _calcular_eerr_divisa_real, PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO
         import os, tempfile
 
         NOMBRE_CONSOLIDADO = consolidado_name
@@ -407,7 +408,7 @@ class ExcelExporter:
                 muestra_pct_gastos_cons_capture = {item['partida']: item.get('muestra_pct_gastos', False) for item in rows}
 
             if unit != NOMBRE_CONSOLIDADO and not self.divisa_real:
-                notes_name, partida_month_rows, notes_header_rows = self._build_notes_sheet(wb, unit, engine_unit)
+                notes_name, partida_month_rows, notes_header_rows = self._build_notes_sheet(wb, unit, engine_unit, db_conn)
                 notes_name_by_unit[unit] = notes_name
                 partida_month_rows_by_unit[unit] = partida_month_rows
                 notes_header_rows_by_unit[unit] = notes_header_rows
@@ -703,9 +704,7 @@ class ExcelExporter:
                         c_g.number_format = PCT_FMT
 
         from app import _nombre_empresa_display
-        from db import get_db
-        db_conn_path = get_db()
-        nombre_emp_path = _nombre_empresa_display(db_conn_path, self.empresa_id)
+        nombre_emp_path = _nombre_empresa_display(db_conn, self.empresa_id)
         hojas_creadas = sheets_to_build
         if NOMBRE_CONSOLIDADO in wb.sheetnames:
             idx_actual = wb.sheetnames.index(NOMBRE_CONSOLIDADO)
@@ -726,7 +725,7 @@ class ExcelExporter:
             }
         return path
 
-    def _build_notes_sheet(self, wb, unit, engine_unit):
+    def _build_notes_sheet(self, wb, unit, engine_unit, db_conn):
         import os
         from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
