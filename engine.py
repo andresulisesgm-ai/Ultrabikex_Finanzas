@@ -717,9 +717,11 @@ def esf_engine(year, unit='', aplicar_divisa_real=False, empresa_id=None,
     if utilidad_externa_q is not None:
         utilidad_q = utilidad_externa_q
     else:
+        conn_adapter = sqlite3.connect(DB_PATH)
+        conn_adapter.row_factory = sqlite3.Row
         try:
             from app import eerr_completo_v2_ui_adapter
-            eerr_data = eerr_completo_v2_ui_adapter(year, unit, empresa_id=empresa_id)
+            eerr_data = eerr_completo_v2_ui_adapter(conn_adapter, year, unit, empresa_id=empresa_id)
             net_income_row = None
             for r in eerr_data.get('rows', []):
                 if r.get('partida') == 'Utilidad Neta despues de ISLR':
@@ -739,13 +741,12 @@ def esf_engine(year, unit='', aplicar_divisa_real=False, empresa_id=None,
                             q_sum += m_data.get('ejecutado', {}).get('valor', 0.0)
                     utilidad_q[q] = q_sum
         except Exception as e:
-            try:
-                from app import app as flask_app
-                flask_app.logger.error(
-                    f"Error al calcular Utilidad Neta para ESF (year={year}, unit={unit}): {str(e)}"
-                )
-            except Exception:
-                pass
+            import logging
+            logging.getLogger(__name__).error(
+                f"Error al calcular Utilidad Neta para ESF (year={year}, unit={unit}): {str(e)}"
+            )
+        finally:
+            conn_adapter.close()
 
     tasas_por_quarter = {}
     if aplicar_divisa_real:
@@ -1037,79 +1038,85 @@ def calcular_estados_reales(year, unit='', empresa_id=None):
     Retorna: {'eerr_real': <dict de _calcular_eerr_divisa_real>, 'esf_real': <dict de esf_engine>}
     """
     from app import _calcular_eerr_divisa_real
+    import sqlite3, os
+    DB_PATH_LOCAL = os.path.join(os.path.dirname(__file__), 'data', 'ultrax.db')
+    conn_estados = sqlite3.connect(DB_PATH_LOCAL)
+    conn_estados.row_factory = sqlite3.Row
+    try:
+        # 1. EERR Real preliminar CONSOLIDADO (unit='' siempre, ESF es exclusivamente
+        # consolidado -- el plug debe calcularse sobre la utilidad de TODA la empresa,
+        # sin importar qué unidad pidió el llamante; ver Paso 4 para el EERR de la unidad).
+        eerr_preliminar = _calcular_eerr_divisa_real(conn_estados, year, '', empresa_id=empresa_id)
+        if 'error' in eerr_preliminar:
+            return eerr_preliminar
 
-    # 1. EERR Real preliminar CONSOLIDADO (unit='' siempre, ESF es exclusivamente
-    # consolidado -- el plug debe calcularse sobre la utilidad de TODA la empresa,
-    # sin importar qué unidad pidió el llamante; ver Paso 4 para el EERR de la unidad).
-    eerr_preliminar = _calcular_eerr_divisa_real(year, '', empresa_id=empresa_id)
-    if 'error' in eerr_preliminar:
-        return eerr_preliminar
+        # Extraer Utilidad Neta despues de ISLR por trimestre (mismo agrupamiento que esf_engine)
+        q_months = {
+            1: ['ENE', 'FEB', 'MAR'],
+            2: ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN'],
+            3: ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEPT'],
+            4: ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEPT', 'OCT', 'NOV', 'DIC']
+        }
+        utilidad_externa_q = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}
+        net_income_row = None
+        for r in eerr_preliminar.get('rows', []):
+            if r.get('partida') == 'Utilidad Neta despues de ISLR':
+                net_income_row = r
+                break
+        if net_income_row:
+            for q, months in q_months.items():
+                q_sum = 0.0
+                for m_data in net_income_row.get('meses', []):
+                    if m_data.get('month') in months:
+                        q_sum += m_data.get('ejecutado', {}).get('valor', 0.0)
+                utilidad_externa_q[q] = q_sum
 
-    # Extraer Utilidad Neta despues de ISLR por trimestre (mismo agrupamiento que esf_engine)
-    q_months = {
-        1: ['ENE', 'FEB', 'MAR'],
-        2: ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN'],
-        3: ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEPT'],
-        4: ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEPT', 'OCT', 'NOV', 'DIC']
-    }
-    utilidad_externa_q = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}
-    net_income_row = None
-    for r in eerr_preliminar.get('rows', []):
-        if r.get('partida') == 'Utilidad Neta despues de ISLR':
-            net_income_row = r
-            break
-    if net_income_row:
-        for q, months in q_months.items():
-            q_sum = 0.0
-            for m_data in net_income_row.get('meses', []):
-                if m_data.get('month') in months:
-                    q_sum += m_data.get('ejecutado', {}).get('valor', 0.0)
-            utilidad_externa_q[q] = q_sum
+        # 2. ESF BCV normal -> Acumulados de referencia (fijo en el real)
+        esf_bcv = esf_engine(year, '', aplicar_divisa_real=False, empresa_id=empresa_id)
+        acumulados_fijos_q = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}
+        for r in esf_bcv.get('rows', []):
+            if r.get('partida') == 'Resultados acumulados':
+                for q in [1, 2, 3, 4]:
+                    acumulados_fijos_q[q] = r['quarters'].get(q, 0.0)
+                break
 
-    # 2. ESF BCV normal -> Acumulados de referencia (fijo en el real)
-    esf_bcv = esf_engine(year, '', aplicar_divisa_real=False, empresa_id=empresa_id)
-    acumulados_fijos_q = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}
-    for r in esf_bcv.get('rows', []):
-        if r.get('partida') == 'Resultados acumulados':
-            for q in [1, 2, 3, 4]:
-                acumulados_fijos_q[q] = r['quarters'].get(q, 0.0)
-            break
+        # 3. ESF Real: Utilidad externa + Acumulados fijos -> plug de diferencia
+        esf_real = esf_engine(
+            year, '', aplicar_divisa_real=True, empresa_id=empresa_id,
+            utilidad_externa_q=utilidad_externa_q, acumulados_fijos_q=acumulados_fijos_q
+        )
+        plug_divisa_q = esf_real.get('plug_divisa_q', {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0})
 
-    # 3. ESF Real: Utilidad externa + Acumulados fijos -> plug de diferencia
-    esf_real = esf_engine(
-        year, '', aplicar_divisa_real=True, empresa_id=empresa_id,
-        utilidad_externa_q=utilidad_externa_q, acumulados_fijos_q=acumulados_fijos_q
-    )
-    plug_divisa_q = esf_real.get('plug_divisa_q', {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0})
+        # Corrección ago-2026 (10-ago), confirmada contra el Excel de Yocelin: "Resultados del
+        # ejercicio" en su hoja 'N ESF ULTRAX' YA INCLUYE la ganancia/perdida en tasa cambiaria
+        # (Fila 26 esta ANTES de Utilidad Neta en su hoja, dentro de Total Ingresos No
+        # Operativos) -- no es una utilidad "limpia" sin esa linea como se asumio al principio.
+        # utilidad_final_q = preliminar + plug reproduce exactamente ese comportamiento
+        # (verificado: 30389.95 + 15395.36 = 45785.31, exacto contra el Excel). Se parchea
+        # solo 'Resultados del ejercicio' en esf_real -- TOTAL ACTIVOS/PASIVOS/Acumulados no
+        # cambian, ya son correctos y no dependen de la utilidad.
+        utilidad_final_q = {q: utilidad_externa_q[q] + plug_divisa_q[q] for q in [1, 2, 3, 4]}
+        for row in esf_real.get('rows', []):
+            if row.get('partida') == 'Resultados del ejercicio':
+                for q in [1, 2, 3, 4]:
+                    row['quarters'][q] = round(utilidad_final_q[q], 2)
+                break
 
-    # Corrección ago-2026 (10-ago), confirmada contra el Excel de Yocelin: "Resultados del
-    # ejercicio" en su hoja 'N ESF ULTRAX' YA INCLUYE la ganancia/perdida en tasa cambiaria
-    # (Fila 26 esta ANTES de Utilidad Neta en su hoja, dentro de Total Ingresos No
-    # Operativos) -- no es una utilidad "limpia" sin esa linea como se asumio al principio.
-    # utilidad_final_q = preliminar + plug reproduce exactamente ese comportamiento
-    # (verificado: 30389.95 + 15395.36 = 45785.31, exacto contra el Excel). Se parchea
-    # solo 'Resultados del ejercicio' en esf_real -- TOTAL ACTIVOS/PASIVOS/Acumulados no
-    # cambian, ya son correctos y no dependen de la utilidad.
-    utilidad_final_q = {q: utilidad_externa_q[q] + plug_divisa_q[q] for q in [1, 2, 3, 4]}
-    for row in esf_real.get('rows', []):
-        if row.get('partida') == 'Resultados del ejercicio':
-            for q in [1, 2, 3, 4]:
-                row['quarters'][q] = round(utilidad_final_q[q], 2)
-            break
+        # 4. EERR Real final: reinyectar el plug en el mes de cierre correspondiente.
+        # Regla confirmada contra el Excel de Yocelin (10-ago-2026): el ajuste consolidado de
+        # Ganancia/Perdida en tasa cambiaria SOLO aparece en la unidad Rodeo y en el consolidado
+        # -- las demas unidades (PiedeMonte, Terracota, Ucafe, Barinas, Naranjos) no lo llevan.
+        # Confirmado con datos literales de "N EERR RODEO" vs "N EERR ULTRAX" (valores identicos)
+        # vs "N EERR PIEDEM"/"N EERR TERRA"/"N EERR UCAFE"/"N EERR BARINAS"/"N EERR LOS NA" (vacios).
+        unit_recibe_plug = unit in ('', 'Rodeo')
+        plug_a_inyectar = plug_divisa_q if unit_recibe_plug else None
+        eerr_real = _calcular_eerr_divisa_real(conn_estados, year, unit, empresa_id=empresa_id, plug_divisa_q=plug_a_inyectar)
+        if 'error' in eerr_real:
+            return eerr_real
 
-    # 4. EERR Real final: reinyectar el plug en el mes de cierre correspondiente.
-    # Regla confirmada contra el Excel de Yocelin (10-ago-2026): el ajuste consolidado de
-    # Ganancia/Perdida en tasa cambiaria SOLO aparece en la unidad Rodeo y en el consolidado
-    # -- las demas unidades (PiedeMonte, Terracota, Ucafe, Barinas, Naranjos) no lo llevan.
-    # Confirmado con datos literales de "N EERR RODEO" vs "N EERR ULTRAX" (valores identicos)
-    # vs "N EERR PIEDEM"/"N EERR TERRA"/"N EERR UCAFE"/"N EERR BARINAS"/"N EERR LOS NA" (vacios).
-    unit_recibe_plug = unit in ('', 'Rodeo')
-    plug_a_inyectar = plug_divisa_q if unit_recibe_plug else None
-    eerr_real = _calcular_eerr_divisa_real(year, unit, empresa_id=empresa_id, plug_divisa_q=plug_a_inyectar)
-    if 'error' in eerr_real:
-        return eerr_real
-
-    return {
-        'eerr_real': eerr_real,
-        'esf_real': esf_real,
-    }
+        return {
+            'eerr_real': eerr_real,
+            'esf_real': esf_real,
+        }
+    finally:
+        conn_estados.close()
