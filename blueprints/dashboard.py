@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request, session
 from datetime import datetime
 from db import get_db
+from auth import login_required
 from constants import MONTHS
 from helpers import get_clasificacion
 
@@ -677,3 +678,39 @@ def dashboard():
         'indicadores_avanzados': indicadores_avanzados,
         'punto_equilibrio': pe
     })
+
+
+
+@dashboard_bp.route('/api/dashboard/config', methods=['GET'])
+@login_required
+def get_dashboard_config():
+    import json
+    username = session.get('username')
+    db = get_db()
+    row = db.execute('SELECT config_json FROM dashboard_config WHERE username = ?', [username]).fetchone()
+    if row:
+        return jsonify(json.loads(row['config_json']))
+    return jsonify(DEFAULT_DASHBOARD_CONFIG)
+
+
+@dashboard_bp.route('/api/dashboard/config', methods=['POST'])
+@login_required
+def save_dashboard_config():
+    import json
+    username = session.get('username')
+    config_data = request.get_json()
+    if not isinstance(config_data, list):
+        return jsonify({'error': 'La configuración debe ser una lista de widgets'}), 400
+    
+    config_json = json.dumps(config_data)
+    db = get_db()
+    db.execute('''
+        INSERT INTO dashboard_config (username, config_json, updated_at)
+        VALUES (?, ?, datetime('now', 'localtime'))
+        ON CONFLICT(username) DO UPDATE SET
+            config_json = excluded.config_json,
+            updated_at = excluded.updated_at
+    ''', [username, config_json])
+    db.commit()
+    return jsonify({'ok': True})
+
