@@ -1605,8 +1605,23 @@ def grafico_detalle():
     month    = request.args.get('month', '')
     db       = get_db()
 
-    uc = '' if (not unit or unit == 'TODAS') else "AND unit=?"
-    uc_params = [] if (not unit or unit == 'TODAS') else [unit]
+    empresa_id = request.args.get('empresa_id', type=int) or None
+    unidades_empresa = []
+    if empresa_id is not None:
+        unidades_empresa = [r['nombre'] for r in db.execute(
+            'SELECT nombre FROM unidades WHERE empresa_id=?', (empresa_id,)
+        ).fetchall()]
+
+    if unit and unit != 'TODAS':
+        uc = "AND unit=?"
+        uc_params = [unit]
+    elif empresa_id is not None and unidades_empresa:
+        ph_u = ','.join('?' * len(unidades_empresa))
+        uc = f"AND unit IN ({ph_u})"
+        uc_params = list(unidades_empresa)
+    else:
+        uc = ''
+        uc_params = []
     ing_p, cos_p, gas_p = get_clasificacion(db)
 
     if chart_id == 'ch-main':
@@ -1675,7 +1690,7 @@ def grafico_detalle():
         if not unit or unit == 'TODAS':
             # Vista consolidada: desglose por unidad (igual que top gastos pero para ingresos)
             unidades = []
-            for u in UNITS:
+            for u in (unidades_empresa if empresa_id is not None else UNITS):
                 uc_u = f"AND unit='{u}'"
                 def usum(ps):
                     if not ps: return 0

@@ -3448,7 +3448,7 @@ function chartUniversalClick(id,els){
 }
 async function openUniversalDetalle(id){
   const year=G('dash-year').value, unit=G('dash-unit').value;
-  let url=`/api/grafico/detalle?chart_id=${id}&year=${year}&unit=${encodeURIComponent(unit)}`;
+  let url=`/api/grafico/detalle?chart_id=${id}&year=${year}&unit=${encodeURIComponent(unit)}&empresa_id=${CURRENT_EMPRESA_ID||''}`;
   G('det-title').textContent='Cargando…'; G('det-sub').textContent=''; G('det-parts').innerHTML='';
   G('detmod').classList.add('show');
   try{
