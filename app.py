@@ -11,12 +11,14 @@ from db import init_db, migrate_db, get_db, close_db, DB_PATH
 from auth import login_required, admin_required, verify_password, get_current_user
 from blueprints.backup import backup_bp
 from blueprints.tasas import tasas_bp
+from blueprints.metodo_pago import metodo_pago_bp
 from constants import MONTHS, UNITS, ESF_PLUG_VARIACION_UMBRAL, PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO, SEGMENTOS_INGRESO_PCT_VTAS
 from helpers import divisor_ejec, divisor_ppto_mes, divisor_prev, calcular_muestra_pct_gastos, get_clasificacion, aplicar_factor_divisa, get_grouped_partidas_v2
 
 app = Flask(__name__)
 app.register_blueprint(backup_bp)
 app.register_blueprint(tasas_bp)
+app.register_blueprint(metodo_pago_bp)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.secret_key = secrets.token_hex(32)
 limiter = Limiter(get_remote_address, app=app, default_limits=[])
@@ -2735,119 +2737,7 @@ def get_esf_divisa_real_detalle_cuentas():
     return jsonify({'year': year, 'quarter': quarter, 'partidas': partidas})
 
 
-@app.route('/api/metodo_pago', methods=['GET'])
-def get_metodo_pago():
-    """Retorna métodos de pago para year/month dados, agrupados por odoo_code."""
-    year  = request.args.get('year')
-    month = request.args.get('month')
 
-    if not year or not month:
-        return jsonify({'error': 'Se requiere year y month'}), 400
-
-    db   = get_db()
-    rows = db.execute(
-        'SELECT * FROM metodo_pago_cuenta WHERE year=? AND month=? ORDER BY odoo_code, unit',
-        (year, month)
-    ).fetchall()
-
-    return jsonify([dict(r) for r in rows])
-
-
-@app.route('/api/metodo_pago', methods=['POST'])
-@admin_required
-def save_metodo_pago():
-    """
-    Guarda % Cash/BCV para un período.
-    Body: {year, month, metodos: [{unit, odoo_code, pct_cash}, ...]}
-    """
-    data = request.get_json()
-    year    = data.get('year')
-    month   = data.get('month')
-    metodos = data.get('metodos', [])
-
-    if not all([year, month]):
-        return jsonify({'error': 'Faltan year/month'}), 400
-
-    if not metodos:
-        return jsonify({'error': 'No hay métodos de pago para guardar'}), 400
-
-    db = get_db()
-
-    # Borrar configuración anterior del período
-    db.execute('DELETE FROM metodo_pago_cuenta WHERE year=? AND month=?', (year, month))
-
-    # Insertar nueva configuración
-    for m in metodos:
-        unit     = m.get('unit')
-        code     = m.get('odoo_code')
-        pct_cash = m.get('pct_cash', 0)
-
-        if not all([unit, code]) or pct_cash < 0 or pct_cash > 100:
-            continue
-
-        db.execute('''
-            INSERT OR IGNORE INTO metodo_pago_cuenta (year, month, unit, odoo_code, pct_cash)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (year, month, unit, code, pct_cash))
-
-    db.commit()
-    return jsonify({'ok': True, 'inserted': len(metodos)})
-
-
-@app.route('/api/metodo_pago/copiar', methods=['POST'])
-@admin_required
-def copiar_metodo_pago():
-    """
-    Copia configuración de % Cash/BCV de un período anterior.
-    Body: {from_year, from_month, to_year, to_month}
-    """
-    data = request.get_json()
-    from_y = data.get('from_year')
-    from_m = data.get('from_month')
-    to_y   = data.get('to_year')
-    to_m   = data.get('to_month')
-    units  = data.get('units')  # lista de unidades; None = todas
-
-    if not all([from_y, from_m, to_y, to_m]):
-        return jsonify({'error': 'Faltan parámetros'}), 400
-
-    db = get_db()
-
-    # Leer configuración origen (filtrado por unidades si se especifica)
-    if units:
-        placeholders = ','.join('?' * len(units))
-        rows = db.execute(
-            'SELECT unit, odoo_code, pct_cash FROM metodo_pago_cuenta WHERE year=? AND month=? AND unit IN (' + placeholders + ')',
-            [from_y, from_m] + list(units)
-        ).fetchall()
-    else:
-        rows = db.execute(
-            'SELECT unit, odoo_code, pct_cash FROM metodo_pago_cuenta WHERE year=? AND month=?',
-            (from_y, from_m)
-        ).fetchall()
-
-    if not rows:
-        return jsonify({'error': 'No hay configuración en el período origen'}), 404
-
-    # Borrar destino solo para las unidades afectadas
-    if units:
-        placeholders = ','.join('?' * len(units))
-        db.execute(
-            'DELETE FROM metodo_pago_cuenta WHERE year=? AND month=? AND unit IN (' + placeholders + ')',
-            [to_y, to_m] + list(units)
-        )
-    else:
-        db.execute('DELETE FROM metodo_pago_cuenta WHERE year=? AND month=?', (to_y, to_m))
-
-    # Insertar en destino
-    for r in rows:
-        db.execute('''
-            INSERT INTO metodo_pago_cuenta (year, month, unit, odoo_code, pct_cash)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (to_y, to_m, r['unit'], r['odoo_code'], r['pct_cash']))
-
-    db.commit()
-    return jsonify({'ok': True, 'copied': len(rows)})
 
 
 @app.route('/api/dashboard_divisa_real', methods=['GET'])
