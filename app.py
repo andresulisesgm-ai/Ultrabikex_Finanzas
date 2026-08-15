@@ -15,6 +15,7 @@ from blueprints.metodo_pago import metodo_pago_bp
 from blueprints.historial import historial_bp
 from blueprints.eerr import eerr_bp
 from blueprints.esf import esf_bp
+from blueprints.indicadores import indicadores_bp
 from constants import MONTHS, UNITS, ESF_PLUG_VARIACION_UMBRAL, PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO, SEGMENTOS_INGRESO_PCT_VTAS
 from helpers import divisor_ejec, divisor_ppto_mes, divisor_prev, calcular_muestra_pct_gastos, get_clasificacion, aplicar_factor_divisa, get_grouped_partidas_v2
 
@@ -25,6 +26,7 @@ app.register_blueprint(metodo_pago_bp)
 app.register_blueprint(historial_bp)
 app.register_blueprint(eerr_bp)
 app.register_blueprint(esf_bp)
+app.register_blueprint(indicadores_bp)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.secret_key = secrets.token_hex(32)
 limiter = Limiter(get_remote_address, app=app, default_limits=[])
@@ -1971,22 +1973,7 @@ def compute_indicadores(db, year, unit='', ingresos=0.0, util_neta=0.0, empresa_
 
 
 
-@app.route('/api/indicadores', methods=['GET'])
-def get_indicadores():
-    """
-    Retorna indicadores financieros avanzados (ROE, ROA, liquidez, rotación).
-    Parámetros: year, unit (opcional), empresa_id (opcional).
-    """
-    year = request.args.get('year', str(datetime.now().year))
-    unit = request.args.get('unit', '')
-    empresa_id = request.args.get('empresa_id', type=int) or None
-    db   = get_db()
 
-    indicadores = compute_indicadores_v2(db, year, empresa_id=empresa_id)
-    if not indicadores:
-        return jsonify({'error': 'Sin datos ESF para calcular indicadores'}), 404
-
-    return jsonify({'year': year, 'unit': unit, 'empresa_id': empresa_id, 'indicadores': indicadores})
 
 
 # ── Divisa Real (Tasas y Métodos de Pago) ────────────────────────────────────
