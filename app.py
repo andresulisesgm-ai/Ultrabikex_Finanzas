@@ -14,6 +14,7 @@ from blueprints.tasas import tasas_bp
 from blueprints.metodo_pago import metodo_pago_bp
 from blueprints.historial import historial_bp
 from blueprints.eerr import eerr_bp
+from blueprints.esf import esf_bp
 from constants import MONTHS, UNITS, ESF_PLUG_VARIACION_UMBRAL, PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO, SEGMENTOS_INGRESO_PCT_VTAS
 from helpers import divisor_ejec, divisor_ppto_mes, divisor_prev, calcular_muestra_pct_gastos, get_clasificacion, aplicar_factor_divisa, get_grouped_partidas_v2
 
@@ -23,6 +24,7 @@ app.register_blueprint(tasas_bp)
 app.register_blueprint(metodo_pago_bp)
 app.register_blueprint(historial_bp)
 app.register_blueprint(eerr_bp)
+app.register_blueprint(esf_bp)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.secret_key = secrets.token_hex(32)
 limiter = Limiter(get_remote_address, app=app, default_limits=[])
@@ -1960,106 +1962,13 @@ def compute_indicadores(db, year, unit='', ingresos=0.0, util_neta=0.0, empresa_
     }
 
 
-@app.route('/api/esf/totals', methods=['GET'])
-@login_required
-def esf_totals():
-    """
-    Retorna totales ESF del último quarter disponible para uso en dashboard widgets.
-    Parámetros: year, unit (opcional).
-    """
-    year = request.args.get('year', str(datetime.now().year))
-    unit = request.args.get('unit', '')
-    db   = get_db()
-
-    result_quarters, quarters_available = compute_esf(db, year, unit)
-    if not quarters_available:
-        return jsonify({'error': 'Sin datos ESF'}), 404
-
-    last_q = max(quarters_available)
-    totales = result_quarters[last_q]['totales']
-
-    return jsonify({
-        'year': year,
-        'unit': unit,
-        'quarter': last_q,
-        'totales': {
-            'total_activos':        totales.get('TOTAL ACTIVOS', 0),
-            'activos_corrientes':   totales.get('ACTIVOS CORRIENTES', 0),
-            'activos_no_corrientes':totales.get('Total Activos No Corrientes', 0),
-            'total_pasivos':        totales.get('TOTAL PASIVOS', 0),
-            'pasivos_corrientes':   totales.get('TOTAL PASIVOS CORRIENTES', 0),
-            'pasivos_no_corrientes':totales.get('TOTAL PASIVOS NO CORRIENTES', 0),
-            'patrimonio':           totales.get('TOTAL PATRIMONIO', 0),
-            'efectivo':             totales.get('Total Efectivo y Equivalentes', 0),
-            'cuentas_por_cobrar':   totales.get('Total Cuentas por Cobrar (neto)', 0),
-            'inventarios':          totales.get('Total Inventarios', 0),
-            'cuentas_por_pagar':    totales.get('Total Cuentas por Pagar', 0),
-        }
-    })
 
 
-@app.route('/api/esf', methods=['GET'])
-def esf():
-    """
-    Estado de Situación Financiera por quarter.
-    Parámetros: year, unit (opcional). Siempre retorna los 4 quarters;
-    el filtro por quarter se aplica en el frontend.
-    """
-    year = request.args.get('year', str(datetime.now().year))
-    unit = request.args.get('unit', '')
-    db   = get_db()
-
-    result_quarters, quarters_available = compute_esf(db, year, unit)
-
-    def var(q_a, q_b, key):
-        a = result_quarters[q_a]['totales'].get(key, 0)
-        b = result_quarters[q_b]['totales'].get(key, 0)
-        if a == 0: return None
-        return round((b - a) / abs(a) * 100, 1)
-
-    variaciones = {}
-    for key in ['TOTAL ACTIVOS', 'TOTAL PASIVOS', 'TOTAL PATRIMONIO', 'TOTAL PASIVOS Y PATRIMONIO']:
-        variaciones[key] = {
-            'Q1_Q2': var(1, 2, key),
-            'Q2_Q3': var(2, 3, key),
-            'Q3_Q4': var(3, 4, key),
-        }
-
-    return jsonify({
-        'year': year, 'unit': unit,
-        'quarters': result_quarters,
-        'quarters_available': quarters_available,
-        'variaciones': variaciones,
-    })
 
 
-@app.route('/api/esf/completo', methods=['GET'])
-def esf_completo():
-    """
-    Estado de Situación Financiera completo con estructura jerárquica expandible de 3 niveles.
-    Parámetros: year, unit (opcional).
-    """
-    year = request.args.get('year', str(datetime.now().year))
-    unit = request.args.get('unit', '')
-    empresa_id = request.args.get('empresa_id', type=int) or None
-    from engine import esf_engine
-    result = esf_engine(year, unit, empresa_id=empresa_id)
-    try:
-        db = get_db()
-        validate_esf_integrity(year, unit, result, db, empresa_id=empresa_id)
-    except Exception as e:
-        app.logger.error(f"Error al ejecutar validacion de integridad ESF: {str(e)}")
 
-    year_prev = str(int(year) - 1)
-    result_prev = esf_engine(year_prev, unit, empresa_id=empresa_id)
-    prev_by_partida = {}
-    for r in result_prev.get('rows', []):
-        prev_by_partida[r['partida']] = r.get('quarters', {}).get(4, 0.0)
-    for row in result.get('rows', []):
-        row['year_prev'] = prev_by_partida.get(row['partida'], 0.0)
-    result['year_prev'] = year_prev
 
-    return jsonify(result)
+
 
 
 @app.route('/api/indicadores', methods=['GET'])
