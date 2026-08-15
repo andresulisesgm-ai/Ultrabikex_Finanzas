@@ -659,7 +659,7 @@ def dashboard():
             ).fetchall()
 
     # 8. Indicadores Avanzados pasando ingresos y utilidad neta calculados
-    from app import compute_indicadores
+    from engine import compute_indicadores
     indicadores_avanzados = compute_indicadores(db, year, '' if unit == 'TODAS' else unit, tI, un, empresa_id=empresa_id)
 
     totals = {

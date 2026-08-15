@@ -6,7 +6,7 @@ class IndicadoresExporter:
         import openpyxl
         from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
-        from app import compute_indicadores_v2
+        from engine import compute_indicadores_v2
         from db import get_db
         import os, tempfile
 

@@ -11,7 +11,7 @@ def get_indicadores():
     Retorna indicadores financieros avanzados (ROE, ROA, liquidez, rotación).
     Parámetros: year, unit (opcional), empresa_id (opcional).
     """
-    from app import compute_indicadores_v2
+    from engine import compute_indicadores_v2
     year = request.args.get('year', str(datetime.now().year))
     unit = request.args.get('unit', '')
     empresa_id = request.args.get('empresa_id', type=int) or None

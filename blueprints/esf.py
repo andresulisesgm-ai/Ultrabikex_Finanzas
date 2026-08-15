@@ -13,7 +13,7 @@ def esf_totals():
     Retorna totales ESF del último quarter disponible para uso en dashboard widgets.
     Parámetros: year, unit (opcional).
     """
-    from app import compute_esf
+    from engine import compute_esf
     year = request.args.get('year', str(datetime.now().year))
     unit = request.args.get('unit', '')
     db   = get_db()
@@ -52,7 +52,7 @@ def esf():
     Parámetros: year, unit (opcional). Siempre retorna los 4 quarters;
     el filtro por quarter se aplica en el frontend.
     """
-    from app import compute_esf
+    from engine import compute_esf
     year = request.args.get('year', str(datetime.now().year))
     unit = request.args.get('unit', '')
     db   = get_db()
@@ -87,7 +87,7 @@ def esf_completo():
     Estado de Situación Financiera completo con estructura jerárquica expandible de 3 niveles.
     Parámetros: year, unit (opcional).
     """
-    from app import validate_esf_integrity
+    from engine import validate_esf_integrity
     year = request.args.get('year', str(datetime.now().year))
     unit = request.args.get('unit', '')
     empresa_id = request.args.get('empresa_id', type=int) or None
