@@ -9,10 +9,12 @@ from exporters.excel_eerr import ExcelExporter
 from exporters.excel_esf import ESFExporter
 from db import init_db, migrate_db, get_db, close_db, DB_PATH
 from auth import login_required, admin_required, verify_password, get_current_user
+from blueprints.backup import backup_bp
 from constants import MONTHS, UNITS, ESF_PLUG_VARIACION_UMBRAL, PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO, SEGMENTOS_INGRESO_PCT_VTAS
 from helpers import divisor_ejec, divisor_ppto_mes, divisor_prev, calcular_muestra_pct_gastos, get_clasificacion, aplicar_factor_divisa, get_grouped_partidas_v2
 
 app = Flask(__name__)
+app.register_blueprint(backup_bp)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.secret_key = secrets.token_hex(32)
 limiter = Limiter(get_remote_address, app=app, default_limits=[])
@@ -3678,38 +3680,6 @@ def get_years():
         years = [str(datetime.now().year)]
     return jsonify(years)
 
-
-# ── Backup / Restore ──────────────────────────────────────────────────────────
-
-@app.route('/api/backup', methods=['GET'])
-def backup():
-    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-    return send_file(DB_PATH, as_attachment=True, download_name=f'ultrax_backup_{ts}.db',
-                     mimetype='application/octet-stream')
-
-@app.route('/api/restore', methods=['POST'])
-@admin_required
-def restore():
-    file = request.files.get('file')
-    if not file: return jsonify({'error': 'No se envió archivo'}), 400
-    if not file.filename.endswith('.db'): return jsonify({'error': 'El archivo debe ser .db'}), 400
-    tmp_file = tempfile.NamedTemporaryFile(suffix='.db', delete=False)
-    tmp = tmp_file.name
-    tmp_file.close()
-    try:
-        file.save(tmp)
-        conn   = sqlite3.connect(tmp)
-        tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
-        conn.close()
-        if not {'financials', 'mapping', 'history'}.issubset(tables):
-            os.remove(tmp)
-            return jsonify({'error': f'DB inválida. Tablas: {tables}'}), 400
-        shutil.copy2(DB_PATH, DB_PATH + '.bk')
-        shutil.move(tmp, DB_PATH)
-        return jsonify({'ok': True, 'message': 'Base de datos restaurada correctamente'})
-    except Exception as e:
-        if os.path.exists(tmp): os.remove(tmp)
-        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/mapping/reset', methods=['POST'])
