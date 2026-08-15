@@ -1120,7 +1120,7 @@ def calcular_estados_reales(year, unit='', empresa_id=None):
         conn_estados.close()
 
 def eerr_completo_v2_ui_adapter(db, year, unit, empresa_id=None):
-    from app import (
+    from helpers import (
         get_clasificacion, get_grouped_partidas_v2, calcular_muestra_pct_gastos,
         divisor_ejec, divisor_ppto_mes, divisor_prev
     )
@@ -1599,7 +1599,7 @@ def _calcular_eerr_divisa_real(db, year, unit, empresa_id=None, plug_divisa_q=No
     Parámetros: year, unit
     Retorna: dict con year, year_prev, unit, rows
     """
-    from app import (
+    from helpers import (
         get_clasificacion, get_grouped_partidas_v2, calcular_muestra_pct_gastos,
         divisor_ejec, divisor_ppto_mes, divisor_prev, aplicar_factor_divisa
     )
