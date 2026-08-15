@@ -12,6 +12,7 @@ from auth import login_required, admin_required, verify_password, get_current_us
 from blueprints.backup import backup_bp
 from blueprints.tasas import tasas_bp
 from blueprints.metodo_pago import metodo_pago_bp
+from blueprints.historial import historial_bp
 from constants import MONTHS, UNITS, ESF_PLUG_VARIACION_UMBRAL, PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO, SEGMENTOS_INGRESO_PCT_VTAS
 from helpers import divisor_ejec, divisor_ppto_mes, divisor_prev, calcular_muestra_pct_gastos, get_clasificacion, aplicar_factor_divisa, get_grouped_partidas_v2
 
@@ -19,6 +20,7 @@ app = Flask(__name__)
 app.register_blueprint(backup_bp)
 app.register_blueprint(tasas_bp)
 app.register_blueprint(metodo_pago_bp)
+app.register_blueprint(historial_bp)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.secret_key = secrets.token_hex(32)
 limiter = Limiter(get_remote_address, app=app, default_limits=[])
@@ -369,11 +371,6 @@ def upload():
 
 # ── History ───────────────────────────────────────────────────────────────────
 
-@app.route('/api/history', methods=['GET'])
-def get_history():
-    db = get_db()
-    return jsonify([dict(r) for r in db.execute('SELECT * FROM history ORDER BY id DESC').fetchall()])
-
 
 @app.route('/api/mapping/unmapped', methods=['GET'])
 def get_unmapped_accounts():
@@ -408,22 +405,6 @@ def get_unmapped_accounts():
 
     return jsonify(result)
 
-@app.route('/api/history/<int:hid>/revert', methods=['POST'])
-@admin_required
-def revert_history(hid):
-    db = get_db()
-    h  = db.execute('SELECT * FROM history WHERE id=?', (hid,)).fetchone()
-    if not h:         return jsonify({'error': 'No encontrado'}), 404
-    if h['reverted']: return jsonify({'error': 'Ya revertida'}), 400
-    if h['is_esf']:
-        quarter = MONTH_TO_QUARTER.get(h['month'], 1)
-        db.execute('DELETE FROM esf_data WHERE year=? AND quarter=? AND unit=? AND empresa_id=?', (h['year'], quarter, h['unit'], h['empresa_id']))
-        db.execute('DELETE FROM financials_detail WHERE year=? AND quarter=? AND unit=? AND report_type=\'esf\' AND empresa_id=?', (h['year'], quarter, h['unit'], h['empresa_id']))
-    else:
-        db.execute('DELETE FROM financials WHERE year=? AND month=? AND unit=?', (h['year'], h['month'], h['unit']))
-    db.execute('UPDATE history SET reverted=1 WHERE id=?', (hid,))
-    db.commit()
-    return jsonify({'ok': True})
 
 
 # ── Mapping ───────────────────────────────────────────────────────────────────
