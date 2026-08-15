@@ -5196,13 +5196,6 @@ async function loadCmp(){
   },60);
 }
 
-function doPdfExport(){
-  const year=G('dash-year').value, unit=G('dash-unit').value==='TODAS'?'':G('dash-unit').value;
-  let url=`/api/export/pdf?year=${year}`;
-  if(unit)url+=`&unit=${encodeURIComponent(unit)}`;
-  window.location.href=url;
-}
-
 // ── CERRAR APP ────────────────────────────────────────────────────────────
 async function closeApp(){
   if(!confirm('¿Cerrar ULTRAX? Esto detendrá el servidor.'))return;
