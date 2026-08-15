@@ -16,6 +16,7 @@ from blueprints.historial import historial_bp
 from blueprints.eerr import eerr_bp
 from blueprints.esf import esf_bp
 from blueprints.indicadores import indicadores_bp
+from blueprints.dashboard import dashboard_bp
 from constants import MONTHS, UNITS, ESF_PLUG_VARIACION_UMBRAL, PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO, SEGMENTOS_INGRESO_PCT_VTAS
 from helpers import divisor_ejec, divisor_ppto_mes, divisor_prev, calcular_muestra_pct_gastos, get_clasificacion, aplicar_factor_divisa, get_grouped_partidas_v2
 
@@ -27,6 +28,7 @@ app.register_blueprint(historial_bp)
 app.register_blueprint(eerr_bp)
 app.register_blueprint(esf_bp)
 app.register_blueprint(indicadores_bp)
+app.register_blueprint(dashboard_bp)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.secret_key = secrets.token_hex(32)
 limiter = Limiter(get_remote_address, app=app, default_limits=[])
@@ -70,6 +72,9 @@ GASTO_CATS = {
     'TI+I':             ['dominio','servidores','software tecnológico'],
     'No Operacionales': ['Faltante','Pérdida','Multas','deterioro de inventarios'],
 }
+
+
+
 
 
 # ── Anti-caché ──────────────────────────────────────────────────────────────────
@@ -531,182 +536,7 @@ def restore_mapping_log(lid):
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
 
-@app.route('/api/dashboard', methods=['GET'])
-def dashboard():
-    year = request.args.get('year', str(datetime.now().year))
-    unit = request.args.get('unit', 'TODAS')
-    empresa_id = request.args.get('empresa_id', type=int) or None
-    db   = get_db()
-    ing_p, cos_p, gas_p = get_clasificacion(db)
 
-    # 1. Obtener los datos del EERR
-    eerr_unit_param = '' if unit == 'TODAS' else unit
-    from engine import eerr_completo_v2_ui_adapter
-    eerr_data = eerr_completo_v2_ui_adapter(db, year, eerr_unit_param, empresa_id=empresa_id)
-
-    # Función auxiliar para extraer datos del EERR
-    def get_eerr_values(partida_name):
-        row = next((r for r in eerr_data['rows'] if r['partida'] == partida_name), None)
-        if not row:
-            return {m: 0.0 for m in MONTHS}, 0.0
-        
-        monthly_vals = {}
-        total_anual = 0.0
-        for m_data in row['meses']:
-            m_name = m_data['month']
-            val = m_data['ejecutado']['valor']
-            monthly_vals[m_name] = val
-            total_anual += val
-            
-        return monthly_vals, round(total_anual, 2)
-
-    # Extracción directa de los nodos del EERR
-    ingresos_mes, tI = get_eerr_values('Total Ingresos')
-    costos_mes, tC   = get_eerr_values('Total Costo de Ventas')
-    ub_mes, ub       = get_eerr_values('Utilidad Bruta')
-    gastos_mes, tG   = get_eerr_values('Total Gastos Operacionales y No Operacionales')
-    ebt_mes, ebt     = get_eerr_values('Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)')
-    un_mes, un       = get_eerr_values('Utilidad Neta')
-
-    # 2. Desglose por unidad (por_unidad) — solo si la empresa activa tiene unidades propias.
-    # Holding (empresa_id=None) no tiene desglose por unidad: es agregado de 4 empresas, no de unidades.
-    por_unidad = []
-    unidades_empresa = []
-    if empresa_id is not None:
-        unidades_empresa = [r['nombre'] for r in db.execute(
-            'SELECT nombre FROM unidades WHERE empresa_id=?', (empresa_id,)
-        ).fetchall()]
-    for u in unidades_empresa:
-        eerr_u = eerr_completo_v2_ui_adapter(db, year, u, empresa_id=empresa_id)
-        
-        def get_u_total(p_name):
-            r = next((row for row in eerr_u['rows'] if row['partida'] == p_name), None)
-            return sum(m['ejecutado']['valor'] for m in r['meses']) if r else 0.0
-
-        i_u = get_u_total('Total Ingresos')
-        c_u = get_u_total('Total Costo de Ventas')
-        g_u = get_u_total('Total Gastos Operacionales y No Operacionales')
-        ub_u = get_u_total('Utilidad Bruta')
-        un_u = get_u_total('Utilidad Neta')
-
-        mb_u = round(ub_u / i_u * 100, 1) if i_u else 0
-        mn_u = round(un_u / i_u * 100, 1) if i_u else 0
-        rc_u = round(c_u / i_u * 100, 1) if i_u else 0
-        rg_u = round(g_u / i_u * 100, 1) if i_u else 0
-
-        if i_u or c_u or g_u:
-            por_unidad.append({
-                'unit': u, 'ingresos': round(i_u, 2), 'costos': round(c_u, 2), 'gastos': round(g_u, 2),
-                'utilidad_bruta': round(ub_u, 2), 'utilidad_neta': round(un_u, 2),
-                'margen_bruto': mb_u, 'margen_neto': mn_u, 'ratio_costo': rc_u, 'ratio_gasto': rg_u
-            })
-
-    # 3. Top 10 Gastos desglosados
-    gas_rows = []
-    for r in eerr_data['rows']:
-        if not r['is_header'] and r['partida'] in gas_p:
-            val_anual = sum(m['ejecutado']['valor'] for m in r['meses'])
-            if val_anual > 0:
-                gas_rows.append({
-                    'partida': r['partida'],
-                    'total': round(val_anual, 2),
-                    't': round(val_anual, 2)
-                })
-    top_gastos = sorted(gas_rows, key=lambda x: x['total'], reverse=True)[:10]
-
-    # Compatibilidad de EBITDA: asegurar que depreciación esté en top_gastos para que la fórmula simplificada de JS (un + depr) cuadre exactamente
-    depr_row = next((r for r in eerr_data['rows'] if r['partida'] == 'Depreciaciones, deterioro y Amortización'), None)
-    depr_val = sum(m['ejecutado']['valor'] for m in depr_row['meses']) if depr_row else 0.0
-    
-    depr_in_top = any(g['partida'] == 'Depreciaciones, deterioro y Amortización' for g in top_gastos)
-    if not depr_in_top and depr_val > 0:
-        top_gastos.append({
-            'partida': 'Depreciaciones, deterioro y Amortización',
-            'total': round(depr_val, 2),
-            't': round(depr_val, 2)
-        })
-
-    # 4. Distribución por categorías (cat_gastos)
-    subtotal_mapping = {
-        'Subtotal Gastos de Administración': 'Administración',
-        'Subtotal Gastos de Recursos Humanos': 'Rec. Humanos',
-        'Subtotal Gastos de Comercialización y Logistica': 'Comercialización',
-        'Subtotal Gastos de Mercadeo': 'Mercadeo',
-        'Gastos de TI+I': 'TI+I',
-        'Otros Gastos no Operacionales': 'No Operacionales'
-    }
-    
-    cat_gastos = []
-    for subtotal_name, cat_name in subtotal_mapping.items():
-        _, val_anual = get_eerr_values(subtotal_name)
-        if val_anual > 0:
-            cat_gastos.append({
-                'categoria': cat_name,
-                'total': val_anual
-            })
-
-    # 5. Datos Mensuales (months_data)
-    months_data = []
-    for m in MONTHS:
-        i = ingresos_mes.get(m, 0.0)
-        c = costos_mes.get(m, 0.0)
-        g = gastos_mes.get(m, 0.0)
-        u_b = ub_mes.get(m, 0.0)
-        u_n = un_mes.get(m, 0.0)
-        
-        months_data.append({
-            'month': m, 'ingresos': round(i, 2), 'costos': round(c, 2), 'gastos': round(g, 2),
-            'utilidad_bruta': round(u_b, 2), 'utilidad_neta': round(u_n, 2),
-            'margen_bruto': round(u_b / i * 100, 1) if i else 0,
-            'margen_neto': round(u_n / i * 100, 1) if i else 0,
-            'ratio_costo': round(c / i * 100, 1) if i else 0,
-            'ratio_gasto': round(g / i * 100, 1) if i else 0
-        })
-
-    # 6. Punto de Equilibrio (pe) usando los totales consolidados
-    pe = None
-    if unit != 'TODAS' and tI > 0:
-        mc = 1 - tC / tI
-        if mc > 0:
-            pev = tG / mc
-            pe = {
-                'pe_ingresos': round(pev, 2),
-                'ingresos_actuales': round(tI, 2),
-                'cobertura_pct': round(tI / pev * 100, 1) if pev else 0,
-                'margen_contribucion_pct': round(mc * 100, 1)
-            }
-
-    # 7. Meses cargados
-    loaded = []
-    if empresa_id is not None:
-        unidades_rows = db.execute('SELECT nombre FROM unidades WHERE empresa_id=?', [empresa_id]).fetchall()
-        unidades_list = [r['nombre'] for r in unidades_rows]
-        if unidades_list:
-            placeholders = ','.join(['?'] * len(unidades_list))
-            loaded = db.execute(
-                f'SELECT DISTINCT unit, month FROM financials WHERE year=? AND unit IN ({placeholders}) ORDER BY unit, month',
-                [year] + unidades_list
-            ).fetchall()
-
-    # 8. Indicadores Avanzados pasando ingresos y utilidad neta calculados
-    indicadores_avanzados = compute_indicadores(db, year, '' if unit == 'TODAS' else unit, tI, un, empresa_id=empresa_id)
-
-    totals = {
-        'ingresos': round(tI, 2),
-        'costos': round(tC, 2),
-        'utilidad_bruta': round(ub, 2),
-        'gastos': round(tG, 2),
-        'ebitda': round(ebt, 2),
-        'utilidad_neta': round(un, 2)
-    }
-
-    return jsonify({
-        'months': months_data, 'por_unidad': por_unidad, 'top_gastos': top_gastos,
-        'cat_gastos': cat_gastos, 'loaded': [{'unit': r['unit'], 'month': r['month']} for r in loaded],
-        'totals': totals,
-        'indicadores_avanzados': indicadores_avanzados,
-        'punto_equilibrio': pe
-    })
 
 
 @app.route('/api/empresas', methods=['GET'])
@@ -1278,6 +1108,7 @@ DEFAULT_DASHBOARD_CONFIG = [
     "dataset": "divisa_real"
   }
 ]
+
 
 @app.route('/api/dashboard/config', methods=['GET'])
 @login_required
