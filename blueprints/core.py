@@ -92,3 +92,18 @@ def trazabilidad():
         'total':  round(total_kpi, 2),
         'cuentas': cuentas
     })
+
+
+@core_bp.route('/api/years', methods=['GET'])
+def get_years():
+    db = get_db()
+    rows = db.execute(
+        '''SELECT year FROM financials
+           UNION SELECT year FROM esf_data
+           UNION SELECT year FROM budget'''
+    ).fetchall()
+    years = sorted({str(r['year']) for r in rows if r['year'] is not None}, reverse=True)
+    if not years:
+        years = [str(datetime.now().year)]
+    return jsonify(years)
+
