@@ -5,7 +5,7 @@ from openpyxl.utils import get_column_letter
 import os, tempfile
 from datetime import datetime
 
-MONTHS = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC']
+from constants import MONTHS
 
 MONTH_TO_QUARTER = {
     'ENE': 1, 'FEB': 1, 'MAR': 1,

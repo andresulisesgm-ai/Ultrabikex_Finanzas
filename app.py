@@ -9,6 +9,7 @@ from exporters.excel_eerr import ExcelExporter
 from exporters.excel_esf import ESFExporter
 from db import init_db, migrate_db, get_db, close_db, DB_PATH
 from auth import login_required, admin_required, verify_password, get_current_user
+from constants import MONTHS, UNITS, ESF_PLUG_VARIACION_UMBRAL, PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO, SEGMENTOS_INGRESO_PCT_VTAS
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -31,7 +32,6 @@ RUTAS_PUBLICAS = {'login_page', 'login', 'static'}
 # empíricamente en jul-2026 con datos simulados (rango observado:
 # 9.6%-21.7% de Total Activos en fluctuación normal). Recalibrar cuando
 # se acumulen varios trimestres de datos reales de producción.
-ESF_PLUG_VARIACION_UMBRAL = 0.25
 
 @app.before_request
 def _requerir_sesion_global():
@@ -44,52 +44,6 @@ def _requerir_sesion_global():
 
 # Registrar función de cierre de base de datos
 app.teardown_appcontext(close_db)
-
-UNITS  = ['Rodeo', 'PiedeMonte', 'Terracota', 'Ucafe', 'Barinas', 'Naranjos']
-MONTHS = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC']
-
-# ── %Vtas segmentado para Costo de Ventas / Utilidad Bruta por segmento ──
-# Estas partidas dividen %Vtas contra el ingreso de su propio segmento
-# (Mercancia+Taller, Servicios o Eventos) en vez del Total Ingresos general.
-# Spec confirmado contra formulas de ESF_EJEMPLO.xlsx, hoja "EERR RODEO".
-PARTIDAS_DIVISOR_SEGMENTADO = {
-    'Subtotal Costo de Ventas por Mercancia': 'mercancia_taller',
-    'Costos de venta por mercancia': 'mercancia_taller',
-    'Utilidad Bruta por Venta de Mercancia y Taller': 'mercancia_taller',
-    'Subtotal Costo de Ventas por Servicios': 'servicios',
-    'Costo de venta por servicio del café': 'servicios',
-    'Utilidad Bruta por Servicios': 'servicios',
-    'Subtotal Costo de Ventas por Eventos': 'eventos',
-    'Costo de ventas por eventos': 'eventos',
-    'Utilidad Bruta por Eventos': 'eventos',
-}
-
-# Claves de subtotales_por_mes[m] (ya calculadas via EERR_STRUCTURE) por segmento.
-SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO = {
-    'mercancia_taller': ['Subtotal Ingresos por Venta de Mercancia', 'Subtotal Ingresos por Taller'],
-    'servicios': ['Subtotal Ingresos por Servicios'],
-    'eventos': ['Subtotal Ingresos por Eventos'],
-}
-
-# Partidas hoja por segmento (mismo universo que arma EERR_STRUCTURE para
-# los subtotales de arriba), usadas contra datos crudos: by_budget y by_prev_raw.
-SEGMENTOS_INGRESO_PCT_VTAS = {
-    'mercancia_taller': [
-        'Ingresos por venta de mercancias',
-        'Devoluciones sobre ventas',
-        'Descuentos sobre ventas',
-        'Ingresos por taller',
-    ],
-    'servicios': [
-        'Ingresos por servicios del café',
-        'Ingresos por zona FIT',
-        'Ingresos por fletes',
-        'Ingresos por otros servicios',
-    ],
-    'eventos': [
-        'Ingresos por eventos',
-    ],
-}
 
 
 def divisor_ejec(partida_name, subtotales_mes, default, by_partida=None, m=None, ing_p=None):
