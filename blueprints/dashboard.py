@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request, session
+import json
 from datetime import datetime
 from db import get_db
 from auth import login_required
@@ -680,11 +681,9 @@ def dashboard():
     })
 
 
-
 @dashboard_bp.route('/api/dashboard/config', methods=['GET'])
 @login_required
 def get_dashboard_config():
-    import json
     username = session.get('username')
     db = get_db()
     row = db.execute('SELECT config_json FROM dashboard_config WHERE username = ?', [username]).fetchone()
@@ -696,7 +695,6 @@ def get_dashboard_config():
 @dashboard_bp.route('/api/dashboard/config', methods=['POST'])
 @login_required
 def save_dashboard_config():
-    import json
     username = session.get('username')
     config_data = request.get_json()
     if not isinstance(config_data, list):

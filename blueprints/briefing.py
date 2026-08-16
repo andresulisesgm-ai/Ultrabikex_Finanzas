@@ -1,9 +1,11 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response
 from datetime import datetime
 from auth import admin_required
 from db import get_db
 
 briefing_bp = Blueprint('briefing', __name__)
+
+TIPOS_PROMPT_VALIDOS = {'consolidado', 'unidad_mes', 'anual', 'comparativo_mes', 'comparativo_anual'}
 
 
 @briefing_bp.route('/api/briefing-prompt', methods=['GET'])
@@ -11,8 +13,7 @@ briefing_bp = Blueprint('briefing', __name__)
 def get_briefing_prompt():
     tipo = request.args.get('tipo', '')
     default_flag = request.args.get('default', '0') == '1'
-    tipos_validos = {'consolidado', 'unidad_mes', 'anual', 'comparativo_mes', 'comparativo_anual'}
-    if tipo not in tipos_validos:
+    if tipo not in TIPOS_PROMPT_VALIDOS:
         return jsonify({'error': 'tipo_reporte inválido'}), 400
 
     if default_flag:
@@ -47,8 +48,7 @@ def save_briefing_prompt():
     tipo = data.get('tipo_reporte', '')
     texto = data.get('prompt_text', '')
 
-    tipos_validos = {'consolidado', 'unidad_mes', 'anual', 'comparativo_mes', 'comparativo_anual'}
-    if tipo not in tipos_validos:
+    if tipo not in TIPOS_PROMPT_VALIDOS:
         return jsonify({'error': 'tipo_reporte inválido'}), 400
     if not texto.strip():
         return jsonify({'error': 'prompt_text vacío'}), 400
@@ -69,7 +69,6 @@ def save_briefing_prompt():
 @briefing_bp.route('/api/export/ai', methods=['GET', 'POST'])
 @admin_required
 def export_ai():
-    from datetime import datetime as dt
     import io
     from db import (
         PROMPT_CONSOLIDADO_DEFAULT, PROMPT_UNIDAD_MES_DEFAULT, PROMPT_ANUAL_DEFAULT,
@@ -139,7 +138,7 @@ def export_ai():
     lines.append(f"**Período:** {periodo}")
     lines.append(f"**Alcance:** {alcance}")
     lines.append(f"**Moneda:** {moneda}")
-    lines.append(f"**Generado:** {dt.now().strftime('%Y-%m-%d %H:%M')}")
+    lines.append(f"**Generado:** {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     lines.append('')
     lines.append('---')
     lines.append('')
@@ -275,6 +274,7 @@ def export_ai():
 
     # ── COMPARATIVA POR UNIDAD ────────────────────────────────────────────────
     if tipo == 'comparativa':
+        from engine import eerr_completo_v2_ui_adapter
         empresa_id_comp = request.args.get('empresa_id', type=int) if request.method == 'GET' else data.get('empresa_id')
         # Ucafe excluida: es venta de café, negocio distinto al resto (retail) — no es comparable, decisión de negocio.
         if empresa_id_comp is not None:
@@ -335,7 +335,6 @@ def export_ai():
     contenido = '\n'.join(lines)
     nombre = f"ultrax_briefing_{alcance.replace(' ','_')}_{periodo.replace(' ','_')}.md"
 
-    from flask import Response
     return Response(
         contenido,
         mimetype='text/markdown',
