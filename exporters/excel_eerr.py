@@ -252,7 +252,7 @@ class ExcelExporter:
         from db import get_db
         db_conn = get_db()
         if consolidado_name is None:
-            from app import _nombre_empresa_display
+            from helpers import _nombre_empresa_display
             nombre_emp = _nombre_empresa_display(db_conn, self.empresa_id)
             consolidado_name = f'EERR {nombre_emp}'[:31]
         import openpyxl
@@ -703,7 +703,7 @@ class ExcelExporter:
                         c_g = ws.cell(row=r, column=col_prom_g, value=f'={get_column_letter(col_acum_g)}{r}')
                         c_g.number_format = PCT_FMT
 
-        from app import _nombre_empresa_display
+        from helpers import _nombre_empresa_display
         nombre_emp_path = _nombre_empresa_display(db_conn, self.empresa_id)
         hojas_creadas = sheets_to_build
         if NOMBRE_CONSOLIDADO in wb.sheetnames:

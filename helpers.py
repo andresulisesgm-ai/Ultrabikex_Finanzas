@@ -111,3 +111,24 @@ def get_grouped_partidas_v2(db, report_type='eerr'):
         groups.setdefault(gname, []).append(partida)
         grouped_partidas.add(partida)
     return groups, grouped_partidas
+
+
+# ── Funciones movidas desde app.py (Fase 3, reubicación directa) ───────────
+
+def _nombre_empresa(db, empresa_id):
+    row = db.execute('SELECT nombre_corto FROM empresas WHERE id=?', (empresa_id,)).fetchone()
+    return row['nombre_corto'] if row else f"Empresa {empresa_id}"
+
+
+def _nombre_empresa_display(db, empresa_id):
+    """Nombre corto para uso en exportables (títulos de hoja, nombres de archivo).
+    'Holding' para empresa_id=None (agregado de las 4 empresas); nombre comercial
+    sin sufijo legal (' C.A.') para empresas individuales."""
+    if empresa_id is None:
+        return 'Holding'
+    row = db.execute('SELECT nombre_corto FROM empresas WHERE id=?', (empresa_id,)).fetchone()
+    nombre = row['nombre_corto'] if row else f"Empresa {empresa_id}"
+    if nombre.endswith(' C.A.'):
+        nombre = nombre[:-5]
+    return nombre.strip()
+

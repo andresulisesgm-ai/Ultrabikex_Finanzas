@@ -97,7 +97,7 @@ class ESFDivisaRealExporter:
 
         db_conn = get_db()
 
-        from app import _nombre_empresa_display
+        from helpers import _nombre_empresa_display
         nombre_emp = _nombre_empresa_display(db_conn, self.empresa_id)
 
         # Unidades reales de la empresa activa (o la lista de todas si es Holding/empresa_id=None).

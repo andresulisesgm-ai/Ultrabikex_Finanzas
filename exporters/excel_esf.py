@@ -105,7 +105,7 @@ class ESFExporter:
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
 
-        from app import _nombre_empresa_display
+        from helpers import _nombre_empresa_display
         db_conn = get_db()
         nombre_emp = _nombre_empresa_display(db_conn, self.empresa_id)
 

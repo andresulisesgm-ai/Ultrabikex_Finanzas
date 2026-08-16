@@ -632,6 +632,7 @@ def export_excel():
         path = exp.generate()
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
+    from helpers import _nombre_empresa_display
     nombre_emp_dl = _nombre_empresa_display(db_conn, empresa_id) if unit == '' else unit
     suf   = (f'_{unit}' if unit else '_CONSOLIDADO') + ('_DIVISA_REAL' if divisa else '') + (f'_{mf}-{mt}' if mf and mt else '')
     return send_file(path, as_attachment=True, download_name=f'EERR_{nombre_emp_dl}_{year}{suf}.xlsx')
@@ -653,6 +654,7 @@ def export_esf():
     exp  = ESFExporter(year, meses, empresa_id=empresa_id)
     path = exp.generate()
     db_conn_esf = get_db()
+    from helpers import _nombre_empresa_display
     nombre_emp_esf = _nombre_empresa_display(db_conn_esf, empresa_id)
     suf  = f'_Q{quarter}' if quarter else ''
     return send_file(path, as_attachment=True, download_name=f'ESF_{nombre_emp_esf}_{year}{suf}.xlsx')
@@ -666,12 +668,9 @@ def export_esf_divisa_real():
     exp = ESFDivisaRealExporter(year, empresa_id=empresa_id)
     path = exp.generate()
     db_conn_dr = get_db()
+    from helpers import _nombre_empresa_display
     nombre_emp_dr = _nombre_empresa_display(db_conn_dr, empresa_id)
     return send_file(path, as_attachment=True, download_name=f'ESF_DIVISA_REAL_{nombre_emp_dr}_{year}.xlsx')
-
-
-
-
 
 
 @app.route('/api/mapping/reset', methods=['POST'])
@@ -748,24 +747,6 @@ def save_briefing_prompt():
 
 # ── Exportar para IA ──────────────────────────────────────────────────────────
 
-def _nombre_empresa(db, empresa_id):
-    row = db.execute('SELECT nombre_corto FROM empresas WHERE id=?', (empresa_id,)).fetchone()
-    return row['nombre_corto'] if row else f"Empresa {empresa_id}"
-
-
-def _nombre_empresa_display(db, empresa_id):
-    """Nombre corto para uso en exportables (títulos de hoja, nombres de archivo).
-    'Holding' para empresa_id=None (agregado de las 4 empresas); nombre comercial
-    sin sufijo legal (' C.A.') para empresas individuales."""
-    if empresa_id is None:
-        return 'Holding'
-    row = db.execute('SELECT nombre_corto FROM empresas WHERE id=?', (empresa_id,)).fetchone()
-    nombre = row['nombre_corto'] if row else f"Empresa {empresa_id}"
-    if nombre.endswith(' C.A.'):
-        nombre = nombre[:-5]
-    return nombre.strip()
-
-
 @app.route('/api/export/ai', methods=['GET', 'POST'])
 @admin_required
 def export_ai():
@@ -831,6 +812,7 @@ def export_ai():
 
     # Encabezado
     periodo = f"{month} {year}" if month else f"Año completo {year}"
+    from helpers import _nombre_empresa
     alcance = unit if unit else ('Consolidado grupo' if empresa_id is None else _nombre_empresa(db, empresa_id))
     moneda = "USD Paralelo" if 'divisa' in tipo else "USD / Bs"
 
