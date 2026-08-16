@@ -1,8 +1,5 @@
 import pandas as pd
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
-import os, tempfile
+import os
 from datetime import datetime
 
 import logging
@@ -253,7 +250,6 @@ EERR_STRUCTURE = [
     ('Utilidad Neta despues de ISLR', True, None, True, 'FF66FF66', 0, False, None, 0),
 ]
 
-# ── ESF Structure ─────────────────────────────────────────────────────────────
 
 class OdooParser:
     """
