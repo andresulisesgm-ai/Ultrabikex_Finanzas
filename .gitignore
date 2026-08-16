@@ -1,12 +1,9 @@
 .aider*
-
 # Logs
 flask_server.log
 integrity_guard.log
-
 # Archivos temporales Office
 ~$*.xlsx
-
 # Archivos de agentes IA
 .aiexclude
 .antigravityignore
@@ -15,10 +12,12 @@ integrity_guard.log
 .geminirules
 # Datos operativos
 uploads/
-
 # Python cache
 __pycache__/
 *.pyc
-
 # Base de datos
 data/ultrax.db
+data/ultrax.db-shm
+data/ultrax.db-wal
+# Backups automaticos de reset_mapping()
+data/mapping_backup_*.csv

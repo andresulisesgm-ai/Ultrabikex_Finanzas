@@ -8,8 +8,10 @@ flask_server.log
 integrity_guard.log
 .aider*
 .aiexclude
-.antigravignore
+.antigravityignore
+.antigravity/
 .geminiignore
+.geminirules
 ~$*.xlsx
 README.md
 CLAUDE.md
