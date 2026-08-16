@@ -85,8 +85,6 @@ class ESFExporter:
     (solo consolidado) dentro del mismo archivo, para trazabilidad de
     'Resultados del ejercicio'."""
 
-    UNITS = ['Rodeo', 'Barinas', 'Naranjos', 'PiedeMonte', 'Terracota', 'Ucafe']
-
     def __init__(self, year, months, empresa_id=None):
         self.year = year
         self.months = months  # lista completa de meses del año, ej. ENE..DIC

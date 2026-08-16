@@ -77,7 +77,7 @@ class ESFDivisaRealExporter:
     overrides de Divisa Real a través de esf_engine() y calcular_esf_divisa_real()."""
 
     def __init__(self, year, empresa_id=None):
-        from engine import MONTHS
+        from constants import MONTHS
         self.year = year
         self.empresa_id = empresa_id
         self.months = list(MONTHS)
