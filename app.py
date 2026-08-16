@@ -1,13 +1,8 @@
-from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
-import sqlite3, os, shutil, tempfile, secrets
-from datetime import datetime
-from werkzeug.utils import secure_filename
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+import os, secrets
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from engine import OdooParser, MONTH_TO_QUARTER
-from exporters.excel_eerr import ExcelExporter
-from exporters.excel_esf import ESFExporter
-from db import init_db, migrate_db, get_db, close_db, DB_PATH
+from db import init_db, migrate_db, close_db
 from auth import login_required, admin_required, verify_password, get_current_user
 from blueprints.backup import backup_bp
 from blueprints.tasas import tasas_bp
@@ -26,8 +21,7 @@ from blueprints.exportables import exportables_bp
 from blueprints.briefing import briefing_bp
 from blueprints.mapeo import mapeo_bp
 from blueprints.upload import upload_bp
-from constants import MONTHS, UNITS, ESF_PLUG_VARIACION_UMBRAL, PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO, SEGMENTOS_INGRESO_PCT_VTAS
-from helpers import divisor_ejec, divisor_ppto_mes, divisor_prev, calcular_muestra_pct_gastos, get_clasificacion, aplicar_factor_divisa, get_grouped_partidas_v2
+from constants import MONTHS, UNITS
 
 app = Flask(__name__)
 app.register_blueprint(backup_bp)
@@ -62,12 +56,6 @@ def rate_limit_exceeded(e):
 # Todas las rutas requieren sesión activa, salvo las explícitamente exentas abajo.
 RUTAS_PUBLICAS = {'login_page', 'login', 'static'}
 
-# Umbral de variación trimestral del plug "Resultados acumulados" en
-# el guardián de integridad ESF (validate_esf_integrity). Calibrado
-# empíricamente en jul-2026 con datos simulados (rango observado:
-# 9.6%-21.7% de Total Activos en fluctuación normal). Recalibrar cuando
-# se acumulen varios trimestres de datos reales de producción.
-
 @app.before_request
 def _requerir_sesion_global():
     if request.endpoint in RUTAS_PUBLICAS or request.endpoint is None:
@@ -79,12 +67,6 @@ def _requerir_sesion_global():
 
 # Registrar función de cierre de base de datos
 app.teardown_appcontext(close_db)
-
-
-
-
-
-
 
 
 # ── Anti-caché ──────────────────────────────────────────────────────────────────

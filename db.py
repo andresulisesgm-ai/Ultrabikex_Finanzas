@@ -4,8 +4,6 @@ from datetime import datetime
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'data', 'ultrax.db')
 
-# -*- coding: utf-8 -*-
-
 PROMPT_CONSOLIDADO_DEFAULT = """[IDENTIDAD]
 CFO con formación cuantitativa y trayectoria en retail de alto valor, reestructuración y mercados frontera. Tu modo de análisis es forense y calibrado: vas de la anomalía más severa a la menos severa, no de lo más visible a lo menos visible. La diplomacia en este análisis es un defecto, no una virtud. Si los datos apuntan a una conclusión incómoda, es exactamente esa la que debes entregar. El tono es frío y preciso, no alarmista. La dureza está en la claridad del hallazgo, no en el lenguaje con que se entrega. Un diagnóstico severo se entrega con la misma temperatura que uno favorable.
 
@@ -220,19 +218,24 @@ def classify_account(codigo: str) -> tuple:
 
 def load_mapping_from_excel(excel_path='Cuenta (account.account) (5).xlsx'):
     """
-    Lee el plan de cuentas de Odoo y genera el INITIAL_MAPPING.
+    Setup opcional de una sola vez: lee un plan de cuentas de Odoo en Excel y
+    genera el INITIAL_MAPPING para sembrar la tabla `mapping` desde cero.
+    No forma parte del arranque normal de la app -- el mapping real vive en
+    la tabla `mapping` de SQLite y se administra desde la pantalla Mapeo de
+    Cuentas. Sin el archivo de origen (caso normal en desarrollo/producción),
+    retorna lista vacía sin bloquear el arranque.
     Retorna lista de tuplas: (odoo_code, odoo_name, partida, sign, income_type)
     """
     try:
         import pandas as pd
     except ImportError:
-        print("[WARN]  pandas no instalado. Ejecuta: pip install pandas openpyxl")
         return []
 
     excel_full_path = os.path.join(os.path.dirname(__file__), excel_path)
 
     if not os.path.exists(excel_full_path):
-        print(f"[WARN]  Archivo no encontrado: {excel_full_path}")
+        # Esperado: este archivo de origen no vive en el proyecto salvo que se
+        # esté re-sembrando el mapping desde cero a propósito.
         return []
 
     try:
@@ -268,12 +271,14 @@ def load_mapping_from_excel(excel_path='Cuenta (account.account) (5).xlsx'):
     return mapping
 
 
-# Generar INITIAL_MAPPING desde el Excel
+# Generar INITIAL_MAPPING desde el Excel (setup opcional, ver load_mapping_from_excel)
 INITIAL_MAPPING = load_mapping_from_excel()
 
-# Si no se pudo cargar, usar fallback mínimo para evitar crash
+# Sin archivo de origen, queda vacío -- comportamiento normal y esperado
+# (el mapping real ya vive en la tabla `mapping`, administrado desde la
+# pantalla Mapeo de Cuentas). reset_mapping() solo es necesario si se quiere
+# re-sembrar el mapping desde un Excel nuevo.
 if not INITIAL_MAPPING:
-    print("[WARN]  Usando INITIAL_MAPPING vacío. Ejecuta reset_mapping() después de instalar pandas.")
     INITIAL_MAPPING = []
 
 
