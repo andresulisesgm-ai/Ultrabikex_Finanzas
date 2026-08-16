@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify
 from db import get_db
 from auth import admin_required
 from engine import MONTH_TO_QUARTER
