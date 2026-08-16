@@ -22,6 +22,7 @@ from blueprints.comparativas import comparativas_bp
 from blueprints.presupuesto import presupuesto_bp
 from blueprints.datos import datos_bp
 from blueprints.divisa_real import divisa_real_bp
+from blueprints.exportables import exportables_bp
 from constants import MONTHS, UNITS, ESF_PLUG_VARIACION_UMBRAL, PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO, SEGMENTOS_INGRESO_PCT_VTAS
 from helpers import divisor_ejec, divisor_ppto_mes, divisor_prev, calcular_muestra_pct_gastos, get_clasificacion, aplicar_factor_divisa, get_grouped_partidas_v2
 
@@ -39,6 +40,7 @@ app.register_blueprint(comparativas_bp)
 app.register_blueprint(presupuesto_bp)
 app.register_blueprint(datos_bp)
 app.register_blueprint(divisa_real_bp)
+app.register_blueprint(exportables_bp)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.secret_key = secrets.token_hex(32)
 limiter = Limiter(get_remote_address, app=app, default_limits=[])
@@ -89,11 +91,6 @@ def no_cache(response):
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
     return response
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-
 
 
 # ── Rutas de autenticación ────────────────────────────────────────────────────
@@ -365,9 +362,6 @@ def upload():
         return jsonify({'error': str(e)}), 500
 
 
-# ── History ───────────────────────────────────────────────────────────────────
-
-
 @app.route('/api/mapping/unmapped', methods=['GET'])
 def get_unmapped_accounts():
     """
@@ -536,142 +530,7 @@ def restore_mapping_log(lid):
     return jsonify({'ok': True})
 
 
-# ── Dashboard ─────────────────────────────────────────────────────────────────
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# ── EERR ──────────────────────────────────────────────────────────────────────
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# ── Exports ───────────────────────────────────────────────────────────────────
-
-@app.route('/api/export/excel', methods=['GET'])
-def export_excel():
-    tipo = request.args.get('tipo', '')
-    year = request.args.get('year', str(datetime.now().year))
-
-    if tipo == 'indicadores':
-        from exporters.excel_indicadores import IndicadoresExporter
-        exp = IndicadoresExporter(year)
-        path = exp.generate()
-        return send_file(path, as_attachment=True, download_name=f'INDICADORES_ULTRAX_{year}.xlsx')
-
-    from exporters.excel_eerr import ExcelExporter
-    unit = request.args.get('unit', '')
-    mf   = request.args.get('month_from', '')
-    mt   = request.args.get('month_to', '')
-    empresa_id = request.args.get('empresa_id', type=int)
-
-    if mf and mt and mf in MONTHS and mt in MONTHS:
-        fi, ti = MONTHS.index(mf), MONTHS.index(mt)
-        sel = MONTHS[fi:ti+1] if fi <= ti else MONTHS[fi:] + MONTHS[:ti+1]
-    elif mf and mf in MONTHS:
-        sel = MONTHS[MONTHS.index(mf):]
-    else:
-        sel = MONTHS
-
-    divisa = request.args.get('divisa', '') == '1'
-    db_conn = get_db()
-    if unit:
-        units = [unit]
-    elif empresa_id is not None:
-        units = [r[0] for r in db_conn.execute('SELECT nombre FROM unidades WHERE empresa_id=?', [empresa_id]).fetchall()]
-    else:
-        # Holding (sin empresa_id explícito desde este flujo): agregado de todas las unidades reales de las 4 empresas.
-        units = [r[0] for r in db_conn.execute('SELECT nombre FROM unidades').fetchall()]
-    exp    = ExcelExporter(year, units, sel, divisa_real=divisa, empresa_id=empresa_id)
-    try:
-        path = exp.generate()
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-    from helpers import _nombre_empresa_display
-    nombre_emp_dl = _nombre_empresa_display(db_conn, empresa_id) if unit == '' else unit
-    suf   = (f'_{unit}' if unit else '_CONSOLIDADO') + ('_DIVISA_REAL' if divisa else '') + (f'_{mf}-{mt}' if mf and mt else '')
-    return send_file(path, as_attachment=True, download_name=f'EERR_{nombre_emp_dl}_{year}{suf}.xlsx')
-
-
-@app.route('/api/export/esf', methods=['GET'])
-def export_esf():
-    from exporters.excel_esf import ESFExporter
-    year = request.args.get('year', str(datetime.now().year))
-    quarter = request.args.get('quarter', '')
-    empresa_id = request.args.get('empresa_id', type=int)
-    QUARTER_MESES = {
-        '1': ['ENE', 'FEB', 'MAR'],
-        '2': ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN'],
-        '3': ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEPT'],
-        '4': MONTHS,
-    }
-    meses = QUARTER_MESES.get(quarter, MONTHS)
-    exp  = ESFExporter(year, meses, empresa_id=empresa_id)
-    path = exp.generate()
-    db_conn_esf = get_db()
-    from helpers import _nombre_empresa_display
-    nombre_emp_esf = _nombre_empresa_display(db_conn_esf, empresa_id)
-    suf  = f'_Q{quarter}' if quarter else ''
-    return send_file(path, as_attachment=True, download_name=f'ESF_{nombre_emp_esf}_{year}{suf}.xlsx')
-
-
-@app.route('/api/export/esf-divisa-real', methods=['GET'])
-def export_esf_divisa_real():
-    from exporters.excel_esf_divisa import ESFDivisaRealExporter
-    year = request.args.get('year', str(datetime.now().year))
-    empresa_id = request.args.get('empresa_id', type=int)
-    exp = ESFDivisaRealExporter(year, empresa_id=empresa_id)
-    path = exp.generate()
-    db_conn_dr = get_db()
-    from helpers import _nombre_empresa_display
-    nombre_emp_dr = _nombre_empresa_display(db_conn_dr, empresa_id)
-    return send_file(path, as_attachment=True, download_name=f'ESF_DIVISA_REAL_{nombre_emp_dr}_{year}.xlsx')
-
+# ── Mapeo (reset) ─────────────────────────────────────────────────────────────
 
 @app.route('/api/mapping/reset', methods=['POST'])
 @admin_required
@@ -684,6 +543,8 @@ def reset_mapping_endpoint():
     result = reset_mapping()
     return jsonify(result)
 
+
+# ── Briefing IA ───────────────────────────────────────────────────────────────
 
 @app.route('/api/briefing-prompt', methods=['GET'])
 @admin_required
