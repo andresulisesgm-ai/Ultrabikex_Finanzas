@@ -1632,7 +1632,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "subtitle": "Activo y Pasivo por partida, por trimestre · Consolidado (no cambia con el filtro de unidad)",
     "visible": true,
     "order": 11,
-    "size": "l",
+    "size": "m",
     "chartType": "bar",
     "dataset": "estructura_capital_detallada"
   }
@@ -3316,8 +3316,11 @@ function loadEstructuraCapitalDetallada() {
       const ctsel = document.getElementById('ct-ch-estcapdet');
       const modoPct = ctsel && ctsel.value === 'pct';
 
-      const paletaAzules = ['#1e40af','#2563eb','#3b82f6','#60a5fa','#93c5fd','#bfdbfe'];
-      const paletaNaranjas = ['#c2410c','#ea580c','#f97316','#fb923c','#fdba74'];
+      // Rango amplio (casi negro a casi blanco) para que los tonos se distingan
+      // incluso en franjas finas -- pedido explicito tras revisar el resultado real.
+      const paletaAzules = ['#0c1e3e','#1e3a8a','#2563eb','#60a5fa','#bfdbfe'];
+      const paletaNaranjas = ['#431407','#9a3412','#ea580c','#fb923c','#fed7aa'];
+      const MAX_PARTIDAS_INDIVIDUALES = 4; // el resto se agrupa en "Otros"
 
       function armarPanel(canvasId, partidasRaw, paleta) {
         const conPromedio = partidasRaw.map(r => {
@@ -3327,10 +3330,20 @@ function loadEstructuraCapitalDetallada() {
         }).filter(x => x.vals.some(v => v !== 0));
         conPromedio.sort((a,b) => b.prom - a.prom); // mas oscuro = mayor valor
 
-        const totalPorTrimestre = quartersConDatos.map((q,i) =>
-          conPromedio.reduce((acc,x) => acc + x.vals[i], 0));
+        const principales = conPromedio.slice(0, MAX_PARTIDAS_INDIVIDUALES);
+        const resto = conPromedio.slice(MAX_PARTIDAS_INDIVIDUALES);
 
-        const datasets = conPromedio.map((x, idx) => {
+        const items = [...principales];
+        if (resto.length) {
+          const valsOtros = quartersConDatos.map((q,i) =>
+            resto.reduce((acc,x) => acc + x.vals[i], 0));
+          items.push({ r: { partida: `Otros (${resto.length})` }, vals: valsOtros, prom: 0 });
+        }
+
+        const totalPorTrimestre = quartersConDatos.map((q,i) =>
+          items.reduce((acc,x) => acc + x.vals[i], 0));
+
+        const datasets = items.map((x, idx) => {
           const data = modoPct
             ? x.vals.map((v,i) => totalPorTrimestre[i] ? (v/totalPorTrimestre[i]*100) : 0)
             : x.vals;

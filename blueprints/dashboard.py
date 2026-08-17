@@ -157,7 +157,7 @@ DEFAULT_DASHBOARD_CONFIG = [
     "subtitle": "Activo y Pasivo por partida, por trimestre · Consolidado (no cambia con el filtro de unidad)",
     "visible": True,
     "order": 11,
-    "size": "l",
+    "size": "m",
     "chartType": "bar",
     "dataset": "estructura_capital_detallada"
   }
