@@ -659,9 +659,26 @@ def dashboard():
                 [year] + unidades_list
             ).fetchall()
 
-    # 8. Indicadores Avanzados pasando ingresos y utilidad neta calculados
-    from engine import compute_indicadores
-    indicadores_avanzados = compute_indicadores(db, year, '' if unit == 'TODAS' else unit, tI, un, empresa_id=empresa_id)
+    # 8. Indicadores Avanzados: usar compute_indicadores_v2 (formulas corregidas de
+    # ROE/ROA/Periodo de Cobro, ver ultrax_logs.md), nunca compute_indicadores (v1),
+    # que queda obsoleta. ESF y sus indicadores van SIEMPRE consolidados, nunca
+    # filtrados por unit -- regla de negocio: el ESF no existe por unidad de negocio.
+    from engine import compute_indicadores_v2, compute_esf
+    indicadores_avanzados = compute_indicadores_v2(db, year, empresa_id=empresa_id)
+
+    razon_corriente = None
+    ind_rc = next((i for i in indicadores_avanzados if i['nombre'].startswith('Ratio Corriente')), None)
+    if ind_rc:
+        razon_corriente = ind_rc['anio_actual']
+
+    esf_quarters, esf_q_avail = compute_esf(db, year, '', empresa_id=empresa_id)
+    total_activos = total_pasivos = patrimonio = None
+    if esf_q_avail:
+        esf_last_q = max(esf_q_avail)
+        esf_tot = esf_quarters[esf_last_q]['totales']
+        total_activos = round(esf_tot.get('TOTAL ACTIVOS', 0), 2)
+        total_pasivos = round(esf_tot.get('TOTAL PASIVOS', 0), 2)
+        patrimonio    = round(esf_tot.get('TOTAL PATRIMONIO', 0), 2)
 
     totals = {
         'ingresos': round(tI, 2),
@@ -669,7 +686,11 @@ def dashboard():
         'utilidad_bruta': round(ub, 2),
         'gastos': round(tG, 2),
         'ebitda': round(ebt, 2),
-        'utilidad_neta': round(un, 2)
+        'utilidad_neta': round(un, 2),
+        'total_activos': total_activos,
+        'total_pasivos': total_pasivos,
+        'patrimonio': patrimonio,
+        'razon_corriente': razon_corriente
     }
 
     return jsonify({
