@@ -2523,11 +2523,32 @@ def compute_indicadores_v2(db, year, empresa_id=None):
             'efectivo':      tot.get('Total Efectivo y Equivalentes', 0),
             'inventarios':   tot.get('Total Inventarios', 0),
             'cxc':           tot.get('Total Cuentas por Cobrar (neto)', 0),
+            'cxc_clientes':  rows_esf.get('Cuentas por cobrar clientes', 0),
+            'cxc_grupo':     (rows_esf.get('A empresas relacionadas del grupo (CxC)', 0)
+                               + rows_esf.get('A empresas externas del grupo (CxC)', 0)
+                               + rows_esf.get('A socios (CxC)', 0)
+                               + rows_esf.get('Cuentas por cobrar empleados', 0)),
             'res_ejercicio': rows_esf.get('Resultados del ejercicio', 0),
         }
 
     def qe(q, key):
         return quarters_data[q]['esf'].get(key, 0) or 0
+
+    def periodo_cobro_q(q):
+        """Período de cobro en días para el trimestre q: CxC clientes externos
+        más CxC empresas del grupo/socios/empleados (cada una promediada con el
+        trimestre anterior), sobre ingresos acumulados desde enero hasta q,
+        por 90 días multiplicados por el número de trimestres transcurridos."""
+        if q not in _esf_quarters_available:
+            return None
+        cxc_ext = prom_esf(q, 'cxc_clientes')
+        cxc_grp = prom_esf(q, 'cxc_grupo')
+        if cxc_ext is None or cxc_grp is None:
+            return None
+        ingresos_acum = ing_cum_q.get(q, 0)
+        if not ingresos_acum:
+            return None
+        return round((cxc_ext + cxc_grp) / ingresos_acum * 90 * q, 2)
 
     def prom_esf(q, key):
         """Promedio del campo `key` del ESF entre el trimestre q y el anterior.
@@ -2557,6 +2578,15 @@ def compute_indicadores_v2(db, year, empresa_id=None):
         for k in acum_eerr:
             acum_eerr[k] += eerr_q.get(k, 0) or 0
         quarters_data[q] = {'eerr': eerr_q, 'esf': esf_q}
+
+    # Ingresos acumulados desde el inicio del año hasta cada trimestre (para
+    # Período de Cobro -- metodología Yocelin: el denominador es el ingreso
+    # acumulado a la fecha, no el del trimestre aislado).
+    ing_cum_q = {}
+    _running = 0.0
+    for _q in [1, 2, 3, 4]:
+        _running += quarters_data[_q]['eerr'].get('ingresos', 0) or 0
+        ing_cum_q[_q] = _running
 
     # Año actual acumulado
     ing_aa  = acum_eerr['ingresos']
@@ -2640,8 +2670,9 @@ def compute_indicadores_v2(db, year, empresa_id=None):
             safe_div(ing_aa, prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'tot_activos')), es_pct=True),
         build_ind('Período de cobro (30 a 60 días max)', '30-60 días',
             None,
-            {q: safe_div(qe(q,'cxc')*90, qv(q,'ingresos')) for q in [1,2,3,4]},
-            safe_div(esf_last['cxc']*365, ing_aa), es_ratio=True),
+            {q: periodo_cobro_q(q) for q in [1,2,3,4]},
+            periodo_cobro_q(max(_esf_quarters_available) if _esf_quarters_available else 4),
+            es_ratio=True),
         build_ind('Ratio Corriente (entre 1,5 y 2)', '1.5-2',
             None,
             {q: safe_div(qe(q,'act_corr'), qe(q,'pas_corr')) for q in [1,2,3,4]},
