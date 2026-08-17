@@ -1500,10 +1500,12 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "type": "kpi",
     "title": "Ingresos Totales",
     "subtitle": "Acumulado año",
+    "tooltip": "Ingresos operativos acumulados en el año. No incluye ingresos no operativos (alquileres, intereses, ganancia cambiaria, etc.)",
     "icon": "💰",
     "colorClass": "cb",
     "visible": true,
     "order": 1,
+    "widthSpan": 1,
     "dataset": "ingresos"
   },
   {
@@ -1511,467 +1513,104 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "type": "kpi",
     "title": "Utilidad Bruta",
     "subtitle": "",
+    "tooltip": "Ingresos Totales menos Costo de Ventas.",
     "icon": "📈",
     "colorClass": "cg",
     "visible": true,
     "order": 2,
+    "widthSpan": 1,
     "dataset": "utilidad_bruta"
-  },
-  {
-    "id": "kc-gas",
-    "type": "kpi",
-    "title": "Total Gastos",
-    "subtitle": "Operac.+No operac.",
-    "icon": "📉",
-    "colorClass": "cr",
-    "visible": true,
-    "order": 3,
-    "dataset": "gastos"
   },
   {
     "id": "kc-un",
     "type": "kpi",
     "title": "Utilidad Neta",
     "subtitle": "",
+    "tooltip": "Resultado final después de todos los gastos operativos y no operativos.",
     "icon": "🏆",
     "colorClass": "ca",
     "visible": true,
-    "order": 4,
+    "order": 3,
+    "widthSpan": 1,
     "dataset": "utilidad_neta"
-  },
-  {
-    "id": "kc-mb",
-    "type": "kpi",
-    "title": "Margen Bruto %",
-    "subtitle": "Ref ≥30%",
-    "icon": "%",
-    "colorClass": "cp",
-    "visible": false,
-    "order": 5,
-    "dataset": "margen_bruto"
   },
   {
     "id": "kc-mn",
     "type": "kpi",
     "title": "Margen Neto %",
     "subtitle": "Ref ≥5%",
+    "tooltip": "Utilidad Neta como porcentaje de los Ingresos Totales.",
     "icon": "%",
     "colorClass": "ct",
-    "visible": false,
-    "order": 6,
+    "visible": true,
+    "order": 4,
+    "widthSpan": 1,
     "dataset": "margen_neto"
-  },
-  {
-    "id": "kc-cos",
-    "type": "kpi",
-    "title": "Costo de Ventas",
-    "subtitle": "Acumulado año",
-    "icon": "🏭",
-    "colorClass": "cb",
-    "visible": false,
-    "order": 7,
-    "dataset": "costos"
-  },
-  {
-    "id": "kc-rc",
-    "type": "kpi",
-    "title": "%Costo/Venta",
-    "subtitle": "Eficiencia costos",
-    "icon": "⚙️",
-    "colorClass": "cr",
-    "visible": false,
-    "order": 8,
-    "dataset": "ratio_costo"
   },
   {
     "id": "kc-ebt",
     "type": "kpi",
     "title": "EBITDA",
     "subtitle": "Acumulado año",
+    "tooltip": "Utilidad antes de intereses, impuestos, depreciación y amortización.",
     "icon": "⭐",
     "colorClass": "ca",
-    "visible": false,
-    "order": 9,
+    "visible": true,
+    "order": 5,
+    "widthSpan": 1,
     "dataset": "ebitda"
   },
   {
-    "id": "kc-rg",
+    "id": "kc-act",
     "type": "kpi",
-    "title": "%Gasto/Venta",
-    "subtitle": "Eficiencia operativa",
-    "icon": "🔧",
-    "colorClass": "cg",
-    "visible": false,
-    "order": 10,
-    "dataset": "ratio_gasto"
-  },
-  {
-    "id": "wc-pe",
-    "type": "special",
-    "title": "Punto de Equilibrio",
-    "subtitle": "Solo disponible por unidad",
-    "visible": false,
-    "order": 11,
-    "doubleWidth": true,
-    "dataset": "punto_equilibrio"
-  },
-  {
-    "id": "wc-sem",
-    "type": "special",
-    "title": "Semáforo Financiero",
-    "subtitle": "Estado de salud por indicador",
-    "visible": true,
-    "order": 12,
-    "doubleWidth": false,
-    "dataset": "semaforo",
-    "sem_activos": ["mb","mn","rc","rg","un","pe","roe","roa","ratio_c","pa","pd","end","rotinv","rotact","cobro"]
-  },
-  {
-    "id": "wc-gau",
-    "type": "special",
-    "title": "Indicadores Gauge",
-    "subtitle": "Margen Neto · Cobertura PE · Eficiencia Operativa",
-    "visible": true,
-    "order": 13,
-    "doubleWidth": false,
-    "dataset": "gauges"
-  },
-  {
-    "id": "wc-rank",
-    "type": "special",
-    "title": "Ranking de Rentabilidad",
-    "subtitle": "Ordenado por margen neto",
-    "visible": true,
-    "order": 14,
-    "doubleWidth": false,
-    "dataset": "ranking"
-  },
-  {
-    "id": "wc-main",
-    "type": "chart",
-    "title": "Ingresos · Costos · Gastos",
-    "subtitle": "Evolución mensual · clic para ver detalle",
-    "visible": true,
-    "order": 15,
-    "doubleWidth": true,
-    "chartType": "bar",
-    "dataset": "ingresos_costos_gastos"
-  },
-  {
-    "id": "wc-tm",
-    "type": "special",
-    "title": "Participación por Unidad",
-    "subtitle": "Ingresos proporcionales",
-    "visible": true,
-    "order": 16,
-    "doubleWidth": false,
-    "dataset": "participacion_unidad"
-  },
-  {
-    "id": "wc-rad",
-    "type": "chart",
-    "title": "Comparativo Multidimensional",
-    "subtitle": "Por unidad de negocio",
-    "visible": true,
-    "order": 17,
-    "doubleWidth": false,
-    "chartType": "radar",
-    "dataset": "comparativo_multidimensional"
-  },
-  {
-    "id": "wc-mg",
-    "type": "chart",
-    "title": "Márgenes %",
-    "subtitle": "Bruto y neto mensual · clic para ver detalle",
-    "visible": true,
-    "order": 18,
-    "doubleWidth": false,
-    "chartType": "line",
-    "dataset": "margenes"
-  },
-  {
-    "id": "wc-un",
-    "type": "chart",
-    "title": "Utilidad Neta Mensual",
-    "subtitle": "+/− por mes · clic para ver detalle",
-    "visible": true,
-    "order": 19,
-    "doubleWidth": false,
-    "chartType": "bar",
-    "dataset": "utilidad_neta_mensual"
-  },
-  {
-    "id": "wc-est",
-    "type": "chart",
-    "title": "Estructura de Gastos",
-    "subtitle": "Por categoría · clic para ver detalle",
-    "visible": true,
-    "order": 20,
-    "doubleWidth": false,
-    "chartType": "doughnut",
-    "dataset": "estructura_gastos"
-  },
-  {
-    "id": "wc-tg",
-    "type": "chart",
-    "title": "Top 10 Gastos",
-    "subtitle": "Mayor impacto · clic para ver detalle",
-    "visible": true,
-    "order": 21,
-    "doubleWidth": true,
-    "chartType": "bar",
-    "dataset": "top_gastos"
-  },
-  {
-    "id": "wc-wf",
-    "type": "special",
-    "title": "Cascada P&L",
-    "subtitle": "De ingresos a utilidad neta",
-    "visible": true,
-    "order": 22,
-    "doubleWidth": true,
-    "dataset": "cascada_pl"
-  },
-  {
-    "id": "wc-tbl",
-    "type": "table",
-    "title": "Resumen Mensual",
-    "subtitle": "Detalle por período",
-    "visible": true,
-    "order": 23,
-    "doubleWidth": true,
-    "dataset": "tabla_resumen"
-  },
-  {
-    "id": "wc-esf-kpi-activos",
-    "type": "esf",
     "title": "Total Activos",
-    "subtitle": "Último quarter disponible",
+    "subtitle": "Consolidado · último trimestre",
+    "tooltip": "Todo lo que posee la empresa. Consolidado, al cierre del último trimestre cargado. No se suma entre trimestres -- es una foto a un momento dado.",
     "icon": "🏦",
     "colorClass": "cb",
-    "visible": false,
-    "order": 24,
-    "dataset": "esf_totals"
+    "visible": true,
+    "order": 6,
+    "widthSpan": 1,
+    "dataset": "total_activos"
   },
   {
-    "id": "wc-esf-kpi-pasivos",
-    "type": "esf",
+    "id": "kc-pas",
+    "type": "kpi",
     "title": "Total Pasivos",
-    "subtitle": "Último quarter disponible",
+    "subtitle": "Consolidado · último trimestre",
+    "tooltip": "Deudas y obligaciones totales de la empresa. Consolidado, al cierre del último trimestre cargado.",
     "icon": "📋",
     "colorClass": "cr",
-    "visible": false,
-    "order": 25,
-    "dataset": "esf_totals"
+    "visible": true,
+    "order": 7,
+    "widthSpan": 1,
+    "dataset": "total_pasivos"
   },
   {
-    "id": "wc-esf-kpi-patrimonio",
-    "type": "esf",
+    "id": "kc-pat",
+    "type": "kpi",
     "title": "Patrimonio",
-    "subtitle": "Último quarter disponible",
+    "subtitle": "Consolidado · último trimestre",
+    "tooltip": "Lo que le pertenece a los socios: Activos menos Pasivos.",
     "icon": "💎",
     "colorClass": "cg",
-    "visible": false,
-    "order": 26,
-    "dataset": "esf_totals"
-  },
-  {
-    "id": "wc-esf-kpi-efectivo",
-    "type": "esf",
-    "title": "Efectivo y Equivalentes",
-    "subtitle": "Último quarter disponible",
-    "icon": "💵",
-    "colorClass": "ca",
-    "visible": false,
-    "order": 27,
-    "dataset": "esf_totals"
-  },
-  {
-    "id": "wc-esf-kpi-cxc",
-    "type": "esf",
-    "title": "Cuentas por Cobrar",
-    "subtitle": "Último quarter disponible",
-    "icon": "📥",
-    "colorClass": "cp",
-    "visible": false,
-    "order": 28,
-    "dataset": "esf_totals"
-  },
-  {
-    "id": "wc-esf-kpi-inv",
-    "type": "esf",
-    "title": "Inventarios",
-    "subtitle": "Último quarter disponible",
-    "icon": "📦",
-    "colorClass": "ct",
-    "visible": false,
-    "order": 29,
-    "dataset": "esf_totals"
-  },
-  {
-    "id": "wc-esf-estructura",
-    "type": "esf",
-    "title": "Estructura Financiera",
-    "subtitle": "Activos · Pasivos · Patrimonio",
     "visible": true,
-    "order": 30,
-    "doubleWidth": true,
-    "chartType": "doughnut",
-    "dataset": "esf_totals"
+    "order": 8,
+    "widthSpan": 1,
+    "dataset": "patrimonio"
   },
   {
-    "id": "wc-ind-roe",
-    "type": "indicador",
-    "title": "ROE",
-    "subtitle": "Retorno sobre Patrimonio",
-    "icon": "📊",
-    "colorClass": "cg",
-    "visible": false,
-    "order": 31,
-    "dataset": "indicadores_avanzados"
-  },
-  {
-    "id": "wc-ind-roa",
-    "type": "indicador",
-    "title": "ROA",
-    "subtitle": "Retorno sobre Activos",
-    "icon": "📊",
-    "colorClass": "cb",
-    "visible": false,
-    "order": 32,
-    "dataset": "indicadores_avanzados"
-  },
-  {
-    "id": "wc-ind-rc",
-    "type": "indicador",
+    "id": "kc-rzc",
+    "type": "kpi",
     "title": "Razón Corriente",
-    "subtitle": "Activo Cte / Pasivo Cte",
+    "subtitle": "Ref 1.5 - 2",
+    "tooltip": "Activo Corriente entre Pasivo Corriente. Mide la capacidad de pago a corto plazo.",
     "icon": "⚖️",
-    "colorClass": "ca",
-    "visible": false,
-    "order": 33,
-    "dataset": "indicadores_avanzados"
-  },
-  {
-    "id": "wc-ind-pa",
-    "type": "indicador",
-    "title": "Prueba Ácida",
-    "subtitle": "Liquidez sin inventarios",
-    "icon": "🧪",
     "colorClass": "cp",
-    "visible": false,
-    "order": 34,
-    "dataset": "indicadores_avanzados"
-  },
-  {
-    "id": "wc-ind-pd",
-    "type": "indicador",
-    "title": "Prueba Defensiva",
-    "subtitle": "Solo efectivo / Pasivo Cte",
-    "icon": "🛡️",
-    "colorClass": "ct",
-    "visible": false,
-    "order": 35,
-    "dataset": "indicadores_avanzados"
-  },
-  {
-    "id": "wc-ind-end",
-    "type": "indicador",
-    "title": "Ratio Endeudamiento",
-    "subtitle": "Pasivos / Patrimonio",
-    "icon": "📉",
-    "colorClass": "cr",
-    "visible": false,
-    "order": 36,
-    "dataset": "indicadores_avanzados"
-  },
-  {
-    "id": "wc-ind-rotinv",
-    "type": "indicador",
-    "title": "Rotación Inventarios",
-    "subtitle": "Meses de cobertura",
-    "icon": "🔄",
-    "colorClass": "cb",
-    "visible": false,
-    "order": 37,
-    "dataset": "indicadores_avanzados"
-  },
-  {
-    "id": "wc-ind-rotact",
-    "type": "indicador",
-    "title": "Rotación de Activos",
-    "subtitle": "Veces por trimestre",
-    "icon": "⚙️",
-    "colorClass": "cg",
-    "visible": false,
-    "order": 38,
-    "dataset": "indicadores_avanzados"
-  },
-  {
-    "id": "wc-ind-cobro",
-    "type": "indicador",
-    "title": "Período de Cobro",
-    "subtitle": "Días promedio de cobro",
-    "icon": "📅",
-    "colorClass": "ca",
-    "visible": false,
-    "order": 39,
-    "dataset": "indicadores_avanzados"
-  },
-  {
-    "id": "wc-panel-indicadores",
-    "type": "panel",
-    "title": "Panel de Indicadores",
-    "subtitle": "ROE · ROA · Liquidez · Rotación",
-    "visible": false,
-    "order": 40,
-    "doubleWidth": true,
-    "chartType": "bar",
-    "dataset": "indicadores_avanzados"
-  },
-  {
-    "id": "wc-panel-esf",
-    "type": "panel",
-    "title": "Panel Balance ESF",
-    "subtitle": "Activos · Pasivos · Patrimonio",
-    "visible": false,
-    "order": 41,
-    "doubleWidth": true,
-    "chartType": "bar",
-    "dataset": "esf_totals"
-  },
-  {
-    "id": "wc-divisa-ingr",
-    "type": "divisa",
-    "title": "Ingresos en USD Real",
-    "subtitle": "Ajustado por tasa paralela",
-    "icon": "💵",
-    "colorClass": "cb",
     "visible": true,
-    "order": 42,
-    "dataset": "divisa_real"
-  },
-  {
-    "id": "wc-divisa-un",
-    "type": "divisa",
-    "title": "Utilidad Neta en USD Real",
-    "subtitle": "Ajustado por tasa paralela",
-    "icon": "💰",
-    "colorClass": "cg",
-    "visible": true,
-    "order": 43,
-    "dataset": "divisa_real"
-  },
-  {
-    "id": "wc-divisa-comp",
-    "type": "divisa",
-    "title": "Comparativa Bs vs USD Real",
-    "subtitle": "Ingresos · Costos · Utilidad",
-    "visible": true,
-    "order": 44,
-    "doubleWidth": true,
-    "chartType": "bar",
-    "dataset": "divisa_real"
+    "order": 9,
+    "widthSpan": 1,
+    "dataset": "razon_corriente"
   }
 ];
 
@@ -3613,21 +3252,26 @@ async function loadDash(){
     const ebt = DD.totals ? DD.totals.ebitda : un;
     const mb=tI?ub/tI*100:0,mn=tI?un/tI*100:0,rc=tI?tC/tI*100:0,rg=tI?tG/tI*100:0;
     const sk=(id,v,s,b)=>{const kv=G('kv-'+id);if(kv)kv.textContent=v;const ks=G('ks-'+id);if(ks&&s)ks.textContent=s;const kb=G('kb-'+id);if(kb)kb.style.width=cl(b,0,100)+'%';};
-    sk('ingr',fmtS(tI),'Acumulado año',100);sk('ub',fmtS(ub),'Margen: '+pct(mb),mb);
-    sk('gas',fmtS(tG),null,tI?tG/tI*100:0);sk('un',fmtS(un),'Margen: '+pct(mn),cl(Math.abs(mn),0,100));
-    G('kv-un').style.color=un>=0?'var(--green)':'var(--red)';
-    sk('mb',pct(mb),null,mb);G('kv-mb').style.color=mb>=30?'var(--green)':mb>=20?'var(--amber)':'var(--red)';
-    sk('mn',pct(mn),null,Math.abs(mn));G('kv-mn').style.color=mn>=5?'var(--green)':mn>=0?'var(--amber)':'var(--red)';
-    sk('cos',fmtS(tC),null,rc);sk('rc',pct(rc),null,rc);
-    sk('ebt',fmtS(ebt),null,tI?ebt/tI*100:0);sk('rg',pct(rg),null,rg);
-    const peCov=DD.punto_equilibrio?.cobertura_pct??null;
-    const ia=DD.indicadores_avanzados||null;
-    renderSem(mb,mn,rc,rg,un,peCov,ia);
-    renderGauges(mn,peCov,rg);
-    renderRank(DD.por_unidad);
-    renderPE(DD.punto_equilibrio);
-    buildCharts(isTodas);
-    rTable();rWF(tI,tC,ub,tG,un);
+    sk('ingr',fmtS(tI),'Acumulado año',100);
+    sk('ub',fmtS(ub),'Margen: '+pct(mb),mb);
+    sk('un',fmtS(un),'Margen: '+pct(mn),cl(Math.abs(mn),0,100));
+    const kvUn=G('kv-un');if(kvUn)kvUn.style.color=un>=0?'var(--green)':'var(--red)';
+    sk('mn',pct(mn),null,Math.abs(mn));
+    const kvMn=G('kv-mn');if(kvMn)kvMn.style.color=mn>=5?'var(--green)':mn>=0?'var(--amber)':'var(--red)';
+    sk('ebt',fmtS(ebt),null,tI?ebt/tI*100:0);
+    const ta=DD.totals?DD.totals.total_activos:null;
+    const tp=DD.totals?DD.totals.total_pasivos:null;
+    const pat=DD.totals?DD.totals.patrimonio:null;
+    const rzc=DD.totals?DD.totals.razon_corriente:null;
+    sk('act',ta!=null?fmtS(ta):'—','Consolidado',100);
+    sk('pas',tp!=null?fmtS(tp):'—','Consolidado',100);
+    sk('pat',pat!=null?fmtS(pat):'—','Consolidado',100);
+    sk('rzc',rzc!=null?rzc.toFixed(2):'—',null,rzc!=null?cl(rzc*40,0,100):0);
+    // NOTA: renderSem, renderGauges, renderRank, renderPE, buildCharts, rTable, rWF
+    // dejan de llamarse aqui -- alimentaban widgets ya eliminados del Dashboard
+    // (Semaforo, Gauges, Ranking, Punto de Equilibrio, graficos viejos, tabla,
+    // cascada vieja). Las funciones NO se borran, solo se dejan de invocar; se
+    // reactivan/reescriben una por una al reconstruir cada grafico nuevo.
     applyHidden();
     scheduleMasonry();
 
