@@ -2509,7 +2509,7 @@ def compute_indicadores_v2(db, year, empresa_id=None):
     # ESF: una sola llamada para el año actual
     _esf_res = esf_engine(year, '', empresa_id=empresa_id)
     _esf_rows = {n['partida']: n.get('quarters', {}) for n in _esf_res.get('rows', [])}
-    _result_quarters, _ = compute_esf(db, year, '', empresa_id=empresa_id)
+    _result_quarters, _esf_quarters_available = compute_esf(db, year, '', empresa_id=empresa_id)
 
     def get_esf_quarter(q):
         rows_esf = {p: qs.get(q, 0) or 0 for p, qs in _esf_rows.items()}
@@ -2525,6 +2525,20 @@ def compute_indicadores_v2(db, year, empresa_id=None):
             'cxc':           tot.get('Total Cuentas por Cobrar (neto)', 0),
             'res_ejercicio': rows_esf.get('Resultados del ejercicio', 0),
         }
+
+    def qe(q, key):
+        return quarters_data[q]['esf'].get(key, 0) or 0
+
+    def prom_esf(q, key):
+        """Promedio del campo `key` del ESF entre el trimestre q y el anterior.
+        Si no hay trimestre anterior con datos reales (ej. Q1), usa solo el valor de q."""
+        if q not in _esf_quarters_available:
+            return None
+        curr = qe(q, key)
+        prev_q = q - 1
+        if prev_q >= 1 and prev_q in _esf_quarters_available:
+            return (curr + qe(prev_q, key)) / 2
+        return curr
 
     # ── Año anterior (acumulado anual) ────────────────────────────────────────
     prev_eerr = _extract_eerr(_rows_prev, all_months)
@@ -2566,9 +2580,6 @@ def compute_indicadores_v2(db, year, empresa_id=None):
 
     def qv(q, key):
         return quarters_data[q]['eerr'].get(key)
-
-    def qe(q, key):
-        return quarters_data[q]['esf'].get(key, 0) or 0
 
     indicadores = [
         build_ind('Ingresos Brutos', None,
@@ -2617,8 +2628,8 @@ def compute_indicadores_v2(db, year, empresa_id=None):
             safe_div(acum_eerr['ut_neta'], ing_aa), es_pct=True),
         build_ind('ROE (10% y 20%)', '10%-20%',
             None,
-            {q: safe_div(qe(q,'res_ejercicio'), qe(q,'patrimonio')) for q in [1,2,3,4]},
-            safe_div(esf_last['res_ejercicio'], esf_last['patrimonio']), es_pct=True),
+            {q: safe_div(qe(q,'res_ejercicio'), prom_esf(q,'patrimonio')) for q in [1,2,3,4]},
+            safe_div(esf_last['res_ejercicio'], prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'patrimonio')), es_pct=True),
         build_ind('Rotación de Inventarios (2 y 3 meses)', '2-3 meses',
             None,
             {q: safe_div(qe(q,'inventarios')*3, qv(q,'costos')) for q in [1,2,3,4]},
