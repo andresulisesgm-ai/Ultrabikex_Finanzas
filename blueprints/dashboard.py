@@ -137,6 +137,29 @@ DEFAULT_DASHBOARD_CONFIG = [
     "order": 9,
     "widthSpan": 1,
     "dataset": "razon_corriente"
+  },
+  {
+    "id": "wc-estcap",
+    "type": "chart",
+    "title": "Estructura de Capital",
+    "subtitle": "Activo vs Pasivo + Patrimonio, por trimestre",
+    "visible": True,
+    "order": 10,
+    "size": "m",
+    "widthSpan": 2,
+    "chartType": "bar",
+    "dataset": "estructura_capital"
+  },
+  {
+    "id": "wc-estcapdet",
+    "type": "chart",
+    "title": "Estructura de Capital Detallada",
+    "subtitle": "Activo y Pasivo por partida, por trimestre",
+    "visible": True,
+    "order": 11,
+    "size": "l",
+    "chartType": "bar",
+    "dataset": "estructura_capital_detallada"
   }
 ]
 

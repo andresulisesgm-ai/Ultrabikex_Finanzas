@@ -20,6 +20,7 @@
   --green:#059669;--green-l:#d1fae5;
   --red:#dc2626;--red-l:#fee2e2;
   --amber:#d97706;--amber-l:#fef3c7;
+  --orange:#f97316;--orange-l:#ffedd5;
   --purple:#7c3aed;--purple-l:#ede9fe;
   --teal:#0891b2;--teal-l:#cffafe;
   --indigo:#4338ca;--indigo-l:#e0e7ff;
@@ -1611,6 +1612,29 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "order": 9,
     "widthSpan": 1,
     "dataset": "razon_corriente"
+  },
+  {
+    "id": "wc-estcap",
+    "type": "chart",
+    "title": "Estructura de Capital",
+    "subtitle": "Activo vs Pasivo + Patrimonio, por trimestre",
+    "visible": true,
+    "order": 10,
+    "size": "m",
+    "widthSpan": 2,
+    "chartType": "bar",
+    "dataset": "estructura_capital"
+  },
+  {
+    "id": "wc-estcapdet",
+    "type": "chart",
+    "title": "Estructura de Capital Detallada",
+    "subtitle": "Activo y Pasivo por partida, por trimestre",
+    "visible": true,
+    "order": 11,
+    "size": "l",
+    "chartType": "bar",
+    "dataset": "estructura_capital_detallada"
   }
 ];
 
@@ -1619,6 +1643,21 @@ const WIDGET_TEMPLATES = {
     <div class="ch"><div><div class="ct">⚖️ Punto de Equilibrio</div><div class="cs">Solo disponible por unidad</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-pe">✕</button></div></div>
     <div id="pe-card"></div>
+  `,
+  'wc-estcap': `
+    <div class="ch"><div><div class="ct">Estructura de Capital</div><div class="cs">Activo vs Pasivo + Patrimonio, por trimestre <span id="estcap-badge" style="display:none;color:var(--red);font-weight:700">⚠ Descuadre</span></div></div>
+      <div class="cact"><span class="dh">⠿</span>
+        <select class="csel ctsel" id="ct-ch-estcap" onchange="loadEstructuraCapital()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
+        <button class="bcl" data-w="wc-estcap">✕</button></div></div>
+    <div class="cv h200"><canvas id="ch-estcap"></canvas></div>
+  `,
+  'wc-estcapdet': `
+    <div class="ch"><div><div class="ct">Estructura de Capital Detallada</div><div class="cs">Activo y Pasivo por partida, por trimestre</div></div>
+      <div class="cact"><span class="dh">⠿</span>
+        <select class="csel ctsel" id="ct-ch-estcapdet" onchange="loadEstructuraCapitalDetallada()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
+        <button class="bcl" data-w="wc-estcapdet">✕</button></div></div>
+    <div class="cv h200"><canvas id="ch-estcapdet-act"></canvas></div>
+    <div class="cv h200"><canvas id="ch-estcapdet-pas"></canvas></div>
   `,
   'wc-sem': `
     <div class="ch"><div><div class="ct">🚦 Semáforo Financiero</div><div class="cs">Estado de salud por indicador</div></div>
@@ -3167,6 +3206,178 @@ function rTable(){
   }).join('');
 }
 
+function loadEstructuraCapital() {
+  const wActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-estcap' && w.visible);
+  if (!wActivo) return;
+  const year = G('dash-year').value;
+  // ESF es siempre consolidado -- nunca se filtra por unidad de negocio, sin importar
+  // el filtro de unidad del Dashboard (regla de negocio confirmada, ver ultrax_reglas.md).
+  fetch(`/api/esf/completo?year=${year}&unit=&empresa_id=${CURRENT_EMPRESA_ID||''}`)
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data) return;
+      const findRow = (partida) => (data.rows || []).find(r => r.partida === partida);
+      const rActivos = findRow('TOTAL ACTIVOS');
+      const rPasivos = findRow('TOTAL PASIVOS');
+      const rPatrimonio = findRow('Total Patrimonio');
+      if (!rActivos || !rPasivos || !rPatrimonio) return;
+
+      const quartersConDatos = [1,2,3,4].filter(q => (rActivos.quarters[q] || 0) !== 0);
+      if (!quartersConDatos.length) return;
+
+      const labels = quartersConDatos.map(q => 'Q'+q);
+      const activoData = quartersConDatos.map(q => rActivos.quarters[q] || 0);
+      const pasivoData = quartersConDatos.map(q => rPasivos.quarters[q] || 0);
+      const patrimonioData = quartersConDatos.map(q => rPatrimonio.quarters[q] || 0);
+
+      // Guardián visual: Activo debe ser igual a Pasivo + Patrimonio (tolerancia 1 unidad)
+      const hayDescuadre = quartersConDatos.some((q, i) =>
+        Math.abs(activoData[i] - (pasivoData[i] + patrimonioData[i])) > 1);
+      const badge = G('estcap-badge');
+      if (badge) badge.style.display = hayDescuadre ? 'inline-block' : 'none';
+
+      const ctsel = document.getElementById('ct-ch-estcap');
+      const modoPct = ctsel && ctsel.value === 'pct';
+
+      let dsActivo, dsPasivo, dsPatrimonio;
+      if (modoPct) {
+        dsActivo = activoData.map(() => 100);
+        dsPasivo = pasivoData.map((v,i) => activoData[i] ? (v/activoData[i]*100) : 0);
+        dsPatrimonio = patrimonioData.map((v,i) => activoData[i] ? (v/activoData[i]*100) : 0);
+      } else {
+        dsActivo = activoData; dsPasivo = pasivoData; dsPatrimonio = patrimonioData;
+      }
+
+      const canvas = G('ch-estcap');
+      if (!canvas) return;
+      if (CH['ch-estcap']) CH['ch-estcap'].destroy();
+
+      CH['ch-estcap'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Activo Total', data: dsActivo, backgroundColor: '#2563eb', stack: 'activo' },
+            { label: 'Pasivo', data: dsPasivo, backgroundColor: '#f97316', stack: 'pasivo-pat' },
+            { label: 'Patrimonio', data: dsPatrimonio, backgroundColor: '#0891b2', stack: 'pasivo-pat' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { stacked: true },
+            y: { stacked: true, ticks: { callback: v => modoPct ? v+'%' : fmtS(v) } }
+          },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                font: { size: 10 },
+                generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
+                  const total = ds.data.reduce((a,b)=>a+b,0);
+                  const valTxt = modoPct ? '' : (' · ' + fmtS(total));
+                  return { text: ds.label + valTxt, fillStyle: ds.backgroundColor, strokeStyle: ds.backgroundColor, hidden: false, datasetIndex: i };
+                })
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.dataset.label}: ${modoPct ? ctx.raw.toFixed(1)+'%' : fmtS(ctx.raw)}`
+              }
+            }
+          }
+        }
+      });
+    })
+    .catch(err => console.error('Error cargando Estructura de Capital:', err));
+}
+
+function loadEstructuraCapitalDetallada() {
+  const wActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-estcapdet' && w.visible);
+  if (!wActivo) return;
+  const year = G('dash-year').value;
+  // ESF siempre consolidado, nunca por unidad de negocio (regla de negocio).
+  fetch(`/api/esf/completo?year=${year}&unit=&empresa_id=${CURRENT_EMPRESA_ID||''}`)
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data) return;
+      const rows = data.rows || [];
+      const totalRow = rows.find(r => r.partida === 'TOTAL ACTIVOS');
+      const quartersConDatos = [1,2,3,4].filter(q => totalRow && (totalRow.quarters[q] || 0) !== 0);
+      if (!quartersConDatos.length) return;
+      const labels = quartersConDatos.map(q => 'Q'+q);
+
+      // Nivel 2 = las partidas que componen el bloque grande (nivel 1), tal como
+      // lo pidio Yocelin -- no el bloque grande completo, ni el detalle de cuenta.
+      const activoPartidas = rows.filter(r => r.level === 2 && (r.parent_name === 'ACTIVOS CORRIENTES' || r.parent_name === 'ACTIVOS NO CORRIENTES'));
+      const pasivoPartidas = rows.filter(r => r.level === 2 && (r.parent_name === 'PASIVOS CORRIENTES' || r.parent_name === 'PASIVOS NO CORRIENTES'));
+
+      const ctsel = document.getElementById('ct-ch-estcapdet');
+      const modoPct = ctsel && ctsel.value === 'pct';
+
+      const paletaAzules = ['#1e40af','#2563eb','#3b82f6','#60a5fa','#93c5fd','#bfdbfe'];
+      const paletaNaranjas = ['#c2410c','#ea580c','#f97316','#fb923c','#fdba74'];
+
+      function armarPanel(canvasId, partidasRaw, paleta) {
+        const conPromedio = partidasRaw.map(r => {
+          const vals = quartersConDatos.map(q => r.quarters[q] || 0);
+          const prom = vals.reduce((a,b)=>a+b,0) / (vals.length || 1);
+          return { r, vals, prom };
+        }).filter(x => x.vals.some(v => v !== 0));
+        conPromedio.sort((a,b) => b.prom - a.prom); // mas oscuro = mayor valor
+
+        const totalPorTrimestre = quartersConDatos.map((q,i) =>
+          conPromedio.reduce((acc,x) => acc + x.vals[i], 0));
+
+        const datasets = conPromedio.map((x, idx) => {
+          const data = modoPct
+            ? x.vals.map((v,i) => totalPorTrimestre[i] ? (v/totalPorTrimestre[i]*100) : 0)
+            : x.vals;
+          return { label: x.r.partida, data, backgroundColor: paleta[idx % paleta.length], stack: 'stack1' };
+        });
+
+        const canvas = G(canvasId);
+        if (!canvas) return;
+        if (CH[canvasId]) CH[canvasId].destroy();
+        CH[canvasId] = new Chart(canvas, {
+          type: 'bar',
+          data: { labels, datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: { stacked: true },
+              y: { stacked: true, ticks: { callback: v => modoPct ? v+'%' : fmtS(v) } }
+            },
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  font: { size: 9 },
+                  generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
+                    const total = ds.data.reduce((a,b)=>a+b,0);
+                    const valTxt = modoPct ? '' : (' · ' + fmtS(total));
+                    return { text: ds.label + valTxt, fillStyle: ds.backgroundColor, strokeStyle: ds.backgroundColor, hidden: false, datasetIndex: i };
+                  })
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => `${ctx.dataset.label}: ${modoPct ? ctx.raw.toFixed(1)+'%' : fmtS(ctx.raw)}`
+                }
+              }
+            }
+          }
+        });
+      }
+
+      armarPanel('ch-estcapdet-act', activoPartidas, paletaAzules);
+      armarPanel('ch-estcapdet-pas', pasivoPartidas, paletaNaranjas);
+    })
+    .catch(err => console.error('Error cargando Estructura de Capital Detallada:', err));
+}
+
 // ── DASHBOARD LOAD ────────────────────────────────────────────────────────
 async function loadDash(){
   try{
@@ -3269,6 +3480,8 @@ async function loadDash(){
     sk('rzc',rzc!=null?rzc.toFixed(2):'—',null,rzc!=null?cl(rzc*40,0,100):0);
     const peCov=DD.punto_equilibrio?.cobertura_pct??null;
     const ia=DD.indicadores_avanzados||null;
+    loadEstructuraCapital();
+    loadEstructuraCapitalDetallada();
     // NOTA: renderSem, renderGauges, renderRank, renderPE, buildCharts, rTable, rWF
     // dejan de llamarse aqui -- alimentaban widgets ya eliminados del Dashboard
     // (Semaforo, Gauges, Ranking, Punto de Equilibrio, graficos viejos, tabla,
