@@ -3267,6 +3267,8 @@ async function loadDash(){
     sk('pas',tp!=null?fmtS(tp):'—','Consolidado',100);
     sk('pat',pat!=null?fmtS(pat):'—','Consolidado',100);
     sk('rzc',rzc!=null?rzc.toFixed(2):'—',null,rzc!=null?cl(rzc*40,0,100):0);
+    const peCov=DD.punto_equilibrio?.cobertura_pct??null;
+    const ia=DD.indicadores_avanzados||null;
     // NOTA: renderSem, renderGauges, renderRank, renderPE, buildCharts, rTable, rWF
     // dejan de llamarse aqui -- alimentaban widgets ya eliminados del Dashboard
     // (Semaforo, Gauges, Ranking, Punto de Equilibrio, graficos viejos, tabla,
