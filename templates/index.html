@@ -1430,7 +1430,7 @@ let UNIDADES_CACHE = [];
 let CURRENT_PAGE = 'dashboard';
 let EMPRESAS_CACHE = [];
 const fmt=n=>n==null?'—':'$'+Number(n).toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2});
-const fmtS=n=>{if(!n)return'$0';const a=Math.abs(n);return(n<0?'-':'')+(a>=1e6?'$'+(a/1e6).toFixed(1)+'M':a>=1e3?'$'+(a/1e3).toFixed(1)+'K':'$'+a.toFixed(0));};
+const fmtS=n=>{if(!n)return'$0';const a=Math.abs(n);return(n<0?'-':'')+(a>=1e6?'$'+(a/1e6).toFixed(2)+'M':a>=1e3?'$'+(a/1e3).toFixed(2)+'K':'$'+a.toFixed(2));};
 const pct=n=>n==null?'—':Number(n).toFixed(1)+'%';
 const cl=(v,lo,hi)=>Math.min(Math.max(v,lo),hi);
 const PAL=['#2563eb','#059669','#d97706','#dc2626','#7c3aed','#0891b2','#be185d','#65a30d'];
@@ -1604,7 +1604,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "id": "kc-rzc",
     "type": "kpi",
     "title": "Razón Corriente",
-    "subtitle": "Ref 1.5 - 2",
+    "subtitle": "Consolidado · Ref 1.5-2",
     "tooltip": "Activo Corriente entre Pasivo Corriente. Mide la capacidad de pago a corto plazo.",
     "icon": "⚖️",
     "colorClass": "cp",
@@ -1617,7 +1617,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "id": "wc-estcap",
     "type": "chart",
     "title": "Estructura de Capital",
-    "subtitle": "Activo vs Pasivo + Patrimonio, por trimestre",
+    "subtitle": "Activo vs Pasivo + Patrimonio, por trimestre · Consolidado (no cambia con el filtro de unidad)",
     "visible": true,
     "order": 10,
     "size": "m",
@@ -1629,7 +1629,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "id": "wc-estcapdet",
     "type": "chart",
     "title": "Estructura de Capital Detallada",
-    "subtitle": "Activo y Pasivo por partida, por trimestre",
+    "subtitle": "Activo y Pasivo por partida, por trimestre · Consolidado (no cambia con el filtro de unidad)",
     "visible": true,
     "order": 11,
     "size": "l",
@@ -1645,16 +1645,16 @@ const WIDGET_TEMPLATES = {
     <div id="pe-card"></div>
   `,
   'wc-estcap': `
-    <div class="ch"><div><div class="ct">Estructura de Capital</div><div class="cs">Activo vs Pasivo + Patrimonio, por trimestre <span id="estcap-badge" style="display:none;color:var(--red);font-weight:700">⚠ Descuadre</span></div></div>
+    <div class="ch"><div><div class="ct">Estructura de Capital</div><div class="cs">Activo vs Pasivo + Patrimonio, por trimestre · Consolidado (no cambia con el filtro de unidad) <span id="estcap-badge" style="display:none;color:var(--red);font-weight:700">⚠ Descuadre</span></div></div>
       <div class="cact"><span class="dh">⠿</span>
-        <select class="csel ctsel" id="ct-ch-estcap" onchange="loadEstructuraCapital()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
+        <select class="csel vsel" id="ct-ch-estcap" onchange="loadEstructuraCapital()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
         <button class="bcl" data-w="wc-estcap">✕</button></div></div>
     <div class="cv h200"><canvas id="ch-estcap"></canvas></div>
   `,
   'wc-estcapdet': `
-    <div class="ch"><div><div class="ct">Estructura de Capital Detallada</div><div class="cs">Activo y Pasivo por partida, por trimestre</div></div>
+    <div class="ch"><div><div class="ct">Estructura de Capital Detallada</div><div class="cs">Activo y Pasivo por partida, por trimestre · Consolidado (no cambia con el filtro de unidad)</div></div>
       <div class="cact"><span class="dh">⠿</span>
-        <select class="csel ctsel" id="ct-ch-estcapdet" onchange="loadEstructuraCapitalDetallada()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
+        <select class="csel vsel" id="ct-ch-estcapdet" onchange="loadEstructuraCapitalDetallada()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
         <button class="bcl" data-w="wc-estcapdet">✕</button></div></div>
     <div class="cv h200"><canvas id="ch-estcapdet-act"></canvas></div>
     <div class="cv h200"><canvas id="ch-estcapdet-pas"></canvas></div>
@@ -3275,8 +3275,8 @@ function loadEstructuraCapital() {
               labels: {
                 font: { size: 10 },
                 generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
-                  const total = ds.data.reduce((a,b)=>a+b,0);
-                  const valTxt = modoPct ? '' : (' · ' + fmtS(total));
+                  const ultimo = ds.data[ds.data.length - 1];
+                  const valTxt = modoPct ? '' : (' · ' + fmtS(ultimo));
                   return { text: ds.label + valTxt, fillStyle: ds.backgroundColor, strokeStyle: ds.backgroundColor, hidden: false, datasetIndex: i };
                 })
               }
@@ -3356,8 +3356,8 @@ function loadEstructuraCapitalDetallada() {
                 labels: {
                   font: { size: 9 },
                   generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
-                    const total = ds.data.reduce((a,b)=>a+b,0);
-                    const valTxt = modoPct ? '' : (' · ' + fmtS(total));
+                    const ultimo = ds.data[ds.data.length - 1];
+                    const valTxt = modoPct ? '' : (' · ' + fmtS(ultimo));
                     return { text: ds.label + valTxt, fillStyle: ds.backgroundColor, strokeStyle: ds.backgroundColor, hidden: false, datasetIndex: i };
                   })
                 }
