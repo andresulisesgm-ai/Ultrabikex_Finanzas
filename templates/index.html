@@ -1649,15 +1649,14 @@ const WIDGET_TEMPLATES = {
       <div class="cact"><span class="dh">⠿</span>
         <select class="csel vsel" id="ct-ch-estcap" onchange="loadEstructuraCapital()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
         <button class="bcl" data-w="wc-estcap">✕</button></div></div>
-    <div class="cv h200"><canvas id="ch-estcap"></canvas></div>
+    <div class="cv h280"><canvas id="ch-estcap"></canvas></div>
   `,
   'wc-estcapdet': `
-    <div class="ch"><div><div class="ct">Estructura de Capital Detallada</div><div class="cs">Activo y Pasivo por partida, por trimestre · Consolidado (no cambia con el filtro de unidad)</div></div>
+    <div class="ch"><div><div class="ct">Estructura de Capital Detallada</div><div class="cs">Activo vs Pasivo + Patrimonio, por partida y por trimestre · Consolidado (no cambia con el filtro de unidad)</div></div>
       <div class="cact"><span class="dh">⠿</span>
         <select class="csel vsel" id="ct-ch-estcapdet" onchange="loadEstructuraCapitalDetallada()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
         <button class="bcl" data-w="wc-estcapdet">✕</button></div></div>
-    <div class="cv h200"><canvas id="ch-estcapdet-act"></canvas></div>
-    <div class="cv h200"><canvas id="ch-estcapdet-pas"></canvas></div>
+    <div class="cv h280"><canvas id="ch-estcapdet"></canvas></div>
   `,
   'wc-sem': `
     <div class="ch"><div><div class="ct">🚦 Semáforo Financiero</div><div class="cs">Estado de salud por indicador</div></div>
@@ -3269,6 +3268,7 @@ function loadEstructuraCapital() {
             x: { stacked: true },
             y: { stacked: true, ticks: { callback: v => modoPct ? v+'%' : fmtS(v) } }
           },
+          datasets: { bar: { maxBarThickness: 90 } },
           plugins: {
             legend: {
               position: 'bottom',
@@ -3297,7 +3297,6 @@ function loadEstructuraCapitalDetallada() {
   const wActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-estcapdet' && w.visible);
   if (!wActivo) return;
   const year = G('dash-year').value;
-  // ESF siempre consolidado, nunca por unidad de negocio (regla de negocio).
   fetch(`/api/esf/completo?year=${year}&unit=&empresa_id=${CURRENT_EMPRESA_ID||''}`)
     .then(r => r.ok ? r.json() : null)
     .then(data => {
@@ -3308,85 +3307,93 @@ function loadEstructuraCapitalDetallada() {
       if (!quartersConDatos.length) return;
       const labels = quartersConDatos.map(q => 'Q'+q);
 
-      // Nivel 2 = las partidas que componen el bloque grande (nivel 1), tal como
-      // lo pidio Yocelin -- no el bloque grande completo, ni el detalle de cuenta.
       const activoPartidas = rows.filter(r => r.level === 2 && (r.parent_name === 'ACTIVOS CORRIENTES' || r.parent_name === 'ACTIVOS NO CORRIENTES'));
       const pasivoPartidas = rows.filter(r => r.level === 2 && (r.parent_name === 'PASIVOS CORRIENTES' || r.parent_name === 'PASIVOS NO CORRIENTES'));
+      const patrimonioPartidas = rows.filter(r => r.level === 2 && r.parent_name === 'PATRIMONIO');
 
       const ctsel = document.getElementById('ct-ch-estcapdet');
       const modoPct = ctsel && ctsel.value === 'pct';
 
-      // Rango amplio (casi negro a casi blanco) para que los tonos se distingan
-      // incluso en franjas finas -- pedido explicito tras revisar el resultado real.
       const paletaAzules = ['#0c1e3e','#1e3a8a','#2563eb','#60a5fa','#bfdbfe'];
       const paletaNaranjas = ['#431407','#9a3412','#ea580c','#fb923c','#fed7aa'];
-      const MAX_PARTIDAS_INDIVIDUALES = 4; // el resto se agrupa en "Otros"
+      const paletaTeals = ['#042f2e','#0f766e','#0891b2','#5eead4'];
+      const MAX_PARTIDAS = 4;
 
-      function armarPanel(canvasId, partidasRaw, paleta) {
+      function prepararItems(partidasRaw) {
         const conPromedio = partidasRaw.map(r => {
           const vals = quartersConDatos.map(q => r.quarters[q] || 0);
           const prom = vals.reduce((a,b)=>a+b,0) / (vals.length || 1);
           return { r, vals, prom };
         }).filter(x => x.vals.some(v => v !== 0));
-        conPromedio.sort((a,b) => b.prom - a.prom); // mas oscuro = mayor valor
-
-        const principales = conPromedio.slice(0, MAX_PARTIDAS_INDIVIDUALES);
-        const resto = conPromedio.slice(MAX_PARTIDAS_INDIVIDUALES);
-
+        conPromedio.sort((a,b) => b.prom - a.prom);
+        const principales = conPromedio.slice(0, MAX_PARTIDAS);
+        const resto = conPromedio.slice(MAX_PARTIDAS);
         const items = [...principales];
         if (resto.length) {
-          const valsOtros = quartersConDatos.map((q,i) =>
-            resto.reduce((acc,x) => acc + x.vals[i], 0));
-          items.push({ r: { partida: `Otros (${resto.length})` }, vals: valsOtros, prom: 0 });
+          const valsOtros = quartersConDatos.map((q,i) => resto.reduce((acc,x) => acc + x.vals[i], 0));
+          items.push({ r: { partida: `Otros (${resto.length})` }, vals: valsOtros });
         }
+        return items;
+      }
 
-        const totalPorTrimestre = quartersConDatos.map((q,i) =>
-          items.reduce((acc,x) => acc + x.vals[i], 0));
+      const itemsActivo = prepararItems(activoPartidas);
+      const itemsPasivo = prepararItems(pasivoPartidas);
+      const itemsPatrimonio = prepararItems(patrimonioPartidas);
 
-        const datasets = items.map((x, idx) => {
-          const data = modoPct
-            ? x.vals.map((v,i) => totalPorTrimestre[i] ? (v/totalPorTrimestre[i]*100) : 0)
-            : x.vals;
-          return { label: x.r.partida, data, backgroundColor: paleta[idx % paleta.length], stack: 'stack1' };
-        });
+      const totalActivoQ = quartersConDatos.map((q,i) => itemsActivo.reduce((a,x) => a + x.vals[i], 0));
+      const totalPasPatQ = quartersConDatos.map((q,i) =>
+        itemsPasivo.reduce((a,x) => a + x.vals[i], 0) + itemsPatrimonio.reduce((a,x) => a + x.vals[i], 0));
 
-        const canvas = G(canvasId);
-        if (!canvas) return;
-        if (CH[canvasId]) CH[canvasId].destroy();
-        CH[canvasId] = new Chart(canvas, {
-          type: 'bar',
-          data: { labels, datasets },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-              x: { stacked: true },
-              y: { stacked: true, ticks: { callback: v => modoPct ? v+'%' : fmtS(v) } }
+      function armarDataset(items, paleta, stackId, totales) {
+        return items.map((x, idx) => ({
+          label: x.r.partida,
+          data: modoPct ? x.vals.map((v,i) => totales[i] ? (v/totales[i]*100) : 0) : x.vals,
+          backgroundColor: paleta[idx % paleta.length],
+          stack: stackId
+        }));
+      }
+
+      const datasets = [
+        ...armarDataset(itemsActivo, paletaAzules, 'activo', totalActivoQ),
+        ...armarDataset(itemsPasivo, paletaNaranjas, 'pasivo-pat', totalPasPatQ),
+        ...armarDataset(itemsPatrimonio, paletaTeals, 'pasivo-pat', totalPasPatQ)
+      ];
+
+      const canvas = G('ch-estcapdet');
+      if (!canvas) return;
+      if (CH['ch-estcapdet']) CH['ch-estcapdet'].destroy();
+
+      CH['ch-estcapdet'] = new Chart(canvas, {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { stacked: true },
+            y: { stacked: true, ticks: { callback: v => modoPct ? v+'%' : fmtS(v) } }
+          },
+          datasets: { bar: { maxBarThickness: 70 } },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                font: { size: 9 },
+                generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
+                  const ultimo = ds.data[ds.data.length - 1];
+                  const valTxt = modoPct ? '' : (' · ' + fmtS(ultimo));
+                  return { text: ds.label + valTxt, fillStyle: ds.backgroundColor, strokeStyle: ds.backgroundColor, hidden: false, datasetIndex: i };
+                })
+              }
             },
-            plugins: {
-              legend: {
-                position: 'bottom',
-                labels: {
-                  font: { size: 9 },
-                  generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
-                    const ultimo = ds.data[ds.data.length - 1];
-                    const valTxt = modoPct ? '' : (' · ' + fmtS(ultimo));
-                    return { text: ds.label + valTxt, fillStyle: ds.backgroundColor, strokeStyle: ds.backgroundColor, hidden: false, datasetIndex: i };
-                  })
-                }
-              },
-              tooltip: {
-                callbacks: {
-                  label: (ctx) => `${ctx.dataset.label}: ${modoPct ? ctx.raw.toFixed(1)+'%' : fmtS(ctx.raw)}`
-                }
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.dataset.label}: ${modoPct ? ctx.raw.toFixed(1)+'%' : fmtS(ctx.raw)}`
               }
             }
           }
-        });
-      }
-
-      armarPanel('ch-estcapdet-act', activoPartidas, paletaAzules);
-      armarPanel('ch-estcapdet-pas', pasivoPartidas, paletaNaranjas);
+        }
+      });
     })
     .catch(err => console.error('Error cargando Estructura de Capital Detallada:', err));
 }
