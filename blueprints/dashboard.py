@@ -294,6 +294,25 @@ def dashboard():
                 'margen_bruto': mb_u, 'margen_neto': mn_u, 'ratio_costo': rc_u, 'ratio_gasto': rg_u
             })
 
+    # Utilidad Neta por empresa -- solo tiene sentido en vista Holding (sin empresa
+    # especifica seleccionada). Mismo patron que por_unidad, pero recorriendo las
+    # 4 empresas reales en vez de las unidades de una sola empresa.
+    por_empresa = []
+    if empresa_id is None:
+        empresas_reales = db.execute(
+            "SELECT id, nombre_corto FROM empresas WHERE id != 1"
+        ).fetchall()
+        for emp in empresas_reales:
+            eerr_emp = eerr_completo_v2_ui_adapter(db, year, '', empresa_id=emp['id'])
+
+            def get_emp_total(p_name, eerr_data=eerr_emp):
+                r = next((row for row in eerr_data['rows'] if row['partida'] == p_name), None)
+                return sum(m['ejecutado']['valor'] for m in r['meses']) if r else 0.0
+
+            un_emp = get_emp_total('Utilidad Neta')
+            if un_emp:
+                por_empresa.append({'empresa': emp['nombre_corto'], 'utilidad_neta': round(un_emp, 2)})
+
     # 3. Top 10 Gastos desglosados
     gas_rows = []
     for r in eerr_data['rows']:
@@ -418,7 +437,7 @@ def dashboard():
     }
 
     return jsonify({
-        'months': months_data, 'por_unidad': por_unidad, 'top_gastos': top_gastos,
+        'months': months_data, 'por_unidad': por_unidad, 'por_empresa': por_empresa, 'top_gastos': top_gastos,
         'cat_gastos': cat_gastos, 'loaded': [{'unit': r['unit'], 'month': r['month']} for r in loaded],
         'totals': totals,
         'indicadores_avanzados': indicadores_avanzados,
