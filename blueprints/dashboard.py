@@ -336,8 +336,9 @@ def dashboard():
                 return sum(m['ejecutado']['valor'] for m in r['meses']) if r else 0.0
 
             un_emp = get_emp_total('Utilidad Neta')
-            if un_emp:
-                por_empresa.append({'empresa': emp['nombre_corto'], 'utilidad_neta': round(un_emp, 2)})
+            ing_emp = get_emp_total('Total Ingresos')
+            if un_emp or ing_emp:
+                por_empresa.append({'empresa': emp['nombre_corto'], 'utilidad_neta': round(un_emp, 2), 'ingresos': round(ing_emp, 2)})
 
     # 3. Top 10 Gastos desglosados
     gas_rows = []

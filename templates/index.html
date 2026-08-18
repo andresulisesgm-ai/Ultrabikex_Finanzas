@@ -180,7 +180,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);overf
 .pe-lbls{display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--mu2);}
 
 /* ── MASONRY WIDGETS ── */
-#wcon{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:start;grid-auto-rows:8px;grid-auto-flow:row dense;opacity:0;transition:opacity .15s ease;}
+#wcon{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:start;grid-auto-rows:8px;grid-auto-flow:row;opacity:0;transition:opacity .15s ease;}
 #wcon.wcon-ready{opacity:1;}
 .ww{grid-column:span 2;}
 @media(max-width:1100px){.ww{grid-column:span 1;}}
@@ -1762,7 +1762,10 @@ const WIDGET_TEMPLATES = {
   'wc-dona-unidad': `
     <div class="ch"><div><div class="ct">Ingresos por Unidad de Negocio</div><div class="cs">% de participación · Solo disponible al seleccionar una empresa con unidades propias</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-dona-unidad">✕</button></div></div>
-    <div class="cv" style="height:260px"><canvas id="ch-dona-unidad"></canvas></div>
+    <div class="cv" style="height:260px;position:relative">
+      <canvas id="ch-dona-unidad"></canvas>
+      <div id="ch-dona-unidad-empty" style="display:none;text-align:center;color:var(--mu);font-size:12px;padding:24px 8px">Seleccioná una empresa con unidades de negocio propias para ver este gráfico.</div>
+    </div>
   `,
   'wc-dona-segmento': `
     <div class="ch"><div><div class="ct">Ingresos por Segmentos</div><div class="cs">Venta de Mercancía · Servicios · Eventos · Taller</div></div>
@@ -3810,20 +3813,40 @@ function loadDonaUnidad() {
   const wActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-dona-unidad' && w.visible);
   if (!wActivo) return;
   const canvas = G('ch-dona-unidad');
+  const emptyMsg = G('ch-dona-unidad-empty');
   if (!canvas) return;
+
   const unidades = (DD && DD.por_unidad) || [];
-  const wrap = canvas.parentElement;
-  if (!unidades.length) {
-    wrap.innerHTML = '<div style="text-align:center;color:var(--mu);font-size:12px;padding:24px 8px">Seleccioná una empresa con unidades de negocio propias para ver este gráfico.</div>';
+  const empresas = (DD && DD.por_empresa) || [];
+  let items, tituloSufijo;
+  if (unidades.length) {
+    items = unidades.map(function(u) { return { nombre: u.unit, valor: u.ingresos }; });
+    tituloSufijo = 'Unidad de Negocio';
+  } else if (empresas.length) {
+    items = empresas.map(function(e) { return { nombre: e.empresa, valor: e.ingresos }; });
+    tituloSufijo = 'Empresa (Holding)';
+  } else {
+    items = [];
+  }
+
+  const tituloEl = canvas.closest('.wcard').querySelector('.ct');
+  if (tituloEl) tituloEl.textContent = 'Ingresos por ' + tituloSufijo;
+
+  if (!items.length) {
+    canvas.style.display = 'none';
+    if (emptyMsg) emptyMsg.style.display = 'block';
+    if (CH['ch-dona-unidad']) { CH['ch-dona-unidad'].destroy(); CH['ch-dona-unidad'] = null; }
     return;
   }
+  canvas.style.display = 'block';
+  if (emptyMsg) emptyMsg.style.display = 'none';
   if (CH['ch-dona-unidad']) CH['ch-dona-unidad'].destroy();
   const paleta = ['#2563eb','#059669','#d97706','#dc2626','#7c3aed','#0891b2'];
   CH['ch-dona-unidad'] = new Chart(canvas, {
     type: 'doughnut',
     data: {
-      labels: unidades.map(function(u) { return u.unit; }),
-      datasets: [{ data: unidades.map(function(u) { return u.ingresos; }), backgroundColor: paleta }]
+      labels: items.map(function(x) { return x.nombre; }),
+      datasets: [{ data: items.map(function(x) { return x.valor; }), backgroundColor: paleta }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
