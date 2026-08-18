@@ -171,6 +171,17 @@ DEFAULT_DASHBOARD_CONFIG = [
     "size": "m",
     "chartType": "bar",
     "dataset": "situacion_financiera"
+  },
+  {
+    "id": "wc-margen",
+    "type": "chart",
+    "title": "Ingresos · Costos · Utilidad · Margen",
+    "subtitle": "Por trimestre · Respeta el filtro de unidad de negocio",
+    "visible": True,
+    "order": 13,
+    "size": "m",
+    "chartType": "bar",
+    "dataset": "ingresos_costos_margen"
   }
 ]
 
