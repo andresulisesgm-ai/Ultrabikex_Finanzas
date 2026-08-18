@@ -1635,6 +1635,17 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "size": "m",
     "chartType": "bar",
     "dataset": "estructura_capital_detallada"
+  },
+  {
+    "id": "wc-sitfin",
+    "type": "chart",
+    "title": "Situación Financiera",
+    "subtitle": "Activo vs Pasivo, corriente y no corriente, por trimestre · Consolidado (no cambia con el filtro de unidad)",
+    "visible": true,
+    "order": 12,
+    "size": "m",
+    "chartType": "bar",
+    "dataset": "situacion_financiera"
   }
 ];
 
@@ -1657,6 +1668,11 @@ const WIDGET_TEMPLATES = {
         <select class="csel vsel" id="ct-ch-estcapdet" onchange="loadEstructuraCapitalDetallada()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
         <button class="bcl" data-w="wc-estcapdet">✕</button></div></div>
     <div class="cv" style="height:340px"><canvas id="ch-estcapdet"></canvas></div>
+  `,
+  'wc-sitfin': `
+    <div class="ch"><div><div class="ct">Situación Financiera</div><div class="cs">Activo vs Pasivo, corriente y no corriente, por trimestre · Consolidado (no cambia con el filtro de unidad)</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-sitfin">✕</button></div></div>
+    <div class="cv" style="height:340px"><canvas id="ch-sitfin"></canvas></div>
   `,
   'wc-sem': `
     <div class="ch"><div><div class="ct">🚦 Semáforo Financiero</div><div class="cs">Estado de salud por indicador</div></div>
@@ -3398,6 +3414,77 @@ function loadEstructuraCapitalDetallada() {
     .catch(err => console.error('Error cargando Estructura de Capital Detallada:', err));
 }
 
+function loadSituacionFinanciera() {
+  const wActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-sitfin' && w.visible);
+  if (!wActivo) return;
+  const year = G('dash-year').value;
+  fetch(`/api/esf/completo?year=${year}&unit=&empresa_id=${CURRENT_EMPRESA_ID||''}`)
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data) return;
+      const rows = data.rows || [];
+      const find = (p) => rows.find(r => r.partida === p);
+      const rAC = find('Total Activos Corrientes');
+      const rANC = find('Total Activos No Corrientes');
+      const rPC = find('Total Pasivos Corrientes');
+      const rPNC = find('Total Pasivos No Corrientes');
+      if (!rAC || !rANC || !rPC || !rPNC) return;
+
+      const quartersConDatos = [1,2,3,4].filter(q => (rAC.quarters[q] || 0) !== 0);
+      if (!quartersConDatos.length) return;
+      const labels = quartersConDatos.map(q => 'Q'+q);
+
+      const dsAC  = quartersConDatos.map(q => rAC.quarters[q] || 0);
+      const dsANC = quartersConDatos.map(q => rANC.quarters[q] || 0);
+      const dsPC  = quartersConDatos.map(q => rPC.quarters[q] || 0);
+      const dsPNC = quartersConDatos.map(q => rPNC.quarters[q] || 0);
+
+      const canvas = G('ch-sitfin');
+      if (!canvas) return;
+      if (CH['ch-sitfin']) CH['ch-sitfin'].destroy();
+
+      CH['ch-sitfin'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Activo Corriente', data: dsAC, backgroundColor: '#1e3a8a', stack: 'corriente' },
+            { label: 'Pasivo Corriente', data: dsPC, backgroundColor: '#c2410c', stack: 'corriente' },
+            { label: 'Activo No Corriente', data: dsANC, backgroundColor: '#93c5fd', stack: 'nocorriente' },
+            { label: 'Pasivo No Corriente', data: dsPNC, backgroundColor: '#fdba74', stack: 'nocorriente' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { stacked: false },
+            y: { ticks: { callback: v => fmtS(v) } }
+          },
+          datasets: { bar: { maxBarThickness: 40 } },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                font: { size: 10 },
+                generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
+                  const ultimo = ds.data[ds.data.length - 1];
+                  return { text: ds.label + ' · ' + fmtS(ultimo), fillStyle: ds.backgroundColor, strokeStyle: ds.backgroundColor, hidden: false, datasetIndex: i };
+                })
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.dataset.label}: ${fmtS(ctx.raw)}`
+              }
+            }
+          }
+        }
+      });
+    })
+    .catch(err => console.error('Error cargando Situacion Financiera:', err));
+}
+
 // ── DASHBOARD LOAD ────────────────────────────────────────────────────────
 async function loadDash(){
   try{
@@ -3502,6 +3589,7 @@ async function loadDash(){
     const ia=DD.indicadores_avanzados||null;
     loadEstructuraCapital();
     loadEstructuraCapitalDetallada();
+    loadSituacionFinanciera();
     // NOTA: renderSem, renderGauges, renderRank, renderPE, buildCharts, rTable, rWF
     // dejan de llamarse aqui -- alimentaban widgets ya eliminados del Dashboard
     // (Semaforo, Gauges, Ranking, Punto de Equilibrio, graficos viejos, tabla,

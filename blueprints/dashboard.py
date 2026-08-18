@@ -160,6 +160,17 @@ DEFAULT_DASHBOARD_CONFIG = [
     "size": "m",
     "chartType": "bar",
     "dataset": "estructura_capital_detallada"
+  },
+  {
+    "id": "wc-sitfin",
+    "type": "chart",
+    "title": "Situación Financiera",
+    "subtitle": "Activo vs Pasivo, corriente y no corriente, por trimestre · Consolidado (no cambia con el filtro de unidad)",
+    "visible": True,
+    "order": 12,
+    "size": "m",
+    "chartType": "bar",
+    "dataset": "situacion_financiera"
   }
 ]
 
