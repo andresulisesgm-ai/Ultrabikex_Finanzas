@@ -1656,6 +1656,17 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "dataset": "situacion_financiera"
   },
   {
+    "id": "wc-deuda-cobertura",
+    "type": "chart",
+    "title": "Deuda y Cobertura",
+    "subtitle": "Total Pasivo vs Efectivo y Equivalentes, por trimestre · Consolidado (no cambia con el filtro de unidad)",
+    "visible": true,
+    "order": 12.2,
+    "size": "m",
+    "chartType": "bar",
+    "dataset": "deuda_cobertura"
+  },
+  {
     "id": "sec-eerr",
     "type": "section",
     "title": "📊 Estado de Resultados",
@@ -1737,12 +1748,18 @@ const WIDGET_TEMPLATES = {
       <div class="cact"><span class="dh">⠿</span>
         <select class="csel vsel" id="ct-ch-estcapdet" onchange="loadEstructuraCapitalDetallada()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
         <button class="bcl" data-w="wc-estcapdet">✕</button></div></div>
-    <div class="cv" style="height:300px"><canvas id="ch-estcapdet"></canvas></div>
+    <div class="cv" style="height:230px"><canvas id="ch-estcapdet"></canvas></div>
+    <div id="estcapdet-legend" style="padding:8px 4px 0"></div>
   `,
   'wc-sitfin': `
     <div class="ch"><div><div class="ct">Situación Financiera</div><div class="cs">Activo vs Pasivo, corriente y no corriente, por trimestre · Consolidado (no cambia con el filtro de unidad)</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-sitfin">✕</button></div></div>
     <div class="cv" style="height:300px"><canvas id="ch-sitfin"></canvas></div>
+  `,
+  'wc-deuda-cobertura': `
+    <div class="ch"><div><div class="ct">Deuda y Cobertura</div><div class="cs">Total Pasivo vs Efectivo y Equivalentes, por trimestre · Consolidado (no cambia con el filtro de unidad)</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-deuda-cobertura">✕</button></div></div>
+    <div class="cv" style="height:300px"><canvas id="ch-deuda-cobertura"></canvas></div>
   `,
   'wc-margen': `
     <div class="ch"><div><div class="ct">Ingresos · Costos · Utilidad · Margen</div><div class="cs">Por trimestre · Respeta el filtro de unidad de negocio</div></div>
@@ -3422,15 +3439,14 @@ function loadEstructuraCapital() {
             x: { stacked: true },
             y: { stacked: true, ticks: { callback: v => modoPct ? v+'%' : fmtS(v) } }
           },
-          datasets: { bar: { maxBarThickness: 40 } },
+          datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
           plugins: {
             legend: {
               position: 'bottom',
               labels: {
                 font: { size: 10 },
                 generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
-                  const ultimo = ds.data[ds.data.length - 1];
-                  const valTxt = modoPct ? '' : (' · ' + fmtS(ultimo));
+                  const valTxt = modoPct ? '' : (': ' + chart.data.labels.map((lbl, qi) => lbl + ' ' + fmtS(ds.data[qi])).join(' · '));
                   return { text: ds.label + valTxt, fillStyle: ds.backgroundColor, strokeStyle: ds.backgroundColor, hidden: false, datasetIndex: i };
                 })
               }
@@ -3445,6 +3461,66 @@ function loadEstructuraCapital() {
       });
     })
     .catch(err => console.error('Error cargando Estructura de Capital:', err));
+}
+
+function loadDeudaCobertura() {
+  const wActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-deuda-cobertura' && w.visible);
+  if (!wActivo) return;
+  const year = G('dash-year').value;
+  // ESF es siempre consolidado -- nunca se filtra por unidad de negocio, sin importar
+  // el filtro de unidad del Dashboard (regla de negocio confirmada, ver ultrax_reglas.md).
+  fetchESFRowsDashboard(year)
+    .then(rows => {
+      if (!rows) return;
+      const findRow = (partida) => rows.find(r => r.partida === partida);
+      const rPasivos = findRow('TOTAL PASIVOS');
+      const rEfectivo = findRow('Efectivo y Equivalentes');
+      if (!rPasivos || !rEfectivo) return;
+
+      const quartersConDatos = [1,2,3,4].filter(q => (rPasivos.quarters[q] || 0) !== 0);
+      if (!quartersConDatos.length) return;
+
+      const labels = quartersConDatos.map(q => 'Q'+q);
+      const deudaData = quartersConDatos.map(q => rPasivos.quarters[q] || 0);
+      const efectivoData = quartersConDatos.map(q => rEfectivo.quarters[q] || 0);
+
+      const canvas = G('ch-deuda-cobertura');
+      if (!canvas) return;
+      if (CH['ch-deuda-cobertura']) CH['ch-deuda-cobertura'].destroy();
+
+      CH['ch-deuda-cobertura'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Deuda (Total Pasivo)', data: deudaData, backgroundColor: '#f97316' },
+            { label: 'Efectivo y Equivalentes', data: efectivoData, backgroundColor: '#2563eb' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { y: { ticks: { callback: v => fmtS(v) } } },
+          datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                font: { size: 10 },
+                generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
+                  const valTxt = ': ' + chart.data.labels.map((lbl, qi) => lbl + ' ' + fmtS(ds.data[qi])).join(' · ');
+                  return { text: ds.label + valTxt, fillStyle: ds.backgroundColor, strokeStyle: ds.backgroundColor, hidden: false, datasetIndex: i };
+                })
+              }
+            },
+            tooltip: {
+              callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtS(ctx.raw)}` }
+            }
+          }
+        }
+      });
+    })
+    .catch(err => console.error('Error cargando Deuda y Cobertura:', err));
 }
 
 function loadEstructuraCapitalDetallada() {
@@ -3466,9 +3542,12 @@ function loadEstructuraCapitalDetallada() {
       const ctsel = document.getElementById('ct-ch-estcapdet');
       const modoPct = ctsel && ctsel.value === 'pct';
 
-      const paletaAzules = ['#0c1e3e','#1e3a8a','#2563eb','#60a5fa','#bfdbfe'];
-      const paletaNaranjas = ['#7c2d12','#c2410c','#ea580c','#f97316','#fdba74'];
-      const paletaTeals = ['#134e4a','#0f766e','#0891b2','#5eead4'];
+      // Paleta financiera sobria (opcion C, decidida con Andres esta sesion): azul
+      // cielo/ambar/teal en vez de azul marino/naranja fuerte -- misma regla de
+      // categoria (azul=Activo, naranja=Pasivo, teal=Patrimonio), tonos mas legibles.
+      const paletaAzules = ['#1e3a8a','#2563eb','#7dd3fc','#e0f2fe'];
+      const paletaNaranjas = ['#92400e','#d97706','#fb923c','#fed7aa'];
+      const paletaTeals = ['#0f766e','#14b8a6','#5eead4','#99f6e4'];
       const MAX_PARTIDAS = 4;
 
       function prepararItems(partidasRaw) {
@@ -3525,19 +3604,9 @@ function loadEstructuraCapitalDetallada() {
             x: { stacked: true },
             y: { stacked: true, ticks: { callback: v => modoPct ? v+'%' : fmtS(v) } }
           },
-          datasets: { bar: { maxBarThickness: 40 } },
+          datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
           plugins: {
-            legend: {
-              position: 'bottom',
-              labels: {
-                font: { size: 9 },
-                generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
-                  const ultimo = ds.data[ds.data.length - 1];
-                  const valTxt = modoPct ? '' : (' · ' + fmtS(ultimo));
-                  return { text: ds.label + valTxt, fillStyle: ds.backgroundColor, strokeStyle: ds.backgroundColor, hidden: false, datasetIndex: i };
-                })
-              }
-            },
+            legend: { display: false },
             tooltip: {
               callbacks: {
                 label: (ctx) => `${ctx.dataset.label}: ${modoPct ? ctx.raw.toFixed(1)+'%' : fmtS(ctx.raw)}`
@@ -3546,6 +3615,30 @@ function loadEstructuraCapitalDetallada() {
           }
         }
       });
+
+      // Leyenda propia, agrupada por categoria (Activo/Pasivo/Patrimonio), con monto
+      // por cada trimestre visible -- Chart.js no arma esto solo. Regla decidida esta
+      // sesion: ninguna leyenda del Dashboard muestra "solo el ultimo trimestre".
+      function renderGrupo(titulo, colorTitulo, items, paleta) {
+        const filas = items.map((x, idx) => {
+          const color = paleta[idx % paleta.length];
+          const montos = modoPct ? '' : quartersConDatos.map((q,i) => labels[i] + ' ' + fmtS(x.vals[i])).join(' · ');
+          return `<div style="margin-bottom:6px">
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:9px;height:9px;background:${color};border-radius:2px;display:inline-block;flex-shrink:0"></span>${x.r.partida}</div>
+            ${montos ? `<div style="font-size:10px;color:var(--mu2);margin-left:15px">${montos}</div>` : ''}
+          </div>`;
+        }).join('');
+        return `<div><p style="margin:0 0 6px;font-weight:700;color:${colorTitulo};font-size:11px">${titulo}</p>${filas}</div>`;
+      }
+
+      const legendEl = G('estcapdet-legend');
+      if (legendEl) {
+        legendEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+          ${renderGrupo('Activo', '#2563eb', itemsActivo, paletaAzules)}
+          ${renderGrupo('Pasivo', '#d97706', itemsPasivo, paletaNaranjas)}
+          ${renderGrupo('Patrimonio', '#14b8a6', itemsPatrimonio, paletaTeals)}
+        </div>`;
+      }
     })
     .catch(err => console.error('Error cargando Estructura de Capital Detallada:', err));
 }
@@ -3595,15 +3688,15 @@ function loadSituacionFinanciera() {
             x: { stacked: false },
             y: { ticks: { callback: v => fmtS(v) } }
           },
-          datasets: { bar: { maxBarThickness: 40 } },
+          datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
           plugins: {
             legend: {
               position: 'bottom',
               labels: {
                 font: { size: 10 },
                 generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
-                  const ultimo = ds.data[ds.data.length - 1];
-                  return { text: ds.label + ' · ' + fmtS(ultimo), fillStyle: ds.backgroundColor, strokeStyle: ds.backgroundColor, hidden: false, datasetIndex: i };
+                  const valTxt = ': ' + chart.data.labels.map((lbl, qi) => lbl + ' ' + fmtS(ds.data[qi])).join(' · ');
+                  return { text: ds.label + valTxt, fillStyle: ds.backgroundColor, strokeStyle: ds.backgroundColor, hidden: false, datasetIndex: i };
                 })
               }
             },
@@ -3657,7 +3750,7 @@ function loadIngresosCostosMargen() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      datasets: { bar: { maxBarThickness: 40 } },
+      datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
       scales: {
         y: { type: 'linear', position: 'left', ticks: { callback: v => fmtS(v) } },
         y1: { type: 'linear', position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, ticks: { callback: v => v.toFixed(0)+'%' } }
@@ -3668,9 +3761,11 @@ function loadIngresosCostosMargen() {
           labels: {
             font: { size: 10 },
             generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
-              const ultimo = ds.data[ds.data.length - 1];
-              const valTxt = ds.type === 'line' ? ultimo.toFixed(1)+'%' : fmtS(ultimo);
-              return { text: ds.label + ' · ' + valTxt, fillStyle: ds.backgroundColor, strokeStyle: ds.borderColor || ds.backgroundColor, hidden: false, datasetIndex: i };
+              const valTxt = ': ' + chart.data.labels.map((lbl, qi) => {
+                const v = ds.data[qi];
+                return lbl + ' ' + (ds.type === 'line' ? v.toFixed(1)+'%' : fmtS(v));
+              }).join(' · ');
+              return { text: ds.label + valTxt, fillStyle: ds.backgroundColor, strokeStyle: ds.borderColor || ds.backgroundColor, hidden: false, datasetIndex: i };
             })
           }
         },
@@ -4026,6 +4121,7 @@ async function loadDash(){
     loadEstructuraCapital();
     loadEstructuraCapitalDetallada();
     loadSituacionFinanciera();
+    loadDeudaCobertura();
     loadIngresosCostosMargen();
     loadCascadaPL();
     loadHeatmapUtilidadUnidad();

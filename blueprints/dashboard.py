@@ -180,6 +180,17 @@ DEFAULT_DASHBOARD_CONFIG = [
     "dataset": "situacion_financiera"
   },
   {
+    "id": "wc-deuda-cobertura",
+    "type": "chart",
+    "title": "Deuda y Cobertura",
+    "subtitle": "Total Pasivo vs Efectivo y Equivalentes, por trimestre · Consolidado (no cambia con el filtro de unidad)",
+    "visible": True,
+    "order": 12.2,
+    "size": "m",
+    "chartType": "bar",
+    "dataset": "deuda_cobertura"
+  },
+  {
     "id": "sec-eerr",
     "type": "section",
     "title": "📊 Estado de Resultados",
