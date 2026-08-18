@@ -141,7 +141,7 @@ DEFAULT_DASHBOARD_CONFIG = [
   {
     "id": "sec-esf",
     "type": "section",
-    "title": "🏦 Situación Financiera — Consolidado (no cambia con el filtro de unidad)",
+    "title": "🏦 Situación Financiera",
     "visible": True,
     "order": 9.5
   },
@@ -182,7 +182,7 @@ DEFAULT_DASHBOARD_CONFIG = [
   {
     "id": "sec-eerr",
     "type": "section",
-    "title": "📊 Estado de Resultados — por unidad de negocio",
+    "title": "📊 Estado de Resultados",
     "visible": True,
     "order": 12.5
   },

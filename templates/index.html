@@ -213,7 +213,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);overf
 .cv.h180{height:180px;}.cv.h200{height:200px;}.cv.h240{height:240px;}.cv.h280{height:280px;}
 .wcard.ws .cv{height:120px}
 .wcard.wm .cv{height:200px}
-.wsection{grid-column:1/-1;font-weight:700;font-size:13px;color:var(--tx2);padding:14px 4px 4px;border-top:1px solid var(--bd);margin-top:6px}
+.wsection{grid-column:1/-1;font-weight:700;font-size:13px;color:var(--tx2);padding:22px 4px 14px;border-top:1px solid var(--bd)}
 .wcard.wl .cv{height:260px}
 .wcard.wxl .cv{height:320px}
 
@@ -1617,7 +1617,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
   {
     "id": "sec-esf",
     "type": "section",
-    "title": "🏦 Situación Financiera — Consolidado (no cambia con el filtro de unidad)",
+    "title": "🏦 Situación Financiera",
     "visible": true,
     "order": 9.5
   },
@@ -1658,7 +1658,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
   {
     "id": "sec-eerr",
     "type": "section",
-    "title": "📊 Estado de Resultados — por unidad de negocio",
+    "title": "📊 Estado de Resultados",
     "visible": true,
     "order": 12.5
   },
@@ -2035,14 +2035,22 @@ async function initDashboardConfig() {
       });
     }
 
+    let validOrder = null;
     if (localOrder) {
+      const currentIds = window.DASHBOARD_CONFIG.map(w => w.id);
+      const sameSet = currentIds.length === localOrder.length &&
+        currentIds.every(id => localOrder.includes(id)) &&
+        localOrder.every(id => currentIds.includes(id));
+      if (sameSet) {
+        validOrder = localOrder;
+      } else {
+        localStorage.removeItem('worder');
+      }
+    }
+
+    if (validOrder) {
       window.DASHBOARD_CONFIG.sort((a, b) => {
-        const ai = localOrder.indexOf(a.id);
-        const bi = localOrder.indexOf(b.id);
-        if (ai === -1 && bi === -1) return 0;
-        if (ai === -1) return 1;
-        if (bi === -1) return -1;
-        return ai - bi;
+        return validOrder.indexOf(a.id) - validOrder.indexOf(b.id);
       });
       window.DASHBOARD_CONFIG.forEach((w, idx) => {
         w.order = idx + 1;
@@ -2813,7 +2821,7 @@ function layoutMasonry(){
   const con=G('wcon'); if(!con) return;
   if(!con.offsetParent){con.classList.remove('wcon-ready');return;}   // omite si el dashboard está oculto
   const ROW=8, GAP=12;
-  con.querySelectorAll('.wcard').forEach(card=>{
+  con.querySelectorAll('.wcard, .wsection').forEach(card=>{
     if(card.classList.contains('whidden')){card.style.gridRowEnd='';return;}
     const h=card.getBoundingClientRect().height;
     const span=Math.max(1,Math.ceil((h+GAP)/(ROW+GAP)));
