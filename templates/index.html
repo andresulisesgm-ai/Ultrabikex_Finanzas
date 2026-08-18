@@ -1625,7 +1625,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "id": "wc-estcap",
     "type": "chart",
     "title": "Estructura de Capital",
-    "subtitle": "Activo vs Pasivo + Patrimonio, por trimestre · Consolidado (no cambia con el filtro de unidad)",
+    "subtitle": "Activo vs Pasivo + Patrimonio, por trimestre",
     "visible": true,
     "order": 10,
     "size": "m",
@@ -1637,7 +1637,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "id": "wc-estcapdet",
     "type": "chart",
     "title": "Estructura de Capital Detallada",
-    "subtitle": "Activo y Pasivo por partida, por trimestre · Consolidado (no cambia con el filtro de unidad)",
+    "subtitle": "Activo y Pasivo por partida, por trimestre",
     "visible": true,
     "order": 11,
     "size": "m",
@@ -1648,7 +1648,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "id": "wc-sitfin",
     "type": "chart",
     "title": "Situación Financiera",
-    "subtitle": "Activo vs Pasivo, corriente y no corriente, por trimestre · Consolidado (no cambia con el filtro de unidad)",
+    "subtitle": "Activo vs Pasivo, corriente y no corriente, por trimestre",
     "visible": true,
     "order": 12,
     "size": "m",
@@ -1659,12 +1659,34 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "id": "wc-deuda-cobertura",
     "type": "chart",
     "title": "Deuda y Cobertura",
-    "subtitle": "Total Pasivo vs Efectivo y Equivalentes, por trimestre · Consolidado (no cambia con el filtro de unidad)",
+    "subtitle": "Total Pasivo vs Efectivo y Equivalentes, por trimestre",
     "visible": true,
     "order": 12.2,
     "size": "m",
     "chartType": "bar",
     "dataset": "deuda_cobertura"
+  },
+  {
+    "id": "wc-roe",
+    "type": "chart",
+    "title": "ROE Acumulado",
+    "subtitle": "Utilidad Neta acumulada / Patrimonio promedio",
+    "visible": true,
+    "order": 12.3,
+    "size": "s",
+    "chartType": "gauge",
+    "dataset": "roe"
+  },
+  {
+    "id": "wc-roa",
+    "type": "chart",
+    "title": "ROA Acumulado",
+    "subtitle": "Ingresos acumulados / Activos promedio",
+    "visible": true,
+    "order": 12.4,
+    "size": "s",
+    "chartType": "gauge",
+    "dataset": "roa"
   },
   {
     "id": "sec-eerr",
@@ -1737,14 +1759,14 @@ const WIDGET_TEMPLATES = {
     <div id="pe-card"></div>
   `,
   'wc-estcap': `
-    <div class="ch"><div><div class="ct">Estructura de Capital</div><div class="cs">Activo vs Pasivo + Patrimonio, por trimestre · Consolidado (no cambia con el filtro de unidad) <span id="estcap-badge" style="display:none;color:var(--red);font-weight:700">⚠ Descuadre</span></div></div>
+    <div class="ch"><div><div class="ct">Estructura de Capital</div><div class="cs">Activo vs Pasivo + Patrimonio, por trimestre <span id="estcap-badge" style="display:none;color:var(--red);font-weight:700">⚠ Descuadre</span></div></div>
       <div class="cact"><span class="dh">⠿</span>
         <select class="csel vsel" id="ct-ch-estcap" onchange="loadEstructuraCapital()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
         <button class="bcl" data-w="wc-estcap">✕</button></div></div>
     <div class="cv" style="height:300px"><canvas id="ch-estcap"></canvas></div>
   `,
   'wc-estcapdet': `
-    <div class="ch"><div><div class="ct">Estructura de Capital Detallada</div><div class="cs">Activo vs Pasivo + Patrimonio, por partida y por trimestre · Consolidado (no cambia con el filtro de unidad)</div></div>
+    <div class="ch"><div><div class="ct">Estructura de Capital Detallada</div><div class="cs">Activo vs Pasivo + Patrimonio, por partida y por trimestre</div></div>
       <div class="cact"><span class="dh">⠿</span>
         <select class="csel vsel" id="ct-ch-estcapdet" onchange="loadEstructuraCapitalDetallada()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
         <button class="bcl" data-w="wc-estcapdet">✕</button></div></div>
@@ -1752,14 +1774,36 @@ const WIDGET_TEMPLATES = {
     <div id="estcapdet-legend" style="padding:8px 4px 0"></div>
   `,
   'wc-sitfin': `
-    <div class="ch"><div><div class="ct">Situación Financiera</div><div class="cs">Activo vs Pasivo, corriente y no corriente, por trimestre · Consolidado (no cambia con el filtro de unidad)</div></div>
+    <div class="ch"><div><div class="ct">Situación Financiera</div><div class="cs">Activo vs Pasivo, corriente y no corriente, por trimestre</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-sitfin">✕</button></div></div>
     <div class="cv" style="height:300px"><canvas id="ch-sitfin"></canvas></div>
   `,
   'wc-deuda-cobertura': `
-    <div class="ch"><div><div class="ct">Deuda y Cobertura</div><div class="cs">Total Pasivo vs Efectivo y Equivalentes, por trimestre · Consolidado (no cambia con el filtro de unidad)</div></div>
+    <div class="ch"><div><div class="ct">Deuda y Cobertura</div><div class="cs">Total Pasivo vs Efectivo y Equivalentes, por trimestre</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-deuda-cobertura">✕</button></div></div>
     <div class="cv" style="height:300px"><canvas id="ch-deuda-cobertura"></canvas></div>
+  `,
+  'wc-roe': `
+    <div class="ch"><div><div class="ct">ROE Acumulado</div><div class="cs">Utilidad Neta acumulada / Patrimonio promedio</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-roe">✕</button></div></div>
+    <div style="position:relative;height:110px"><canvas id="ch-roe-gauge"></canvas>
+      <div style="position:absolute;top:55%;left:50%;transform:translate(-50%,-50%);text-align:center">
+        <div style="font-size:11px;color:var(--mu2)">ROE</div>
+        <div style="font-size:22px;font-weight:700" id="roe-gauge-num">—</div>
+      </div>
+    </div>
+    <div class="cv" style="height:170px"><canvas id="ch-roe-bar"></canvas></div>
+  `,
+  'wc-roa': `
+    <div class="ch"><div><div class="ct">ROA Acumulado</div><div class="cs">Ingresos acumulados / Activos promedio</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-roa">✕</button></div></div>
+    <div style="position:relative;height:110px"><canvas id="ch-roa-gauge"></canvas>
+      <div style="position:absolute;top:55%;left:50%;transform:translate(-50%,-50%);text-align:center">
+        <div style="font-size:11px;color:var(--mu2)">ROA</div>
+        <div style="font-size:22px;font-weight:700" id="roa-gauge-num">—</div>
+      </div>
+    </div>
+    <div class="cv" style="height:170px"><canvas id="ch-roa-bar"></canvas></div>
   `,
   'wc-margen': `
     <div class="ch"><div><div class="ct">Ingresos · Costos · Utilidad · Margen</div><div class="cs">Por trimestre · Respeta el filtro de unidad de negocio</div></div>
@@ -2381,7 +2425,9 @@ function renderDashboardWidgets() {
     const wcard = document.createElement('div');
     wcard.className = `wcard ${sizeClass} ${isVisible ? '' : 'whidden'}`;
     wcard.id = w.id;
-    wcard.setAttribute('draggable', 'true');
+    if (window.DASHBOARD_EDIT_MODE) {
+      wcard.setAttribute('draggable', 'true');
+    }
     
     let extraControls = '';
     if (window.DASHBOARD_EDIT_MODE) {
@@ -3712,6 +3758,87 @@ function loadSituacionFinanciera() {
     .catch(err => console.error('Error cargando Situacion Financiera:', err));
 }
 
+function crearGauge(canvasId, valorPct, colorFill) {
+  const canvas = G(canvasId);
+  if (!canvas) return;
+  if (CH[canvasId]) CH[canvasId].destroy();
+  const pct = Math.max(0, Math.min(100, valorPct));
+  CH[canvasId] = new Chart(canvas, {
+    type: 'doughnut',
+    data: { datasets: [{ data: [pct, 100 - pct], backgroundColor: [colorFill, '#e5e7eb'], borderWidth: 0 }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      rotation: -90,
+      circumference: 180,
+      cutout: '75%',
+      plugins: { legend: { display: false }, tooltip: { enabled: false } }
+    }
+  });
+}
+
+function loadROEROA() {
+  const wRoe = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-roe' && w.visible);
+  const wRoa = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-roa' && w.visible);
+  if (!wRoe && !wRoa) return;
+  const year = G('dash-year').value;
+  const empresaParam = CURRENT_EMPRESA_ID ? `&empresa_id=${CURRENT_EMPRESA_ID}` : '';
+  fetch(`/api/indicadores?year=${year}${empresaParam}`)
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data) return;
+      const inds = data.indicadores || [];
+
+      function renderInd(id, gaugeCanvasId, gaugeNumId, barCanvasId, color) {
+        const w = window.DASHBOARD_CONFIG.find(x => x.id === 'wc-' + id && x.visible);
+        if (!w) return;
+        const ind = inds.find(x => x.nombre && x.nombre.toLowerCase().startsWith(id.toLowerCase()));
+        if (!ind) return;
+        const trimestres = ind.trimestres || [];
+        const idxConDatos = [0, 1, 2, 3].filter(i => trimestres[i] && trimestres[i].valor !== null);
+        if (!idxConDatos.length) return;
+        const labels = idxConDatos.map(i => 'Q' + (i + 1));
+        const valores = idxConDatos.map(i => (trimestres[i].valor || 0) * 100);
+        const ultimoVal = valores[valores.length - 1];
+
+        crearGauge(gaugeCanvasId, ultimoVal, color);
+        const numEl = G(gaugeNumId);
+        if (numEl) numEl.textContent = ultimoVal.toFixed(1) + '%';
+
+        const canvas = G(barCanvasId);
+        if (!canvas) return;
+        if (CH[barCanvasId]) CH[barCanvasId].destroy();
+        CH[barCanvasId] = new Chart(canvas, {
+          type: 'bar',
+          data: { labels, datasets: [{ label: ind.nombre, data: valores, backgroundColor: color }] },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { ticks: { callback: v => v.toFixed(0) + '%' } } },
+            datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  font: { size: 10 },
+                  generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
+                    const valTxt = ': ' + chart.data.labels.map((lbl, qi) => lbl + ' ' + ds.data[qi].toFixed(1) + '%').join(' · ');
+                    return { text: ds.label + valTxt, fillStyle: ds.backgroundColor, strokeStyle: ds.backgroundColor, hidden: false, datasetIndex: i };
+                  })
+                }
+              },
+              tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%` } }
+            }
+          }
+        });
+      }
+
+      renderInd('roe', 'ch-roe-gauge', 'roe-gauge-num', 'ch-roe-bar', '#059669');
+      renderInd('roa', 'ch-roa-gauge', 'roa-gauge-num', 'ch-roa-bar', '#0891b2');
+    })
+    .catch(err => console.error('Error cargando ROE/ROA:', err));
+}
+
 function loadIngresosCostosMargen() {
   const wActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-margen' && w.visible);
   if (!wActivo || !DD || !DD.months) return;
@@ -3825,6 +3952,11 @@ function loadCascadaPL() {
   if (!canvas) return;
   if (CH['ch-cascada']) CH['ch-cascada'].destroy();
 
+  // Etiquetas de valor debajo de cada barra -- se posicionan en la coordenada de pixel
+  // exacta que Chart.js calculo para cada barra (getPixelForTick), no con anchos de grid
+  // adivinados. Se dibujan en animation.onComplete porque el layout final del eje X
+  // (y por tanto la posicion real de cada barra) recien esta disponible ahi, no
+  // inmediatamente despues de "new Chart(...)".
   CH['ch-cascada'] = new Chart(canvas, {
     type: 'bar',
     data: {
@@ -3842,38 +3974,31 @@ function loadCascadaPL() {
         x: { stacked: true, ticks: { font: { size: 9 } } },
         y: { stacked: true, ticks: { callback: v => fmtS(v) } }
       },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            title: (items) => pasos[items[0].dataIndex].label,
-            label: (ctx) => {
-              if (ctx.dataset.label === 'base') return null;
-              const p = pasos[ctx.dataIndex];
-              return fmtS(p.valor);
-            }
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                font: { size: 10 },
+                generateLabels: () => pasos.map((p, i) => {
+                  const color = p.tipo === 'total' ? '#2563eb' : (p.valor >= 0 ? '#059669' : '#dc2626');
+                  return { text: p.label + ': ' + fmtS(p.valor), fillStyle: color, strokeStyle: color, hidden: false, datasetIndex: 1, index: i };
+                })
+              }
+            },
+            tooltip: {
+              callbacks: {
+                title: (items) => pasos[items[0].dataIndex].label,
+                label: (ctx) => {
+                  if (ctx.dataset.label === 'base') return null;
+                  const p = pasos[ctx.dataIndex];
+                  return fmtS(p.valor);
+                }
+              }
+            },
+            datalabels: false
           }
-        },
-        datalabels: false
-      }
     }
   });
-
-  // Etiquetas de valor sobre cada barra -- se borra la anterior antes de crear una
-  // nueva, para que no se duplique en cada redibujado.
-  const legendViejo = canvas.parentElement.querySelector('.cascada-legend');
-  if (legendViejo) legendViejo.remove();
-  const legendDiv = document.createElement('div');
-  legendDiv.className = 'cascada-legend';
-  legendDiv.style.cssText = 'display:flex;justify-content:space-around;font-size:10px;margin-top:4px;flex-wrap:wrap;gap:4px';
-  pasos.forEach(p => {
-    const span = document.createElement('span');
-    span.textContent = p.label + ' · ' + fmtS(p.valor);
-    span.style.color = p.tipo === 'total' ? '#2563eb' : (p.valor >= 0 ? '#059669' : '#dc2626');
-    span.style.fontWeight = '600';
-    legendDiv.appendChild(span);
-  });
-  canvas.parentElement.appendChild(legendDiv);
 }
 
 function loadHeatmapUtilidadUnidad() {
@@ -4122,6 +4247,7 @@ async function loadDash(){
     loadEstructuraCapitalDetallada();
     loadSituacionFinanciera();
     loadDeudaCobertura();
+    loadROEROA();
     loadIngresosCostosMargen();
     loadCascadaPL();
     loadHeatmapUtilidadUnidad();
