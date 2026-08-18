@@ -1730,39 +1730,39 @@ const WIDGET_TEMPLATES = {
       <div class="cact"><span class="dh">⠿</span>
         <select class="csel vsel" id="ct-ch-estcap" onchange="loadEstructuraCapital()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
         <button class="bcl" data-w="wc-estcap">✕</button></div></div>
-    <div class="cv" style="height:340px"><canvas id="ch-estcap"></canvas></div>
+    <div class="cv" style="height:300px"><canvas id="ch-estcap"></canvas></div>
   `,
   'wc-estcapdet': `
     <div class="ch"><div><div class="ct">Estructura de Capital Detallada</div><div class="cs">Activo vs Pasivo + Patrimonio, por partida y por trimestre · Consolidado (no cambia con el filtro de unidad)</div></div>
       <div class="cact"><span class="dh">⠿</span>
         <select class="csel vsel" id="ct-ch-estcapdet" onchange="loadEstructuraCapitalDetallada()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
         <button class="bcl" data-w="wc-estcapdet">✕</button></div></div>
-    <div class="cv" style="height:340px"><canvas id="ch-estcapdet"></canvas></div>
+    <div class="cv" style="height:300px"><canvas id="ch-estcapdet"></canvas></div>
   `,
   'wc-sitfin': `
     <div class="ch"><div><div class="ct">Situación Financiera</div><div class="cs">Activo vs Pasivo, corriente y no corriente, por trimestre · Consolidado (no cambia con el filtro de unidad)</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-sitfin">✕</button></div></div>
-    <div class="cv" style="height:340px"><canvas id="ch-sitfin"></canvas></div>
+    <div class="cv" style="height:300px"><canvas id="ch-sitfin"></canvas></div>
   `,
   'wc-margen': `
     <div class="ch"><div><div class="ct">Ingresos · Costos · Utilidad · Margen</div><div class="cs">Por trimestre · Respeta el filtro de unidad de negocio</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-margen">✕</button></div></div>
-    <div class="cv" style="height:340px"><canvas id="ch-margen"></canvas></div>
+    <div class="cv" style="height:300px"><canvas id="ch-margen"></canvas></div>
   `,
   'wc-cascada': `
     <div class="ch"><div><div class="ct">Cascada P&L</div><div class="cs">De Ingresos a Utilidad Neta, paso a paso · Respeta el filtro de unidad de negocio</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-cascada">✕</button></div></div>
-    <div class="cv" style="height:280px"><canvas id="ch-cascada"></canvas></div>
+    <div class="cv" style="height:300px"><canvas id="ch-cascada"></canvas></div>
   `,
   'wc-heatmap-un': `
     <div class="ch"><div><div class="ct" id="heatmap-un-titulo">Utilidad Neta por Unidad de Negocio</div><div class="cs">Mapa de calor · Por unidad si hay una empresa seleccionada, por empresa en vista Holding</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-heatmap-un">✕</button></div></div>
-    <div id="heatmap-un-body" style="min-height:200px;padding:8px 0"></div>
+    <div id="heatmap-un-body" style="min-height:300px;padding:8px 0;display:flex;flex-direction:column;justify-content:center"></div>
   `,
   'wc-dona-unidad': `
     <div class="ch"><div><div class="ct">Ingresos por Unidad de Negocio</div><div class="cs">% de participación · Solo disponible al seleccionar una empresa con unidades propias</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-dona-unidad">✕</button></div></div>
-    <div class="cv" style="height:260px;position:relative">
+    <div class="cv" style="height:300px;position:relative">
       <canvas id="ch-dona-unidad"></canvas>
       <div id="ch-dona-unidad-empty" style="display:none;text-align:center;color:var(--mu);font-size:12px;padding:24px 8px">Seleccioná una empresa con unidades de negocio propias para ver este gráfico.</div>
     </div>
@@ -1770,7 +1770,7 @@ const WIDGET_TEMPLATES = {
   'wc-dona-segmento': `
     <div class="ch"><div><div class="ct">Ingresos por Segmentos</div><div class="cs">Venta de Mercancía · Servicios · Eventos · Taller</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-dona-segmento">✕</button></div></div>
-    <div class="cv" style="height:260px"><canvas id="ch-dona-segmento"></canvas></div>
+    <div class="cv" style="height:300px"><canvas id="ch-dona-segmento"></canvas></div>
   `,
   'wc-sem': `
     <div class="ch"><div><div class="ct">🚦 Semáforo Financiero</div><div class="cs">Estado de salud por indicador</div></div>
