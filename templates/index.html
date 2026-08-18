@@ -1694,6 +1694,28 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "size": "m",
     "chartType": "bar",
     "dataset": "heatmap_utilidad_unidad"
+  },
+  {
+    "id": "wc-dona-unidad",
+    "type": "chart",
+    "title": "Ingresos por Unidad de Negocio",
+    "subtitle": "% de participación · Solo disponible al seleccionar una empresa con unidades propias",
+    "visible": true,
+    "order": 16,
+    "size": "s",
+    "chartType": "doughnut",
+    "dataset": "ingresos_por_unidad"
+  },
+  {
+    "id": "wc-dona-segmento",
+    "type": "chart",
+    "title": "Ingresos por Segmentos",
+    "subtitle": "Venta de Mercancía · Servicios · Eventos · Taller",
+    "visible": true,
+    "order": 17,
+    "size": "s",
+    "chartType": "doughnut",
+    "dataset": "ingresos_segmentos"
   }
 ];
 
@@ -1736,6 +1758,16 @@ const WIDGET_TEMPLATES = {
     <div class="ch"><div><div class="ct" id="heatmap-un-titulo">Utilidad Neta por Unidad de Negocio</div><div class="cs">Mapa de calor · Por unidad si hay una empresa seleccionada, por empresa en vista Holding</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-heatmap-un">✕</button></div></div>
     <div id="heatmap-un-body" style="min-height:200px;padding:8px 0"></div>
+  `,
+  'wc-dona-unidad': `
+    <div class="ch"><div><div class="ct">Ingresos por Unidad de Negocio</div><div class="cs">% de participación · Solo disponible al seleccionar una empresa con unidades propias</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-dona-unidad">✕</button></div></div>
+    <div class="cv" style="height:260px"><canvas id="ch-dona-unidad"></canvas></div>
+  `,
+  'wc-dona-segmento': `
+    <div class="ch"><div><div class="ct">Ingresos por Segmentos</div><div class="cs">Venta de Mercancía · Servicios · Eventos · Taller</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-dona-segmento">✕</button></div></div>
+    <div class="cv" style="height:260px"><canvas id="ch-dona-segmento"></canvas></div>
   `,
   'wc-sem': `
     <div class="ch"><div><div class="ct">🚦 Semáforo Financiero</div><div class="cs">Estado de salud por indicador</div></div>
@@ -3774,6 +3806,69 @@ function loadHeatmapUtilidadUnidad() {
   );
 }
 
+function loadDonaUnidad() {
+  const wActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-dona-unidad' && w.visible);
+  if (!wActivo) return;
+  const canvas = G('ch-dona-unidad');
+  if (!canvas) return;
+  const unidades = (DD && DD.por_unidad) || [];
+  const wrap = canvas.parentElement;
+  if (!unidades.length) {
+    wrap.innerHTML = '<div style="text-align:center;color:var(--mu);font-size:12px;padding:24px 8px">Seleccioná una empresa con unidades de negocio propias para ver este gráfico.</div>';
+    return;
+  }
+  if (CH['ch-dona-unidad']) CH['ch-dona-unidad'].destroy();
+  const paleta = ['#2563eb','#059669','#d97706','#dc2626','#7c3aed','#0891b2'];
+  CH['ch-dona-unidad'] = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: unidades.map(function(u) { return u.unit; }),
+      datasets: [{ data: unidades.map(function(u) { return u.ingresos; }), backgroundColor: paleta }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 9 } } },
+        tooltip: { callbacks: { label: function(ctx) {
+          const total = ctx.dataset.data.reduce(function(a,b){return a+b;},0);
+          const pct = total ? (ctx.raw/total*100).toFixed(1) : 0;
+          return ctx.label + ': ' + fmtS(ctx.raw) + ' (' + pct + '%)';
+        } } }
+      }
+    }
+  });
+}
+
+function loadDonaSegmento() {
+  const wActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-dona-segmento' && w.visible);
+  if (!wActivo || !DD || !DD.totals || !DD.totals.ingresos_segmentos) return;
+  const canvas = G('ch-dona-segmento');
+  if (!canvas) return;
+  const seg = DD.totals.ingresos_segmentos;
+  const labels = Object.keys(seg).filter(function(k) { return seg[k] !== 0; });
+  if (!labels.length) return;
+  if (CH['ch-dona-segmento']) CH['ch-dona-segmento'].destroy();
+  const paleta = ['#2563eb','#059669','#d97706','#7c3aed'];
+  CH['ch-dona-segmento'] = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{ data: labels.map(function(k) { return seg[k]; }), backgroundColor: paleta }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 9 } } },
+        tooltip: { callbacks: { label: function(ctx) {
+          const total = ctx.dataset.data.reduce(function(a,b){return a+b;},0);
+          const pct = total ? (ctx.raw/total*100).toFixed(1) : 0;
+          return ctx.label + ': ' + fmtS(ctx.raw) + ' (' + pct + '%)';
+        } } }
+      }
+    }
+  });
+}
+
 // ── DASHBOARD LOAD ────────────────────────────────────────────────────────
 async function loadDash(){
   try{
@@ -3882,6 +3977,8 @@ async function loadDash(){
     loadIngresosCostosMargen();
     loadCascadaPL();
     loadHeatmapUtilidadUnidad();
+    loadDonaUnidad();
+    loadDonaSegmento();
     // NOTA: renderSem, renderGauges, renderRank, renderPE, buildCharts, rTable, rWF
     // dejan de llamarse aqui -- alimentaban widgets ya eliminados del Dashboard
     // (Semaforo, Gauges, Ranking, Punto de Equilibrio, graficos viejos, tabla,

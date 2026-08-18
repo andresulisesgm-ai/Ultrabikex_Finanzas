@@ -218,6 +218,28 @@ DEFAULT_DASHBOARD_CONFIG = [
     "size": "m",
     "chartType": "bar",
     "dataset": "heatmap_utilidad_unidad"
+  },
+  {
+    "id": "wc-dona-unidad",
+    "type": "chart",
+    "title": "Ingresos por Unidad de Negocio",
+    "subtitle": "% de participación · Solo disponible al seleccionar una empresa con unidades propias",
+    "visible": True,
+    "order": 16,
+    "size": "s",
+    "chartType": "doughnut",
+    "dataset": "ingresos_por_unidad"
+  },
+  {
+    "id": "wc-dona-segmento",
+    "type": "chart",
+    "title": "Ingresos por Segmentos",
+    "subtitle": "Venta de Mercancía · Servicios · Eventos · Taller",
+    "visible": True,
+    "order": 17,
+    "size": "s",
+    "chartType": "doughnut",
+    "dataset": "ingresos_segmentos"
   }
 ]
 
@@ -260,6 +282,10 @@ def dashboard():
     un_mes, un       = get_eerr_values('Utilidad Neta')
     otros_ing_mes, otros_ing = get_eerr_values('Otros Ingresos no Operacionales')
     otros_gas_mes, otros_gas = get_eerr_values('Otros Gastos no Operacionales')
+    _, seg_mercancia = get_eerr_values('Subtotal Ingresos por Venta de Mercancia')
+    _, seg_servicios  = get_eerr_values('Subtotal Ingresos por Servicios')
+    _, seg_eventos    = get_eerr_values('Subtotal Ingresos por Eventos')
+    _, seg_taller     = get_eerr_values('Subtotal Ingresos por Taller')
 
     # 2. Desglose por unidad (por_unidad) — solo si la empresa activa tiene unidades propias.
     # Holding (empresa_id=None) no tiene desglose por unidad: es agregado de 4 empresas, no de unidades.
@@ -433,7 +459,13 @@ def dashboard():
         'patrimonio': patrimonio,
         'razon_corriente': razon_corriente,
         'otros_ingresos_no_operacionales': round(otros_ing, 2),
-        'otros_gastos_no_operacionales': round(otros_gas, 2)
+        'otros_gastos_no_operacionales': round(otros_gas, 2),
+        'ingresos_segmentos': {
+            'Venta de Mercancía': round(seg_mercancia, 2),
+            'Servicios': round(seg_servicios, 2),
+            'Eventos': round(seg_eventos, 2),
+            'Taller': round(seg_taller, 2)
+        }
     }
 
     return jsonify({
