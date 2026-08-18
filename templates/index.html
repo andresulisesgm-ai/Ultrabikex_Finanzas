@@ -213,6 +213,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);overf
 .cv.h180{height:180px;}.cv.h200{height:200px;}.cv.h240{height:240px;}.cv.h280{height:280px;}
 .wcard.ws .cv{height:120px}
 .wcard.wm .cv{height:200px}
+.wsection{grid-column:1/-1;font-weight:700;font-size:13px;color:var(--tx2);padding:14px 4px 4px;border-top:1px solid var(--bd);margin-top:6px}
 .wcard.wl .cv{height:260px}
 .wcard.wxl .cv{height:320px}
 
@@ -1614,6 +1615,13 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "dataset": "razon_corriente"
   },
   {
+    "id": "sec-esf",
+    "type": "section",
+    "title": "🏦 Situación Financiera — Consolidado (no cambia con el filtro de unidad)",
+    "visible": true,
+    "order": 9.5
+  },
+  {
     "id": "wc-estcap",
     "type": "chart",
     "title": "Estructura de Capital",
@@ -1646,6 +1654,13 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "size": "m",
     "chartType": "bar",
     "dataset": "situacion_financiera"
+  },
+  {
+    "id": "sec-eerr",
+    "type": "section",
+    "title": "📊 Estado de Resultados — por unidad de negocio",
+    "visible": true,
+    "order": 12.5
   },
   {
     "id": "wc-margen",
@@ -2256,6 +2271,14 @@ function renderDashboardWidgets() {
     .sort((a, b) => a.order - b.order);
 
   sortedWidgets.forEach(w => {
+    if (w.type === 'section') {
+      const sec = document.createElement('div');
+      sec.className = 'wsection';
+      sec.textContent = w.title;
+      wcon.appendChild(sec);
+      return;
+    }
+
     let isVisible = w.visible;
     const localHidden = LS.get('hidden', []);
     if (localHidden.includes(w.id)) {
@@ -3542,7 +3565,7 @@ function loadIngresosCostosMargen() {
       datasets: { bar: { maxBarThickness: 40 } },
       scales: {
         y: { type: 'linear', position: 'left', ticks: { callback: v => fmtS(v) } },
-        y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { callback: v => v.toFixed(0)+'%' } }
+        y1: { type: 'linear', position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, ticks: { callback: v => v.toFixed(0)+'%' } }
       },
       plugins: {
         legend: {

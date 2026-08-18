@@ -139,6 +139,13 @@ DEFAULT_DASHBOARD_CONFIG = [
     "dataset": "razon_corriente"
   },
   {
+    "id": "sec-esf",
+    "type": "section",
+    "title": "🏦 Situación Financiera — Consolidado (no cambia con el filtro de unidad)",
+    "visible": True,
+    "order": 9.5
+  },
+  {
     "id": "wc-estcap",
     "type": "chart",
     "title": "Estructura de Capital",
@@ -171,6 +178,13 @@ DEFAULT_DASHBOARD_CONFIG = [
     "size": "m",
     "chartType": "bar",
     "dataset": "situacion_financiera"
+  },
+  {
+    "id": "sec-eerr",
+    "type": "section",
+    "title": "📊 Estado de Resultados — por unidad de negocio",
+    "visible": True,
+    "order": 12.5
   },
   {
     "id": "wc-margen",
