@@ -204,7 +204,7 @@ DEFAULT_DASHBOARD_CONFIG = [
     "subtitle": "De Ingresos a Utilidad Neta, paso a paso · Respeta el filtro de unidad de negocio",
     "visible": True,
     "order": 14,
-    "size": "l",
+    "size": "m",
     "chartType": "bar",
     "dataset": "cascada_pl"
   }

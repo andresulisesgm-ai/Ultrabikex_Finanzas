@@ -1680,7 +1680,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "subtitle": "De Ingresos a Utilidad Neta, paso a paso · Respeta el filtro de unidad de negocio",
     "visible": true,
     "order": 14,
-    "size": "l",
+    "size": "m",
     "chartType": "bar",
     "dataset": "cascada_pl"
   }
@@ -1719,7 +1719,7 @@ const WIDGET_TEMPLATES = {
   'wc-cascada': `
     <div class="ch"><div><div class="ct">Cascada P&L</div><div class="cs">De Ingresos a Utilidad Neta, paso a paso · Respeta el filtro de unidad de negocio</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-cascada">✕</button></div></div>
-    <div class="cv" style="height:340px"><canvas id="ch-cascada"></canvas></div>
+    <div class="cv" style="height:280px"><canvas id="ch-cascada"></canvas></div>
   `,
   'wc-sem': `
     <div class="ch"><div><div class="ct">🚦 Semáforo Financiero</div><div class="cs">Estado de salud por indicador</div></div>
@@ -3663,7 +3663,7 @@ function loadCascadaPL() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      datasets: { bar: { maxBarThickness: 55 } },
+      datasets: { bar: { maxBarThickness: 55, categoryPercentage: 0.9, barPercentage: 0.95 } },
       scales: {
         x: { stacked: true },
         y: { stacked: true, ticks: { callback: v => fmtS(v) } }
@@ -3685,8 +3685,12 @@ function loadCascadaPL() {
     }
   });
 
-  // Etiquetas de valor sobre cada barra (Chart.js base no las trae por defecto)
+  // Etiquetas de valor sobre cada barra -- se borra la anterior antes de crear una
+  // nueva, para que no se duplique en cada redibujado.
+  const legendViejo = canvas.parentElement.querySelector('.cascada-legend');
+  if (legendViejo) legendViejo.remove();
   const legendDiv = document.createElement('div');
+  legendDiv.className = 'cascada-legend';
   legendDiv.style.cssText = 'display:flex;justify-content:space-around;font-size:10px;margin-top:4px;flex-wrap:wrap;gap:4px';
   pasos.forEach(p => {
     const span = document.createElement('span');
