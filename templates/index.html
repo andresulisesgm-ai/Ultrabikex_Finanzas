@@ -1733,7 +1733,7 @@ const WIDGET_TEMPLATES = {
     <div class="cv" style="height:280px"><canvas id="ch-cascada"></canvas></div>
   `,
   'wc-heatmap-un': `
-    <div class="ch"><div><div class="ct">Utilidad Neta por Unidad de Negocio</div><div class="cs">Mapa de calor · Solo disponible al seleccionar una empresa con unidades propias</div></div>
+    <div class="ch"><div><div class="ct" id="heatmap-un-titulo">Utilidad Neta por Unidad de Negocio</div><div class="cs">Mapa de calor · Por unidad si hay una empresa seleccionada, por empresa en vista Holding</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-heatmap-un">✕</button></div></div>
     <div id="heatmap-un-body" style="min-height:200px;padding:8px 0"></div>
   `,
@@ -3724,41 +3724,53 @@ function loadHeatmapUtilidadUnidad() {
   const body = G('heatmap-un-body');
   if (!body) return;
 
-  const unidades = (DD && DD.por_unidad) || [];
-  if (!unidades.length) {
-    body.innerHTML = '<div style="text-align:center;color:var(--mu);font-size:12px;padding:24px 8px">Seleccioná una empresa con unidades de negocio propias (ej. Ultrax C.A.) para ver este mapa de calor.</div>';
-    return;
-  }
-
-  const valores = unidades.map(u => u.utilidad_neta);
-  const maxPos = Math.max(0, ...valores);
-  const maxNegAbs = Math.abs(Math.min(0, ...valores));
-
-  function colorPara(v) {
+  function colorPara(v, maxPos, maxNegAbs) {
     if (v >= 0) {
       const t = maxPos ? Math.min(v / maxPos, 1) : 0;
-      // interpola entre verde clarito y verde oscuro
-      const l = 88 - t * 48; // 88% (clarito) -> 40% (oscuro)
-      return `hsl(158, 60%, ${l}%)`;
+      const l = 88 - t * 48;
+      return 'hsl(158, 60%, ' + l + '%)';
     } else {
       const t = maxNegAbs ? Math.min(Math.abs(v) / maxNegAbs, 1) : 0;
       const l = 88 - t * 48;
-      return `hsl(0, 65%, ${l}%)`;
+      return 'hsl(0, 65%, ' + l + '%)';
     }
   }
 
-  const ordenadas = [...unidades].sort((a, b) => b.utilidad_neta - a.utilidad_neta);
+  function pintarGrilla(items, etiquetaVacia) {
+    if (!items.length) {
+      body.innerHTML = '<div style="text-align:center;color:var(--mu);font-size:12px;padding:24px 8px">' + etiquetaVacia + '</div>';
+      return;
+    }
+    const valores = items.map(function(x) { return x.utilidad_neta; });
+    const maxPos = Math.max.apply(null, [0].concat(valores));
+    const maxNegAbs = Math.abs(Math.min.apply(null, [0].concat(valores)));
+    const ordenados = items.slice().sort(function(a, b) { return b.utilidad_neta - a.utilidad_neta; });
+    let html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">';
+    ordenados.forEach(function(x) {
+      html += '<div style="background:' + colorPara(x.utilidad_neta, maxPos, maxNegAbs) + ';border-radius:8px;padding:12px 8px;text-align:center">';
+      html += '<div style="font-size:11px;font-weight:600;color:#1e293b;margin-bottom:4px">' + x.nombre + '</div>';
+      html += '<div style="font-size:15px;font-weight:700;color:#0f172a">' + fmtS(x.utilidad_neta) + '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+  }
 
-  body.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">
-      ${ordenadas.map(u => `
-        <div style="background:${colorPara(u.utilidad_neta)};border-radius:8px;padding:12px 8px;text-align:center">
-          <div style="font-size:11px;font-weight:600;color:#1e293b;margin-bottom:4px">${u.unit}</div>
-          <div style="font-size:15px;font-weight:700;color:#0f172a">${fmtS(u.utilidad_neta)}</div>
-        </div>
-      `).join('')}
-    </div>
-  `;
+  const unidades = (DD && DD.por_unidad) || [];
+  if (unidades.length) {
+    const titulo = G('heatmap-un-titulo');
+    if (titulo) titulo.textContent = 'Utilidad Neta por Unidad de Negocio';
+    pintarGrilla(unidades.map(function(u) { return { nombre: u.unit, utilidad_neta: u.utilidad_neta }; }), '');
+    return;
+  }
+
+  const empresas = (DD && DD.por_empresa) || [];
+  const titulo2 = G('heatmap-un-titulo');
+  if (titulo2) titulo2.textContent = 'Utilidad Neta por Empresa (Holding)';
+  pintarGrilla(
+    empresas.map(function(e) { return { nombre: e.empresa, utilidad_neta: e.utilidad_neta }; }),
+    'Sin datos suficientes todavia para mostrar el mapa de calor por empresa.'
+  );
 }
 
 // ── DASHBOARD LOAD ────────────────────────────────────────────────────────
