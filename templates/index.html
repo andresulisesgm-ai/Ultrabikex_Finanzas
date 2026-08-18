@@ -1672,6 +1672,17 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "size": "m",
     "chartType": "bar",
     "dataset": "ingresos_costos_margen"
+  },
+  {
+    "id": "wc-cascada",
+    "type": "chart",
+    "title": "Cascada P&L",
+    "subtitle": "De Ingresos a Utilidad Neta, paso a paso · Respeta el filtro de unidad de negocio",
+    "visible": true,
+    "order": 14,
+    "size": "l",
+    "chartType": "bar",
+    "dataset": "cascada_pl"
   }
 ];
 
@@ -1704,6 +1715,11 @@ const WIDGET_TEMPLATES = {
     <div class="ch"><div><div class="ct">Ingresos · Costos · Utilidad · Margen</div><div class="cs">Por trimestre · Respeta el filtro de unidad de negocio</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-margen">✕</button></div></div>
     <div class="cv" style="height:340px"><canvas id="ch-margen"></canvas></div>
+  `,
+  'wc-cascada': `
+    <div class="ch"><div><div class="ct">Cascada P&L</div><div class="cs">De Ingresos a Utilidad Neta, paso a paso · Respeta el filtro de unidad de negocio</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-cascada">✕</button></div></div>
+    <div class="cv" style="height:340px"><canvas id="ch-cascada"></canvas></div>
   `,
   'wc-sem': `
     <div class="ch"><div><div class="ct">🚦 Semáforo Financiero</div><div class="cs">Estado de salud por indicador</div></div>
@@ -3591,6 +3607,97 @@ function loadIngresosCostosMargen() {
   });
 }
 
+function loadCascadaPL() {
+  const wActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-cascada' && w.visible);
+  if (!wActivo || !DD || !DD.totals) return;
+
+  const t = DD.totals;
+  const gastosOperativosPuros = t.gastos - (t.otros_gastos_no_operacionales || 0);
+
+  const pasos = [
+    { label: 'Ingresos', valor: t.ingresos, tipo: 'total' },
+    { label: 'Costo de Ventas', valor: -t.costos, tipo: 'delta' },
+    { label: 'Utilidad Bruta', valor: t.utilidad_bruta, tipo: 'total' },
+    { label: 'Gastos', valor: -gastosOperativosPuros, tipo: 'delta' },
+    { label: 'Otros Ingresos No Operativos', valor: t.otros_ingresos_no_operacionales || 0, tipo: 'delta' },
+    { label: 'Otros Gastos No Operativos', valor: -(t.otros_gastos_no_operacionales || 0), tipo: 'delta' },
+    { label: 'Utilidad Neta', valor: t.utilidad_neta, tipo: 'total' }
+  ];
+
+  let acumulado = 0;
+  const labels = [];
+  const base = [];
+  const valores = [];
+  const colores = [];
+
+  pasos.forEach(p => {
+    labels.push(p.label);
+    if (p.tipo === 'total') {
+      base.push(0);
+      valores.push(p.valor);
+      colores.push('#2563eb');
+      acumulado = p.valor;
+    } else {
+      const antes = acumulado;
+      const despues = acumulado + p.valor;
+      base.push(Math.min(antes, despues));
+      valores.push(Math.abs(p.valor));
+      colores.push(p.valor >= 0 ? '#059669' : '#dc2626');
+      acumulado = despues;
+    }
+  });
+
+  const canvas = G('ch-cascada');
+  if (!canvas) return;
+  if (CH['ch-cascada']) CH['ch-cascada'].destroy();
+
+  CH['ch-cascada'] = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'base', data: base, backgroundColor: 'transparent', stack: 's' },
+        { label: 'valor', data: valores, backgroundColor: colores, stack: 's' }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      datasets: { bar: { maxBarThickness: 55 } },
+      scales: {
+        x: { stacked: true },
+        y: { stacked: true, ticks: { callback: v => fmtS(v) } }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => pasos[items[0].dataIndex].label,
+            label: (ctx) => {
+              if (ctx.dataset.label === 'base') return null;
+              const p = pasos[ctx.dataIndex];
+              return fmtS(p.valor);
+            }
+          }
+        },
+        datalabels: false
+      }
+    }
+  });
+
+  // Etiquetas de valor sobre cada barra (Chart.js base no las trae por defecto)
+  const legendDiv = document.createElement('div');
+  legendDiv.style.cssText = 'display:flex;justify-content:space-around;font-size:10px;margin-top:4px;flex-wrap:wrap;gap:4px';
+  pasos.forEach(p => {
+    const span = document.createElement('span');
+    span.textContent = p.label + ' · ' + fmtS(p.valor);
+    span.style.color = p.tipo === 'total' ? '#2563eb' : (p.valor >= 0 ? '#059669' : '#dc2626');
+    span.style.fontWeight = '600';
+    legendDiv.appendChild(span);
+  });
+  canvas.parentElement.appendChild(legendDiv);
+}
+
 // ── DASHBOARD LOAD ────────────────────────────────────────────────────────
 async function loadDash(){
   try{
@@ -3697,6 +3804,7 @@ async function loadDash(){
     loadEstructuraCapitalDetallada();
     loadSituacionFinanciera();
     loadIngresosCostosMargen();
+    loadCascadaPL();
     // NOTA: renderSem, renderGauges, renderRank, renderPE, buildCharts, rTable, rWF
     // dejan de llamarse aqui -- alimentaban widgets ya eliminados del Dashboard
     // (Semaforo, Gauges, Ranking, Punto de Equilibrio, graficos viejos, tabla,

@@ -196,6 +196,17 @@ DEFAULT_DASHBOARD_CONFIG = [
     "size": "m",
     "chartType": "bar",
     "dataset": "ingresos_costos_margen"
+  },
+  {
+    "id": "wc-cascada",
+    "type": "chart",
+    "title": "Cascada P&L",
+    "subtitle": "De Ingresos a Utilidad Neta, paso a paso · Respeta el filtro de unidad de negocio",
+    "visible": True,
+    "order": 14,
+    "size": "l",
+    "chartType": "bar",
+    "dataset": "cascada_pl"
   }
 ]
 
@@ -236,6 +247,8 @@ def dashboard():
     gastos_mes, tG   = get_eerr_values('Total Gastos Operacionales y No Operacionales')
     ebt_mes, ebt     = get_eerr_values('Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)')
     un_mes, un       = get_eerr_values('Utilidad Neta')
+    otros_ing_mes, otros_ing = get_eerr_values('Otros Ingresos no Operacionales')
+    otros_gas_mes, otros_gas = get_eerr_values('Otros Gastos no Operacionales')
 
     # 2. Desglose por unidad (por_unidad) — solo si la empresa activa tiene unidades propias.
     # Holding (empresa_id=None) no tiene desglose por unidad: es agregado de 4 empresas, no de unidades.
@@ -388,7 +401,9 @@ def dashboard():
         'total_activos': total_activos,
         'total_pasivos': total_pasivos,
         'patrimonio': patrimonio,
-        'razon_corriente': razon_corriente
+        'razon_corriente': razon_corriente,
+        'otros_ingresos_no_operacionales': round(otros_ing, 2),
+        'otros_gastos_no_operacionales': round(otros_gas, 2)
     }
 
     return jsonify({
