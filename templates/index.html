@@ -3631,13 +3631,13 @@ function loadCascadaPL() {
   const gastosOperativosPuros = t.gastos - (t.otros_gastos_no_operacionales || 0);
 
   const pasos = [
-    { label: 'Ingresos', valor: t.ingresos, tipo: 'total' },
-    { label: 'Costo de Ventas', valor: -t.costos, tipo: 'delta' },
-    { label: 'Utilidad Bruta', valor: t.utilidad_bruta, tipo: 'total' },
-    { label: 'Gastos', valor: -gastosOperativosPuros, tipo: 'delta' },
-    { label: 'Otros Ingresos No Operativos', valor: t.otros_ingresos_no_operacionales || 0, tipo: 'delta' },
-    { label: 'Otros Gastos No Operativos', valor: -(t.otros_gastos_no_operacionales || 0), tipo: 'delta' },
-    { label: 'Utilidad Neta', valor: t.utilidad_neta, tipo: 'total' }
+    { label: 'Ingresos', labelEje: 'Ingresos', valor: t.ingresos, tipo: 'total' },
+    { label: 'Costo de Ventas', labelEje: ['Costo de', 'Ventas'], valor: -t.costos, tipo: 'delta' },
+    { label: 'Utilidad Bruta', labelEje: ['Utilidad', 'Bruta'], valor: t.utilidad_bruta, tipo: 'total' },
+    { label: 'Gastos', labelEje: 'Gastos', valor: -gastosOperativosPuros, tipo: 'delta' },
+    { label: 'Otros Ingresos No Operativos', labelEje: ['Otros Ingresos', 'No Operativos'], valor: t.otros_ingresos_no_operacionales || 0, tipo: 'delta' },
+    { label: 'Otros Gastos No Operativos', labelEje: ['Otros Gastos', 'No Operativos'], valor: -(t.otros_gastos_no_operacionales || 0), tipo: 'delta' },
+    { label: 'Utilidad Neta', labelEje: ['Utilidad', 'Neta'], valor: t.utilidad_neta, tipo: 'total' }
   ];
 
   let acumulado = 0;
@@ -3647,7 +3647,7 @@ function loadCascadaPL() {
   const colores = [];
 
   pasos.forEach(p => {
-    labels.push(p.label);
+    labels.push(p.labelEje);
     if (p.tipo === 'total') {
       base.push(0);
       valores.push(p.valor);
@@ -3679,9 +3679,9 @@ function loadCascadaPL() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      datasets: { bar: { maxBarThickness: 55, categoryPercentage: 0.9, barPercentage: 0.95 } },
+      datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
       scales: {
-        x: { stacked: true },
+        x: { stacked: true, ticks: { font: { size: 9 } } },
         y: { stacked: true, ticks: { callback: v => fmtS(v) } }
       },
       plugins: {
