@@ -3675,18 +3675,18 @@ function loadSituacionFinanciera() {
         data: {
           labels,
           datasets: [
-            { label: 'Activo Corriente', data: dsAC, backgroundColor: '#1e3a8a' },
-            { label: 'Pasivo Corriente', data: dsPC, backgroundColor: '#c2410c' },
-            { label: 'Activo No Corriente', data: dsANC, backgroundColor: '#93c5fd' },
-            { label: 'Pasivo No Corriente', data: dsPNC, backgroundColor: '#fdba74' }
+            { label: 'Activo Corriente', data: dsAC, backgroundColor: '#1e3a8a', stack: 'activo' },
+            { label: 'Activo No Corriente', data: dsANC, backgroundColor: '#7dd3fc', stack: 'activo' },
+            { label: 'Pasivo Corriente', data: dsPC, backgroundColor: '#92400e', stack: 'pasivo' },
+            { label: 'Pasivo No Corriente', data: dsPNC, backgroundColor: '#fb923c', stack: 'pasivo' }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           scales: {
-            x: { stacked: false },
-            y: { ticks: { callback: v => fmtS(v) } }
+            x: { stacked: true },
+            y: { stacked: true, ticks: { callback: v => fmtS(v) } }
           },
           datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
           plugins: {
