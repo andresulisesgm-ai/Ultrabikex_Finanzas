@@ -207,6 +207,17 @@ DEFAULT_DASHBOARD_CONFIG = [
     "size": "m",
     "chartType": "bar",
     "dataset": "cascada_pl"
+  },
+  {
+    "id": "wc-heatmap-un",
+    "type": "chart",
+    "title": "Utilidad Neta por Unidad de Negocio",
+    "subtitle": "Mapa de calor · Solo disponible al seleccionar una empresa con unidades propias",
+    "visible": True,
+    "order": 15,
+    "size": "m",
+    "chartType": "bar",
+    "dataset": "heatmap_utilidad_unidad"
   }
 ]
 

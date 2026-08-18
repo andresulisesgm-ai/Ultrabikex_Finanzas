@@ -1683,6 +1683,17 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "size": "m",
     "chartType": "bar",
     "dataset": "cascada_pl"
+  },
+  {
+    "id": "wc-heatmap-un",
+    "type": "chart",
+    "title": "Utilidad Neta por Unidad de Negocio",
+    "subtitle": "Mapa de calor · Solo disponible al seleccionar una empresa con unidades propias",
+    "visible": true,
+    "order": 15,
+    "size": "m",
+    "chartType": "bar",
+    "dataset": "heatmap_utilidad_unidad"
   }
 ];
 
@@ -1720,6 +1731,11 @@ const WIDGET_TEMPLATES = {
     <div class="ch"><div><div class="ct">Cascada P&L</div><div class="cs">De Ingresos a Utilidad Neta, paso a paso · Respeta el filtro de unidad de negocio</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-cascada">✕</button></div></div>
     <div class="cv" style="height:280px"><canvas id="ch-cascada"></canvas></div>
+  `,
+  'wc-heatmap-un': `
+    <div class="ch"><div><div class="ct">Utilidad Neta por Unidad de Negocio</div><div class="cs">Mapa de calor · Solo disponible al seleccionar una empresa con unidades propias</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-heatmap-un">✕</button></div></div>
+    <div id="heatmap-un-body" style="min-height:200px;padding:8px 0"></div>
   `,
   'wc-sem': `
     <div class="ch"><div><div class="ct">🚦 Semáforo Financiero</div><div class="cs">Estado de salud por indicador</div></div>
@@ -3702,6 +3718,49 @@ function loadCascadaPL() {
   canvas.parentElement.appendChild(legendDiv);
 }
 
+function loadHeatmapUtilidadUnidad() {
+  const wActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-heatmap-un' && w.visible);
+  if (!wActivo) return;
+  const body = G('heatmap-un-body');
+  if (!body) return;
+
+  const unidades = (DD && DD.por_unidad) || [];
+  if (!unidades.length) {
+    body.innerHTML = '<div style="text-align:center;color:var(--mu);font-size:12px;padding:24px 8px">Seleccioná una empresa con unidades de negocio propias (ej. Ultrax C.A.) para ver este mapa de calor.</div>';
+    return;
+  }
+
+  const valores = unidades.map(u => u.utilidad_neta);
+  const maxPos = Math.max(0, ...valores);
+  const maxNegAbs = Math.abs(Math.min(0, ...valores));
+
+  function colorPara(v) {
+    if (v >= 0) {
+      const t = maxPos ? Math.min(v / maxPos, 1) : 0;
+      // interpola entre verde clarito y verde oscuro
+      const l = 88 - t * 48; // 88% (clarito) -> 40% (oscuro)
+      return `hsl(158, 60%, ${l}%)`;
+    } else {
+      const t = maxNegAbs ? Math.min(Math.abs(v) / maxNegAbs, 1) : 0;
+      const l = 88 - t * 48;
+      return `hsl(0, 65%, ${l}%)`;
+    }
+  }
+
+  const ordenadas = [...unidades].sort((a, b) => b.utilidad_neta - a.utilidad_neta);
+
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">
+      ${ordenadas.map(u => `
+        <div style="background:${colorPara(u.utilidad_neta)};border-radius:8px;padding:12px 8px;text-align:center">
+          <div style="font-size:11px;font-weight:600;color:#1e293b;margin-bottom:4px">${u.unit}</div>
+          <div style="font-size:15px;font-weight:700;color:#0f172a">${fmtS(u.utilidad_neta)}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
 // ── DASHBOARD LOAD ────────────────────────────────────────────────────────
 async function loadDash(){
   try{
@@ -3809,6 +3868,7 @@ async function loadDash(){
     loadSituacionFinanciera();
     loadIngresosCostosMargen();
     loadCascadaPL();
+    loadHeatmapUtilidadUnidad();
     // NOTA: renderSem, renderGauges, renderRank, renderPE, buildCharts, rTable, rWF
     // dejan de llamarse aqui -- alimentaban widgets ya eliminados del Dashboard
     // (Semaforo, Gauges, Ranking, Punto de Equilibrio, graficos viejos, tabla,
