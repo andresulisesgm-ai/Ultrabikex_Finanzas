@@ -1649,14 +1649,14 @@ const WIDGET_TEMPLATES = {
       <div class="cact"><span class="dh">⠿</span>
         <select class="csel vsel" id="ct-ch-estcap" onchange="loadEstructuraCapital()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
         <button class="bcl" data-w="wc-estcap">✕</button></div></div>
-    <div class="cv h280"><canvas id="ch-estcap"></canvas></div>
+    <div class="cv" style="height:340px"><canvas id="ch-estcap"></canvas></div>
   `,
   'wc-estcapdet': `
     <div class="ch"><div><div class="ct">Estructura de Capital Detallada</div><div class="cs">Activo vs Pasivo + Patrimonio, por partida y por trimestre · Consolidado (no cambia con el filtro de unidad)</div></div>
       <div class="cact"><span class="dh">⠿</span>
         <select class="csel vsel" id="ct-ch-estcapdet" onchange="loadEstructuraCapitalDetallada()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
         <button class="bcl" data-w="wc-estcapdet">✕</button></div></div>
-    <div class="cv h280"><canvas id="ch-estcapdet"></canvas></div>
+    <div class="cv" style="height:340px"><canvas id="ch-estcapdet"></canvas></div>
   `,
   'wc-sem': `
     <div class="ch"><div><div class="ct">🚦 Semáforo Financiero</div><div class="cs">Estado de salud por indicador</div></div>
@@ -3268,7 +3268,7 @@ function loadEstructuraCapital() {
             x: { stacked: true },
             y: { stacked: true, ticks: { callback: v => modoPct ? v+'%' : fmtS(v) } }
           },
-          datasets: { bar: { maxBarThickness: 90 } },
+          datasets: { bar: { maxBarThickness: 40 } },
           plugins: {
             legend: {
               position: 'bottom',
@@ -3315,8 +3315,8 @@ function loadEstructuraCapitalDetallada() {
       const modoPct = ctsel && ctsel.value === 'pct';
 
       const paletaAzules = ['#0c1e3e','#1e3a8a','#2563eb','#60a5fa','#bfdbfe'];
-      const paletaNaranjas = ['#431407','#9a3412','#ea580c','#fb923c','#fed7aa'];
-      const paletaTeals = ['#042f2e','#0f766e','#0891b2','#5eead4'];
+      const paletaNaranjas = ['#7c2d12','#c2410c','#ea580c','#f97316','#fdba74'];
+      const paletaTeals = ['#134e4a','#0f766e','#0891b2','#5eead4'];
       const MAX_PARTIDAS = 4;
 
       function prepararItems(partidasRaw) {
@@ -3373,7 +3373,7 @@ function loadEstructuraCapitalDetallada() {
             x: { stacked: true },
             y: { stacked: true, ticks: { callback: v => modoPct ? v+'%' : fmtS(v) } }
           },
-          datasets: { bar: { maxBarThickness: 70 } },
+          datasets: { bar: { maxBarThickness: 40 } },
           plugins: {
             legend: {
               position: 'bottom',
