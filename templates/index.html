@@ -3335,17 +3335,41 @@ function rTable(){
   }).join('');
 }
 
+// ── ESF Dashboard: fuente de filas segun modo BCV/Divisa Real ─────────────
+// En modo Normal, /api/esf/completo trae los 4 trimestres del año en una sola
+// llamada. En modo Divisa Real, /api/esf-divisa-real exige un quarter puntual
+// solo para validar que ese trimestre tenga tasas cargadas, pero el bloque que
+// usamos (esf_completo) siempre trae los 4 trimestres juntos sin importar cual
+// quarter se haya mandado -- probamos del mas reciente al mas viejo hasta que
+// alguno responda 200, y usamos esa respuesta igual para los 4 trimestres.
+async function fetchESFRowsDashboard(year) {
+  const empresaParam = CURRENT_EMPRESA_ID ? `&empresa_id=${CURRENT_EMPRESA_ID}` : '';
+  if (!modoDivisaReal) {
+    const r = await fetch(`/api/esf/completo?year=${year}&unit=${empresaParam}`);
+    if (!r.ok) return null;
+    const data = await r.json();
+    return data.rows || null;
+  }
+  for (const q of [4, 3, 2, 1]) {
+    const r = await fetch(`/api/esf-divisa-real?year=${year}&quarter=${q}${empresaParam}`);
+    if (r.ok) {
+      const data = await r.json();
+      return (data.esf_completo && data.esf_completo.rows) || null;
+    }
+  }
+  return null;
+}
+
 function loadEstructuraCapital() {
   const wActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-estcap' && w.visible);
   if (!wActivo) return;
   const year = G('dash-year').value;
   // ESF es siempre consolidado -- nunca se filtra por unidad de negocio, sin importar
   // el filtro de unidad del Dashboard (regla de negocio confirmada, ver ultrax_reglas.md).
-  fetch(`/api/esf/completo?year=${year}&unit=&empresa_id=${CURRENT_EMPRESA_ID||''}`)
-    .then(r => r.ok ? r.json() : null)
-    .then(data => {
-      if (!data) return;
-      const findRow = (partida) => (data.rows || []).find(r => r.partida === partida);
+  fetchESFRowsDashboard(year)
+    .then(rows => {
+      if (!rows) return;
+      const findRow = (partida) => rows.find(r => r.partida === partida);
       const rActivos = findRow('TOTAL ACTIVOS');
       const rPasivos = findRow('TOTAL PASIVOS');
       const rPatrimonio = findRow('Total Patrimonio');
@@ -3427,11 +3451,9 @@ function loadEstructuraCapitalDetallada() {
   const wActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-estcapdet' && w.visible);
   if (!wActivo) return;
   const year = G('dash-year').value;
-  fetch(`/api/esf/completo?year=${year}&unit=&empresa_id=${CURRENT_EMPRESA_ID||''}`)
-    .then(r => r.ok ? r.json() : null)
-    .then(data => {
-      if (!data) return;
-      const rows = data.rows || [];
+  fetchESFRowsDashboard(year)
+    .then(rows => {
+      if (!rows) return;
       const totalRow = rows.find(r => r.partida === 'TOTAL ACTIVOS');
       const quartersConDatos = [1,2,3,4].filter(q => totalRow && (totalRow.quarters[q] || 0) !== 0);
       if (!quartersConDatos.length) return;
@@ -3532,11 +3554,9 @@ function loadSituacionFinanciera() {
   const wActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-sitfin' && w.visible);
   if (!wActivo) return;
   const year = G('dash-year').value;
-  fetch(`/api/esf/completo?year=${year}&unit=&empresa_id=${CURRENT_EMPRESA_ID||''}`)
-    .then(r => r.ok ? r.json() : null)
-    .then(data => {
-      if (!data) return;
-      const rows = data.rows || [];
+  fetchESFRowsDashboard(year)
+    .then(rows => {
+      if (!rows) return;
       const find = (p) => rows.find(r => r.partida === p);
       const rAC = find('Total Activos Corrientes');
       const rANC = find('Total Activos No Corrientes');
@@ -3835,6 +3855,7 @@ function loadDonaUnidad() {
     tituloSufijo = 'Empresa (Holding)';
   } else {
     items = [];
+    tituloSufijo = 'Unidad de Negocio';
   }
 
   const tituloEl = canvas.closest('.wcard').querySelector('.ct');
