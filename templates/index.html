@@ -3745,11 +3745,12 @@ function loadHeatmapUtilidadUnidad() {
     const maxPos = Math.max.apply(null, [0].concat(valores));
     const maxNegAbs = Math.abs(Math.min.apply(null, [0].concat(valores)));
     const ordenados = items.slice().sort(function(a, b) { return b.utilidad_neta - a.utilidad_neta; });
-    let html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">';
-    ordenados.forEach(function(x) {
-      html += '<div style="background:' + colorPara(x.utilidad_neta, maxPos, maxNegAbs) + ';border-radius:8px;padding:12px 8px;text-align:center">';
+    const n = ordenados.length;
+    let html = '<div style="display:flex;border-radius:8px;overflow:hidden">';
+    ordenados.forEach(function(x, i) {
+      html += '<div style="flex:1;background:' + colorPara(x.utilidad_neta, maxPos, maxNegAbs) + ';padding:12px 6px;text-align:center' + (i < n - 1 ? ';border-right:1px solid rgba(255,255,255,0.5)' : '') + '">';
       html += '<div style="font-size:11px;font-weight:600;color:#1e293b;margin-bottom:4px">' + x.nombre + '</div>';
-      html += '<div style="font-size:15px;font-weight:700;color:#0f172a">' + fmtS(x.utilidad_neta) + '</div>';
+      html += '<div style="font-size:14px;font-weight:700;color:#0f172a">' + fmtS(x.utilidad_neta) + '</div>';
       html += '</div>';
     });
     html += '</div>';
