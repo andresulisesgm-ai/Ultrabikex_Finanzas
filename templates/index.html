@@ -1716,7 +1716,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
   {
     "id": "wc-cascada",
     "type": "chart",
-    "title": "Cascada P&L",
+    "title": "Ingresos y utilidad",
     "subtitle": "De Ingresos a Utilidad Neta, paso a paso · Respeta el filtro de unidad de negocio",
     "visible": true,
     "order": 14,
@@ -1818,7 +1818,7 @@ const WIDGET_TEMPLATES = {
     <div class="cv" style="height:300px"><canvas id="ch-margen"></canvas></div>
   `,
   'wc-cascada': `
-    <div class="ch"><div><div class="ct">Cascada P&L</div><div class="cs">De Ingresos a Utilidad Neta, paso a paso · Respeta el filtro de unidad de negocio</div></div>
+    <div class="ch"><div><div class="ct">Ingresos y utilidad</div><div class="cs">De Ingresos a Utilidad Neta, paso a paso · Respeta el filtro de unidad de negocio</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-cascada">✕</button></div></div>
     <div class="cv" style="height:300px"><canvas id="ch-cascada"></canvas></div>
   `,
@@ -3955,10 +3955,14 @@ function loadCascadaPL() {
   const t = DD.totals;
   const gastosOperativosPuros = t.gastos - (t.otros_gastos_no_operacionales || 0);
 
+  // Solo Ingresos (primero) y Utilidad Neta (ultimo) tocan el piso desde 0.
+  // Utilidad Bruta es un subtotal intermedio -- ya no toca el piso, se dibuja
+  // como un marcador fino flotando en su nivel real (no es un delta real, el
+  // acumulado no cambia en ese paso, por eso no puede ser tipo 'delta' comun).
   const pasos = [
     { label: 'Ingresos', labelEje: 'Ingresos', valor: t.ingresos, tipo: 'total' },
     { label: 'Costo de Ventas', labelEje: ['Costo de', 'Ventas'], valor: -t.costos, tipo: 'delta' },
-    { label: 'Utilidad Bruta', labelEje: ['Utilidad', 'Bruta'], valor: t.utilidad_bruta, tipo: 'total' },
+    { label: 'Utilidad Bruta', labelEje: ['Utilidad', 'Bruta'], valor: t.utilidad_bruta, tipo: 'marcador' },
     { label: 'Gastos', labelEje: 'Gastos', valor: -gastosOperativosPuros, tipo: 'delta' },
     { label: 'Otros Ingresos No Operativos', labelEje: ['Otros Ingresos', 'No Operativos'], valor: t.otros_ingresos_no_operacionales || 0, tipo: 'delta' },
     { label: 'Otros Gastos No Operativos', labelEje: ['Otros Gastos', 'No Operativos'], valor: -(t.otros_gastos_no_operacionales || 0), tipo: 'delta' },
@@ -3970,6 +3974,7 @@ function loadCascadaPL() {
   const base = [];
   const valores = [];
   const colores = [];
+  const MARCADOR_ALTO = Math.max(t.ingresos || 0, t.utilidad_neta || 0) * 0.015;
 
   pasos.forEach(p => {
     labels.push(p.labelEje);
@@ -3978,6 +3983,10 @@ function loadCascadaPL() {
       valores.push(p.valor);
       colores.push('#2563eb');
       acumulado = p.valor;
+    } else if (p.tipo === 'marcador') {
+      base.push(Math.max(0, acumulado - MARCADOR_ALTO / 2));
+      valores.push(MARCADOR_ALTO);
+      colores.push('#2563eb');
     } else {
       const antes = acumulado;
       const despues = acumulado + p.valor;
