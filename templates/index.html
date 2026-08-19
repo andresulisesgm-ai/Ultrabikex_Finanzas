@@ -4892,10 +4892,22 @@ function toggleDivisaMode(){
       if(msel){
         msel.style.display='block';
         if(!msel.value){
-          const mesesAbrev=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC'];
-          const mesActual=mesesAbrev[new Date().getMonth()];
-          const opcionExiste=Array.from(msel.options).some(o=>o.value===mesActual);
-          if(opcionExiste) msel.value=mesActual;
+          // Antes: agarraba el mes calendario actual (ej. AGO), que casi nunca
+          // tiene tasas cargadas todavia -- causaba 404 automatico. Ahora: agarra
+          // el ultimo mes real con datos cargados, segun DD.loaded (si DD ya esta
+          // poblado de una carga previa en modo Normal).
+          let mesDefault=null;
+          if(DD&&DD.loaded&&DD.loaded.length){
+            const mesesConDatos=[...new Set(DD.loaded.map(l=>l.month))];
+            mesesConDatos.sort((a,b)=>MO.indexOf(b)-MO.indexOf(a));
+            mesDefault=mesesConDatos[0]||null;
+          }
+          if(!mesDefault){
+            const mesesAbrev=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC'];
+            mesDefault=mesesAbrev[new Date().getMonth()];
+          }
+          const opcionExiste=Array.from(msel.options).some(o=>o.value===mesDefault);
+          if(opcionExiste) msel.value=mesDefault;
         }
       }
       if(qsel) qsel.style.display='none';
