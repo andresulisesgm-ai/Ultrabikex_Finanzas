@@ -705,8 +705,15 @@ input[type=file]{display:none;}
         {% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
       </select>
       <select class="csel" id="dash-month" style="padding:5px 8px">
-        <option value="">Todos</option>
+        <option value="">Meses</option>
         {% for m in months %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+      </select>
+      <select class="csel" id="dash-quarter" style="padding:5px 8px">
+        <option value="">Trimestres</option>
+        <option value="1">Q1</option>
+        <option value="2">Q2</option>
+        <option value="3">Q3</option>
+        <option value="4">Q4</option>
       </select>
       <div id="dash-acum-toggle-container" style="display:none;align-items:center;gap:6px;background:var(--sf2);border:1px solid var(--bd);padding:5px 10px;border-radius:7px;font-size:11px;font-weight:600;color:var(--mu);height:28px;box-sizing:border-box">
         <span>Mes</span>
@@ -3423,6 +3430,17 @@ async function fetchESFRowsDashboard(year) {
   return null;
 }
 
+// Atenua visualmente (no oculta) el trimestre que no coincide con el filtro
+// dash-quarter activo -- los graficos ESF siempre muestran todos los trimestres
+// disponibles lado a lado (regla de negocio: ESF no se filtra por periodo como
+// un flujo), pero se resalta cual es el trimestre "activo" segun el filtro del
+// Dashboard. Sin filtro (dash-quarter=''), todos quedan a color completo.
+function dimPorTrimestre(colorHex, quartersConDatos) {
+  const selectedQuarter = G('dash-quarter') ? G('dash-quarter').value : '';
+  if (!selectedQuarter) return quartersConDatos.map(() => colorHex);
+  return quartersConDatos.map(q => String(q) === selectedQuarter ? colorHex : colorHex + '33');
+}
+
 function loadEstructuraCapital() {
   const wActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-estcap' && w.visible);
   if (!wActivo) return;
@@ -3473,9 +3491,9 @@ function loadEstructuraCapital() {
         data: {
           labels,
           datasets: [
-            { label: 'Activo Total', data: dsActivo, backgroundColor: '#2563eb', stack: 'activo' },
-            { label: 'Pasivo', data: dsPasivo, backgroundColor: '#f97316', stack: 'pasivo-pat' },
-            { label: 'Patrimonio', data: dsPatrimonio, backgroundColor: '#0891b2', stack: 'pasivo-pat' }
+            { label: 'Activo Total', data: dsActivo, backgroundColor: dimPorTrimestre('#2563eb', quartersConDatos), stack: 'activo' },
+            { label: 'Pasivo', data: dsPasivo, backgroundColor: dimPorTrimestre('#f97316', quartersConDatos), stack: 'pasivo-pat' },
+            { label: 'Patrimonio', data: dsPatrimonio, backgroundColor: dimPorTrimestre('#0891b2', quartersConDatos), stack: 'pasivo-pat' }
           ]
         },
         options: {
@@ -3493,7 +3511,8 @@ function loadEstructuraCapital() {
                 font: { size: 10 },
                 generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
                   const valTxt = modoPct ? '' : (': ' + chart.data.labels.map((lbl, qi) => lbl + ' ' + fmtS(ds.data[qi])).join(' · '));
-                  return { text: ds.label + valTxt, fillStyle: ds.backgroundColor, strokeStyle: ds.backgroundColor, hidden: false, datasetIndex: i };
+                  const colorBase = ds.backgroundColor[0].slice(0,7);
+                  return { text: ds.label + valTxt, fillStyle: colorBase, strokeStyle: colorBase, hidden: false, datasetIndex: i };
                 })
               }
             },
@@ -3539,8 +3558,8 @@ function loadDeudaCobertura() {
         data: {
           labels,
           datasets: [
-            { label: 'Deuda (Total Pasivo)', data: deudaData, backgroundColor: '#f97316' },
-            { label: 'Efectivo y Equivalentes', data: efectivoData, backgroundColor: '#2563eb' }
+            { label: 'Deuda (Total Pasivo)', data: deudaData, backgroundColor: dimPorTrimestre('#f97316', quartersConDatos) },
+            { label: 'Efectivo y Equivalentes', data: efectivoData, backgroundColor: dimPorTrimestre('#2563eb', quartersConDatos) }
           ]
         },
         options: {
@@ -3555,7 +3574,8 @@ function loadDeudaCobertura() {
                 font: { size: 10 },
                 generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
                   const valTxt = ': ' + chart.data.labels.map((lbl, qi) => lbl + ' ' + fmtS(ds.data[qi])).join(' · ');
-                  return { text: ds.label + valTxt, fillStyle: ds.backgroundColor, strokeStyle: ds.backgroundColor, hidden: false, datasetIndex: i };
+                  const colorBase = ds.backgroundColor[0].slice(0,7);
+                  return { text: ds.label + valTxt, fillStyle: colorBase, strokeStyle: colorBase, hidden: false, datasetIndex: i };
                 })
               }
             },
@@ -3625,7 +3645,7 @@ function loadEstructuraCapitalDetallada() {
         return items.map((x, idx) => ({
           label: x.r.partida,
           data: modoPct ? x.vals.map((v,i) => totales[i] ? (v/totales[i]*100) : 0) : x.vals,
-          backgroundColor: paleta[idx % paleta.length],
+          backgroundColor: dimPorTrimestre(paleta[idx % paleta.length], quartersConDatos),
           stack: stackId
         }));
       }
@@ -3721,10 +3741,10 @@ function loadSituacionFinanciera() {
         data: {
           labels,
           datasets: [
-            { label: 'Activo Corriente', data: dsAC, backgroundColor: '#1e3a8a', stack: 'activo' },
-            { label: 'Activo No Corriente', data: dsANC, backgroundColor: '#7dd3fc', stack: 'activo' },
-            { label: 'Pasivo Corriente', data: dsPC, backgroundColor: '#92400e', stack: 'pasivo' },
-            { label: 'Pasivo No Corriente', data: dsPNC, backgroundColor: '#fb923c', stack: 'pasivo' }
+            { label: 'Activo Corriente', data: dsAC, backgroundColor: dimPorTrimestre('#1e3a8a', quartersConDatos), stack: 'activo' },
+            { label: 'Activo No Corriente', data: dsANC, backgroundColor: dimPorTrimestre('#7dd3fc', quartersConDatos), stack: 'activo' },
+            { label: 'Pasivo Corriente', data: dsPC, backgroundColor: dimPorTrimestre('#92400e', quartersConDatos), stack: 'pasivo' },
+            { label: 'Pasivo No Corriente', data: dsPNC, backgroundColor: dimPorTrimestre('#fb923c', quartersConDatos), stack: 'pasivo' }
           ]
         },
         options: {
@@ -3742,7 +3762,8 @@ function loadSituacionFinanciera() {
                 font: { size: 10 },
                 generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
                   const valTxt = ': ' + chart.data.labels.map((lbl, qi) => lbl + ' ' + fmtS(ds.data[qi])).join(' · ');
-                  return { text: ds.label + valTxt, fillStyle: ds.backgroundColor, strokeStyle: ds.backgroundColor, hidden: false, datasetIndex: i };
+                  const colorBase = ds.backgroundColor[0].slice(0,7);
+                  return { text: ds.label + valTxt, fillStyle: colorBase, strokeStyle: colorBase, hidden: false, datasetIndex: i };
                 })
               }
             },
@@ -3810,7 +3831,7 @@ function loadROEROA() {
         if (CH[barCanvasId]) CH[barCanvasId].destroy();
         CH[barCanvasId] = new Chart(canvas, {
           type: 'bar',
-          data: { labels, datasets: [{ label: ind.nombre, data: valores, backgroundColor: color }] },
+          data: { labels, datasets: [{ label: ind.nombre, data: valores, backgroundColor: dimPorTrimestre(color, idxConDatos.map(i => i + 1)) }] },
           options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -3823,7 +3844,8 @@ function loadROEROA() {
                   font: { size: 10 },
                   generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
                     const valTxt = ': ' + chart.data.labels.map((lbl, qi) => lbl + ' ' + ds.data[qi].toFixed(1) + '%').join(' · ');
-                    return { text: ds.label + valTxt, fillStyle: ds.backgroundColor, strokeStyle: ds.backgroundColor, hidden: false, datasetIndex: i };
+                    const colorBase = ds.backgroundColor[0].slice(0,7);
+                    return { text: ds.label + valTxt, fillStyle: colorBase, strokeStyle: colorBase, hidden: false, datasetIndex: i };
                   })
                 }
               },
@@ -4181,22 +4203,43 @@ async function loadDash(){
       };
     }else{
       // Modo BCV normal: carga año completo
-      const res=await fetch(`/api/dashboard?year=${year}&unit=${unit}&empresa_id=${CURRENT_EMPRESA_ID||''}`);
+      const qParam = G('dash-quarter') ? G('dash-quarter').value : '';
+      const acumParam = document.getElementById('dash-acum-toggle') && document.getElementById('dash-acum-toggle').checked ? '1' : '0';
+      const res=await fetch(`/api/dashboard?year=${year}&unit=${unit}&empresa_id=${CURRENT_EMPRESA_ID||''}&quarter=${qParam}&acum=${acumParam}`);
       if(!res.ok){G('schips').innerHTML=`<span style="color:var(--red);font-size:12px">Error ${res.status} — recarga</span>`;return;}
       DD=await res.json();
       DD._modo_divisa=false;
     }
 
-    const selectedMonth = G('dash-month').value; // '' = Todos
     const modoAcum = document.getElementById('dash-acum-toggle').checked;
-
     let mesesFiltrados;
-    if (!selectedMonth) {
-      mesesFiltrados = DD.months;
-    } else if (modoAcum) {
-      mesesFiltrados = DD.months.filter((m, i) => MO.indexOf(m.month) <= MO.indexOf(selectedMonth));
+    if (modoDivisaReal) {
+      // Divisa Real sigue funcionando exactamente igual que antes -- filtro por mes
+      // puntual, sin cambios. El filtro trimestral universal (pendiente #5) por ahora
+      // solo cubre modo Normal; extenderlo a Divisa Real requiere backend nuevo
+      // (el endpoint /api/dashboard_divisa_real hoy solo acepta un mes puntual, no
+      // un trimestre completo) -- documentado como pendiente aparte.
+      const selectedMonth = G('dash-month').value; // '' = Todos
+      if (!selectedMonth) {
+        mesesFiltrados = DD.months;
+      } else if (modoAcum) {
+        mesesFiltrados = DD.months.filter((m, i) => MO.indexOf(m.month) <= MO.indexOf(selectedMonth));
+      } else {
+        mesesFiltrados = DD.months.filter(m => m.month === selectedMonth);
+      }
     } else {
-      mesesFiltrados = DD.months.filter(m => m.month === selectedMonth);
+      // Modo Normal: filtro trimestral universal. QUARTER_MONTHS_DASH replica el
+      // mismo agrupamiento que ya usa el backend (engine.py QUARTER_MONTHS).
+      const selectedQuarter = G('dash-quarter') ? G('dash-quarter').value : '';
+      const QUARTER_MONTHS_DASH = {'1':['ENE','FEB','MAR'],'2':['ABR','MAY','JUN'],'3':['JUL','AGO','SEPT'],'4':['OCT','NOV','DIC']};
+      if (!selectedQuarter) {
+        mesesFiltrados = DD.months;
+      } else if (modoAcum) {
+        const ultimoMesQ = QUARTER_MONTHS_DASH[selectedQuarter][2];
+        mesesFiltrados = DD.months.filter(m => MO.indexOf(m.month) <= MO.indexOf(ultimoMesQ));
+      } else {
+        mesesFiltrados = DD.months.filter(m => QUARTER_MONTHS_DASH[selectedQuarter].includes(m.month));
+      }
     }
 
     // Redefinir para sincronizar automáticamente todas las vistas de gráficos y tablas
@@ -4820,6 +4863,7 @@ function toggleDivisaMode(){
   LS.set('modo_divisa_real',modoDivisaReal);
   const toggle=G('toggle-switch');
   const msel=G('dash-month');
+  const qsel=G('dash-quarter');
   if(toggle){
     if(modoDivisaReal){
       toggle.parentElement.classList.add('active');
@@ -4832,9 +4876,11 @@ function toggleDivisaMode(){
           if(opcionExiste) msel.value=mesActual;
         }
       }
+      if(qsel) qsel.style.display='none';
     }else{
       toggle.parentElement.classList.remove('active');
       if(msel)msel.style.display='none';
+      if(qsel) qsel.style.display='block';
     }
   }
   // Recargar dashboard con nuevo modo
@@ -4847,9 +4893,11 @@ function toggleDivisaMode(){
 function initDivisaToggle(){
   const toggle=G('toggle-switch');
   const msel=G('dash-month');
+  const qsel=G('dash-quarter');
   if(toggle&&modoDivisaReal){
     toggle.parentElement.classList.add('active');
     if(msel)msel.style.display='block';
+    if(qsel)qsel.style.display='none';
   }
 }
 
@@ -7589,6 +7637,13 @@ function toggleEERRRow(event, rowId) {
     const hasMes = this.value !== '';
     document.getElementById('dash-acum-toggle-container').style.display = hasMes ? 'flex' : 'none';
     if (!hasMes) document.getElementById('dash-acum-toggle').checked = false;
+    loadDash();
+  });
+
+  G('dash-quarter').addEventListener('change', function() {
+    const hasQ = this.value !== '';
+    document.getElementById('dash-acum-toggle-container').style.display = hasQ ? 'flex' : 'none';
+    if (!hasQ) document.getElementById('dash-acum-toggle').checked = false;
     loadDash();
   });
 

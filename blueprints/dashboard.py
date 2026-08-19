@@ -285,6 +285,24 @@ def dashboard():
     db   = get_db()
     ing_p, cos_p, gas_p = get_clasificacion(db)
 
+    # Filtro trimestral universal (ago-2026): quarter='' o ausente = sin filtro (todo el
+    # anio, comportamiento identico al de antes de este cambio). Con quarter presente,
+    # acum='1' incluye desde Q1 hasta el trimestre elegido, acum ausente/'0' incluye
+    # solo los 3 meses de ese trimestre. NO afecta ESF (total_activos/total_pasivos/
+    # patrimonio/razon_corriente) -- el ESF nunca se filtra por periodo, regla de
+    # negocio ya vigente (ver ultrax_reglas.md).
+    quarter = request.args.get('quarter', '')
+    acum = request.args.get('acum', '') == '1'
+    QUARTER_MONTHS_MAP = {'1': ['ENE','FEB','MAR'], '2': ['ABR','MAY','JUN'],
+                           '3': ['JUL','AGO','SEPT'], '4': ['OCT','NOV','DIC']}
+    meses_incluidos = None
+    if quarter in QUARTER_MONTHS_MAP:
+        if acum:
+            idx = int(quarter)
+            meses_incluidos = [m for q in range(1, idx + 1) for m in QUARTER_MONTHS_MAP[str(q)]]
+        else:
+            meses_incluidos = QUARTER_MONTHS_MAP[quarter]
+
     # 1. Obtener los datos del EERR
     eerr_unit_param = '' if unit == 'TODAS' else unit
     from engine import eerr_completo_v2_ui_adapter
@@ -302,8 +320,9 @@ def dashboard():
             m_name = m_data['month']
             val = m_data['ejecutado']['valor']
             monthly_vals[m_name] = val
-            total_anual += val
-            
+            if meses_incluidos is None or m_name in meses_incluidos:
+                total_anual += val
+
         return monthly_vals, round(total_anual, 2)
 
     # Extracción directa de los nodos del EERR
@@ -333,7 +352,10 @@ def dashboard():
         
         def get_u_total(p_name):
             r = next((row for row in eerr_u['rows'] if row['partida'] == p_name), None)
-            return sum(m['ejecutado']['valor'] for m in r['meses']) if r else 0.0
+            if not r:
+                return 0.0
+            return sum(m['ejecutado']['valor'] for m in r['meses']
+                       if meses_incluidos is None or m['month'] in meses_incluidos)
 
         i_u = get_u_total('Total Ingresos')
         c_u = get_u_total('Total Costo de Ventas')
@@ -366,7 +388,10 @@ def dashboard():
 
             def get_emp_total(p_name, eerr_data=eerr_emp):
                 r = next((row for row in eerr_data['rows'] if row['partida'] == p_name), None)
-                return sum(m['ejecutado']['valor'] for m in r['meses']) if r else 0.0
+                if not r:
+                    return 0.0
+                return sum(m['ejecutado']['valor'] for m in r['meses']
+                           if meses_incluidos is None or m['month'] in meses_incluidos)
 
             un_emp = get_emp_total('Utilidad Neta')
             ing_emp = get_emp_total('Total Ingresos')
@@ -377,7 +402,8 @@ def dashboard():
     gas_rows = []
     for r in eerr_data['rows']:
         if not r['is_header'] and r['partida'] in gas_p:
-            val_anual = sum(m['ejecutado']['valor'] for m in r['meses'])
+            val_anual = sum(m['ejecutado']['valor'] for m in r['meses']
+                             if meses_incluidos is None or m['month'] in meses_incluidos)
             if val_anual > 0:
                 gas_rows.append({
                     'partida': r['partida'],
