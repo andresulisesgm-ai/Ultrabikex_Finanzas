@@ -3412,22 +3412,40 @@ function rTable(){
 // usamos (esf_completo) siempre trae los 4 trimestres juntos sin importar cual
 // quarter se haya mandado -- probamos del mas reciente al mas viejo hasta que
 // alguno responda 200, y usamos esa respuesta igual para los 4 trimestres.
+let _esfRowsCache = null;
+let _esfRowsCacheKey = null;
+let _esfRowsPromise = null;
+
 async function fetchESFRowsDashboard(year) {
-  const empresaParam = CURRENT_EMPRESA_ID ? `&empresa_id=${CURRENT_EMPRESA_ID}` : '';
-  if (!modoDivisaReal) {
-    const r = await fetch(`/api/esf/completo?year=${year}&unit=${empresaParam}`);
-    if (!r.ok) return null;
-    const data = await r.json();
-    return data.rows || null;
-  }
-  for (const q of [4, 3, 2, 1]) {
-    const r = await fetch(`/api/esf-divisa-real?year=${year}&quarter=${q}${empresaParam}`);
-    if (r.ok) {
-      const data = await r.json();
-      return (data.esf_completo && data.esf_completo.rows) || null;
+  const cacheKey = `${year}|${modoDivisaReal}|${CURRENT_EMPRESA_ID}`;
+  if (_esfRowsCacheKey === cacheKey && _esfRowsCache !== null) return _esfRowsCache;
+  if (_esfRowsPromise && _esfRowsCacheKey === cacheKey) return _esfRowsPromise;
+
+  _esfRowsCacheKey = cacheKey;
+  _esfRowsPromise = (async () => {
+    const empresaParam = CURRENT_EMPRESA_ID ? `&empresa_id=${CURRENT_EMPRESA_ID}` : '';
+    let result = null;
+    if (!modoDivisaReal) {
+      const r = await fetch(`/api/esf/completo?year=${year}&unit=${empresaParam}`);
+      if (r.ok) {
+        const data = await r.json();
+        result = data.rows || null;
+      }
+    } else {
+      for (const q of [4, 3, 2, 1]) {
+        const r = await fetch(`/api/esf-divisa-real?year=${year}&quarter=${q}${empresaParam}`);
+        if (r.ok) {
+          const data = await r.json();
+          result = (data.esf_completo && data.esf_completo.rows) || null;
+          break;
+        }
+      }
     }
-  }
-  return null;
+    _esfRowsCache = result;
+    return result;
+  })();
+
+  return _esfRowsPromise;
 }
 
 // Atenua visualmente (no oculta) el trimestre que no coincide con el filtro
@@ -4164,8 +4182,10 @@ function loadDonaSegmento() {
 }
 
 // ── DASHBOARD LOAD ────────────────────────────────────────────────────────
+let _dashSeq = 0;
 async function loadDash(){
   try{
+    const mySeq = ++_dashSeq;
     const year=G('dash-year').value, unit=G('dash-unit').value;
 
     // Modo Divisa Real: carga datos ajustados de un mes específico
@@ -4201,6 +4221,7 @@ async function loadDash(){
         _modo_divisa:true,
         _tasas:data.tasas
       };
+      if (mySeq !== _dashSeq) return;
     }else{
       // Modo BCV normal: carga año completo
       const qParam = G('dash-quarter') ? G('dash-quarter').value : '';
@@ -4208,6 +4229,7 @@ async function loadDash(){
       const res=await fetch(`/api/dashboard?year=${year}&unit=${unit}&empresa_id=${CURRENT_EMPRESA_ID||''}&quarter=${qParam}&acum=${acumParam}`);
       if(!res.ok){G('schips').innerHTML=`<span style="color:var(--red);font-size:12px">Error ${res.status} — recarga</span>`;return;}
       DD=await res.json();
+      if (mySeq !== _dashSeq) return;
       DD._modo_divisa=false;
     }
 
