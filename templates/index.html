@@ -1654,10 +1654,10 @@ const DEFAULT_DASHBOARD_CONFIG = [
   {
     "id": "wc-sitfin",
     "type": "chart",
-    "title": "Situación Financiera",
+    "title": "Situación Financiera Corriente",
     "subtitle": "Activo vs Pasivo, corriente y no corriente, por trimestre",
     "visible": true,
-    "order": 12,
+    "order": 12.2,
     "size": "m",
     "chartType": "bar",
     "dataset": "situacion_financiera"
@@ -1668,7 +1668,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "title": "Deuda y Cobertura",
     "subtitle": "Total Pasivo vs Efectivo y Equivalentes, por trimestre",
     "visible": true,
-    "order": 12.2,
+    "order": 12,
     "size": "m",
     "chartType": "bar",
     "dataset": "deuda_cobertura"
@@ -1705,7 +1705,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
   {
     "id": "wc-margen",
     "type": "chart",
-    "title": "Ingresos · Costos · Utilidad · Margen",
+    "title": "Resultados y margen bruto",
     "subtitle": "Por trimestre · Respeta el filtro de unidad de negocio",
     "visible": true,
     "order": 13,
@@ -1781,7 +1781,7 @@ const WIDGET_TEMPLATES = {
     <div id="estcapdet-legend" style="padding:8px 4px 0"></div>
   `,
   'wc-sitfin': `
-    <div class="ch"><div><div class="ct">Situación Financiera</div><div class="cs">Activo vs Pasivo, corriente y no corriente, por trimestre</div></div>
+    <div class="ch"><div><div class="ct">Situación Financiera Corriente</div><div class="cs">Activo vs Pasivo, corriente y no corriente, por trimestre</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-sitfin">✕</button></div></div>
     <div class="cv" style="height:300px"><canvas id="ch-sitfin"></canvas></div>
   `,
@@ -1813,7 +1813,7 @@ const WIDGET_TEMPLATES = {
     <div class="cv" style="height:170px"><canvas id="ch-roa-bar"></canvas></div>
   `,
   'wc-margen': `
-    <div class="ch"><div><div class="ct">Ingresos · Costos · Utilidad · Margen</div><div class="cs">Por trimestre · Respeta el filtro de unidad de negocio</div></div>
+    <div class="ch"><div><div class="ct">Resultados y margen bruto</div><div class="cs">Por trimestre · Respeta el filtro de unidad de negocio</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-margen">✕</button></div></div>
     <div class="cv" style="height:300px"><canvas id="ch-margen"></canvas></div>
   `,

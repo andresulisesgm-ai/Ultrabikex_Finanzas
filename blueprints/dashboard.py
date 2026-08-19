@@ -171,10 +171,10 @@ DEFAULT_DASHBOARD_CONFIG = [
   {
     "id": "wc-sitfin",
     "type": "chart",
-    "title": "Situación Financiera",
+    "title": "Situación Financiera Corriente",
     "subtitle": "Activo vs Pasivo, corriente y no corriente, por trimestre",
     "visible": True,
-    "order": 12,
+    "order": 12.2,
     "size": "m",
     "chartType": "bar",
     "dataset": "situacion_financiera"
@@ -185,7 +185,7 @@ DEFAULT_DASHBOARD_CONFIG = [
     "title": "Deuda y Cobertura",
     "subtitle": "Total Pasivo vs Efectivo y Equivalentes, por trimestre",
     "visible": True,
-    "order": 12.2,
+    "order": 12,
     "size": "m",
     "chartType": "bar",
     "dataset": "deuda_cobertura"
@@ -222,7 +222,7 @@ DEFAULT_DASHBOARD_CONFIG = [
   {
     "id": "wc-margen",
     "type": "chart",
-    "title": "Ingresos · Costos · Utilidad · Margen",
+    "title": "Resultados y margen bruto",
     "subtitle": "Por trimestre · Respeta el filtro de unidad de negocio",
     "visible": True,
     "order": 13,
@@ -233,7 +233,7 @@ DEFAULT_DASHBOARD_CONFIG = [
   {
     "id": "wc-cascada",
     "type": "chart",
-    "title": "Cascada P&L",
+    "title": "Ingresos y utilidad",
     "subtitle": "De Ingresos a Utilidad Neta, paso a paso · Respeta el filtro de unidad de negocio",
     "visible": True,
     "order": 14,
