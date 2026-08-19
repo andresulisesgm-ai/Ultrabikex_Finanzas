@@ -2485,10 +2485,12 @@ def compute_indicadores_v2(db, year, empresa_id=None):
             for idx, mes_data in enumerate(row.get('meses', [])):
                 if idx < len(MONTHS) and MONTHS[idx] in months:
                     result[key] += mes_data.get('ejecutado', {}).get('valor', 0) or 0
-        # Fix indicadores: 'Ingresos Brutos' en la hoja de Yocelin (' EERR ULTRAX')
-        # excluye las 9 partidas de Ingresos No Operativos (suma solo Mercancia+Taller,
-        # Servicios y Eventos) - distinto de 'Total Ingresos' del EERR normal, que sí las incluye.
-        result['ingresos'] = result['ingresos'] - result['ot_ing']
+        # 'Total Ingresos' ya excluye los Ingresos No Operativos por diseño (regla
+        # auditada, ver ultrax_funcionamiento.md, seccion "Formula de Total Ingresos
+        # y Utilidad Bruta") -- no hace falta restarlos de nuevo aca. La resta previa
+        # duplicaba la exclusion, causando que 'Ingresos Brutos' (pantalla
+        # Indicadores Financieros) quedara $5,974.11 por debajo de totals.ingresos
+        # del Dashboard, que sí usa el valor correcto directo de la partida.
         result['ut_bruta'] = result['ingresos'] - result['costos']
         result['ut_op']    = result['ut_bruta'] - result['gas_op']
         result['otros_nop'] = result['ot_ing'] - result['ot_gas']
