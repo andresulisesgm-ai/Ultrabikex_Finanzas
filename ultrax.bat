@@ -22,6 +22,14 @@ echo  Servidor en http://localhost:5000
 echo  Cierra el navegador para detener el servidor.
 echo.
 
+:: Cerrar cualquier proceso zombie que ya este escuchando en el puerto 5000, antes
+:: de arrancar uno nuevo -- evita que un servidor viejo (de un cierre incompleto)
+:: siga respondiendo mientras este arranca, sirviendo codigo desactualizado.
+echo  Verificando puerto 5000...
+for /f "tokens=5" %%p in ('netstat -ano ^| findstr :5000 ^| findstr LISTENING') do (
+    echo  Cerrando proceso zombie en puerto 5000 ^(PID %%p^)...
+    taskkill /F /PID %%p >nul 2>&1
+)
 :: Arrancar Flask — cuando el navegador llama /api/shutdown, el proceso termina
 python app.py
 

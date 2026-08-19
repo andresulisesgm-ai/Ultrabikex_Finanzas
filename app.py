@@ -132,9 +132,28 @@ def index():
 @app.route('/api/shutdown', methods=['POST'])
 @admin_required
 def shutdown():
-    import threading, time
+    import threading, time, subprocess
     def _stop():
         time.sleep(0.3)
+        # Antes de auto-matarse, cerrar cualquier OTRO proceso python.exe que
+        # tambien este escuchando en el puerto 5000 (zombie de un cierre
+        # incompleto anterior) -- identificado por puerto especifico via
+        # netstat, nunca por nombre generico de proceso.
+        try:
+            propio_pid = os.getpid()
+            out = subprocess.run(
+                ['netstat', '-ano'], capture_output=True, text=True, timeout=3
+            ).stdout
+            for linea in out.splitlines():
+                if ':5000' in linea and 'LISTENING' in linea:
+                    pid = linea.strip().split()[-1]
+                    if pid.isdigit() and int(pid) != propio_pid:
+                        subprocess.run(
+                            ['taskkill', '/F', '/PID', pid],
+                            capture_output=True, timeout=3
+                        )
+        except Exception:
+            pass  # limpieza best-effort, nunca debe bloquear el apagado normal
         os._exit(0)
     threading.Thread(target=_stop, daemon=True).start()
     return jsonify({'ok': True})
