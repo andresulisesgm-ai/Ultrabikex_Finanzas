@@ -3486,7 +3486,11 @@ function loadEstructuraCapital() {
       const rPatrimonio = findRow('Total Patrimonio');
       if (!rActivos || !rPasivos || !rPatrimonio) return;
 
-      const quartersConDatos = [1,2,3,4].filter(q => (rActivos.quarters[q] || 0) !== 0);
+      const selectedQuarterEstcap = G('dash-quarter') ? G('dash-quarter').value : '';
+      let quartersConDatos = [1,2,3,4].filter(q => (rActivos.quarters[q] || 0) !== 0);
+      if (selectedQuarterEstcap) {
+        quartersConDatos = quartersConDatos.filter(q => String(q) === selectedQuarterEstcap);
+      }
       if (!quartersConDatos.length) return;
 
       const labels = quartersConDatos.map(q => 'Q'+q);
