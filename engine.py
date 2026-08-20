@@ -2865,7 +2865,40 @@ def eerr_divisa_real_trimestres(db, year, unit='', empresa_id=None):
     rows_q = db.execute(f'SELECT DISTINCT quarter FROM esf_data WHERE year=? {uc}', params_q).fetchall()
     esf_quarters_available = sorted([r['quarter'] for r in rows_q])
 
+    # Capturar el plug fantasma ANTES de neutralizarlo, para propagarlo también a
+    # Utilidad Neta / Utilidad Neta despues de ISLR -- filas ya calculadas por el
+    # motor, no derivadas de Otros Ingresos/Gastos dentro de esta función, así que
+    # _neutralizar_plug_sin_datos no las corrige por sí sola. Fix local, contenido
+    # aquí -- no se toca _neutralizar_plug_sin_datos para no afectar
+    # compute_indicadores_v2_divisa_real, que ya funciona correctamente por otro
+    # camino (recalcula Utilidad Neta desde cero, no lee la fila directo).
+    quarter_close_month = {1: 'MAR', 2: 'JUN', 3: 'SEPT', 4: 'DIC'}
+    missing_quarters_local = [q for q in [1, 2, 3, 4] if q not in esf_quarters_available]
+    missing_months_local = {quarter_close_month[q] for q in missing_quarters_local}
+    plug_fantasma_por_mes = {}
+    if missing_months_local:
+        for row in rows:
+            if row.get('partida') not in ('Ganancia por tasa cambiaria', 'Pérdida en tasa cambiaria'):
+                continue
+            for m in row.get('meses', []):
+                month = m.get('month')
+                if month not in missing_months_local:
+                    continue
+                valor = m.get('ejecutado', {}).get('valor', 0) or 0
+                if valor:
+                    signo = 1 if row.get('partida') == 'Ganancia por tasa cambiaria' else -1
+                    plug_fantasma_por_mes[month] = plug_fantasma_por_mes.get(month, 0) + (signo * valor)
+
     rows = _neutralizar_plug_sin_datos(rows, esf_quarters_available)
+
+    if plug_fantasma_por_mes:
+        for row in rows:
+            if row.get('partida') not in ('Utilidad Neta', 'Utilidad Neta despues de ISLR'):
+                continue
+            for m in row.get('meses', []):
+                month = m.get('month')
+                if month in plug_fantasma_por_mes:
+                    m['ejecutado']['valor'] = (m['ejecutado'].get('valor', 0) or 0) - plug_fantasma_por_mes[month]
 
     quarters = {q: {} for q in [1, 2, 3, 4]}
     for row in rows:
