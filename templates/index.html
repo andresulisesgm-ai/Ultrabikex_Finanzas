@@ -1770,7 +1770,8 @@ const WIDGET_TEMPLATES = {
       <div class="cact"><span class="dh">⠿</span>
         <select class="csel vsel" id="ct-ch-estcap" onchange="loadEstructuraCapital()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
         <button class="bcl" data-w="wc-estcap">✕</button></div></div>
-    <div class="cv" style="height:300px"><canvas id="ch-estcap"></canvas></div>
+    <div class="cv" style="height:230px"><canvas id="ch-estcap"></canvas></div>
+    <div id="estcap-legend" style="padding:8px 4px 0"></div>
   `,
   'wc-estcapdet': `
     <div class="ch"><div><div class="ct">Estructura de Capital Detallada</div><div class="cs">Activo vs Pasivo + Patrimonio, por partida y por trimestre</div></div>
@@ -1778,17 +1779,19 @@ const WIDGET_TEMPLATES = {
         <select class="csel vsel" id="ct-ch-estcapdet" onchange="loadEstructuraCapitalDetallada()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
         <button class="bcl" data-w="wc-estcapdet">✕</button></div></div>
     <div class="cv" style="height:230px"><canvas id="ch-estcapdet"></canvas></div>
-    <div id="estcapdet-legend" style="padding:8px 4px 0"></div>
+    <div id="estcapdet-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-sitfin': `
     <div class="ch"><div><div class="ct">Situación Financiera Corriente</div><div class="cs">Activo vs Pasivo, corriente y no corriente, por trimestre</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-sitfin">✕</button></div></div>
-    <div class="cv" style="height:300px"><canvas id="ch-sitfin"></canvas></div>
+    <div class="cv" style="height:230px"><canvas id="ch-sitfin"></canvas></div>
+    <div id="sitfin-legend" style="padding:8px 4px 0"></div>
   `,
   'wc-deuda-cobertura': `
     <div class="ch"><div><div class="ct">Deuda y Cobertura</div><div class="cs">Total Pasivo vs Efectivo y Equivalentes, por trimestre</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-deuda-cobertura">✕</button></div></div>
-    <div class="cv" style="height:300px"><canvas id="ch-deuda-cobertura"></canvas></div>
+    <div class="cv" style="height:230px"><canvas id="ch-deuda-cobertura"></canvas></div>
+    <div id="deuda-cobertura-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-roe': `
     <div class="ch"><div><div class="ct">ROE Acumulado</div><div class="cs">Utilidad Neta acumulada / Patrimonio promedio</div></div>
@@ -1799,7 +1802,8 @@ const WIDGET_TEMPLATES = {
         <div style="font-size:22px;font-weight:700" id="roe-gauge-num">—</div>
       </div>
     </div>
-    <div class="cv" style="height:170px"><canvas id="ch-roe-bar"></canvas></div>
+    <div class="cv" style="height:130px"><canvas id="ch-roe-bar"></canvas></div>
+    <div id="roe-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-roa': `
     <div class="ch"><div><div class="ct">ROA Acumulado</div><div class="cs">Ingresos acumulados / Activos promedio</div></div>
@@ -1810,36 +1814,42 @@ const WIDGET_TEMPLATES = {
         <div style="font-size:22px;font-weight:700" id="roa-gauge-num">—</div>
       </div>
     </div>
-    <div class="cv" style="height:170px"><canvas id="ch-roa-bar"></canvas></div>
+    <div class="cv" style="height:130px"><canvas id="ch-roa-bar"></canvas></div>
+    <div id="roa-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-margen': `
     <div class="ch"><div><div class="ct">Resultados y margen bruto</div><div class="cs">Por trimestre · Respeta el filtro de unidad de negocio</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-margen">✕</button></div></div>
-    <div class="cv" style="height:300px"><canvas id="ch-margen"></canvas></div>
+    <div class="cv" style="height:230px"><canvas id="ch-margen"></canvas></div>
+    <div id="margen-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-cascada': `
     <div class="ch"><div><div class="ct">Ingresos y utilidad</div><div class="cs">De Ingresos a Utilidad Neta, paso a paso · Respeta el filtro de unidad de negocio</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-cascada">✕</button></div></div>
-    <div class="cv" style="height:300px"><canvas id="ch-cascada"></canvas></div>
+    <div class="cv" style="height:230px"><canvas id="ch-cascada"></canvas></div>
+    <div id="cascada-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-heatmap-un': `
     <div class="ch"><div><div class="ct" id="heatmap-un-titulo">Utilidad Neta por Unidad de Negocio</div><div class="cs">Por unidad si hay una empresa seleccionada, por empresa en vista Holding</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-heatmap-un">✕</button></div></div>
-    <div class="cv" style="height:300px"><canvas id="ch-heatmap-un"></canvas></div>
+    <div class="cv" style="height:230px"><canvas id="ch-heatmap-un"></canvas></div>
     <div id="heatmap-un-empty" style="display:none;text-align:center;color:var(--mu);font-size:12px;padding:24px 8px"></div>
+    <div id="heatmap-un-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-dona-unidad': `
     <div class="ch"><div><div class="ct">Ingresos por Unidad de Negocio</div><div class="cs">% de participación · Solo disponible al seleccionar una empresa con unidades propias</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-dona-unidad">✕</button></div></div>
-    <div class="cv" style="height:300px;position:relative">
+    <div class="cv" style="height:230px;position:relative">
       <canvas id="ch-dona-unidad"></canvas>
       <div id="ch-dona-unidad-empty" style="display:none;text-align:center;color:var(--mu);font-size:12px;padding:24px 8px">Seleccioná una empresa con unidades de negocio propias para ver este gráfico.</div>
     </div>
+    <div id="dona-unidad-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-dona-segmento': `
     <div class="ch"><div><div class="ct">Ingresos por Segmentos</div><div class="cs">Venta de Mercancía · Servicios · Eventos · Taller</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-dona-segmento">✕</button></div></div>
-    <div class="cv" style="height:300px"><canvas id="ch-dona-segmento"></canvas></div>
+    <div class="cv" style="height:230px"><canvas id="ch-dona-segmento"></canvas></div>
+    <div id="dona-segmento-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-sem': `
     <div class="ch"><div><div class="ct">🚦 Semáforo Financiero</div><div class="cs">Estado de salud por indicador</div></div>
@@ -3524,17 +3534,7 @@ function loadEstructuraCapital() {
           },
           datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
           plugins: {
-            legend: {
-              position: 'bottom',
-              labels: {
-                font: { size: 10 },
-                generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
-                  const valTxt = modoPct ? '' : (': ' + chart.data.labels.map((lbl, qi) => lbl + ' ' + fmtS(ds.data[qi])).join(' · '));
-                  const colorBase = ds.backgroundColor[0].slice(0,7);
-                  return { text: ds.label + valTxt, fillStyle: colorBase, strokeStyle: colorBase, hidden: false, datasetIndex: i };
-                })
-              }
-            },
+            legend: { display: false },
             tooltip: {
               callbacks: {
                 label: (ctx) => `${ctx.dataset.label}: ${modoPct ? ctx.raw.toFixed(1)+'%' : fmtS(ctx.raw)}`
@@ -3543,6 +3543,26 @@ function loadEstructuraCapital() {
           }
         }
       });
+
+      // Leyenda propia, lista agrupada con monto por trimestre visible y el
+      // rotulo de trimestre (Q1/Q2/etc) en negrita -- mismo patron pedido por
+      // Yocelin para Estructura de Capital Detallada, replicado aqui.
+      const legendEl = G('estcap-legend');
+      if (legendEl) {
+        const series = [
+          { nombre: 'Activo Total', color: '#2563eb', data: dsActivo },
+          { nombre: 'Pasivo', color: '#f97316', data: dsPasivo },
+          { nombre: 'Patrimonio', color: '#0891b2', data: dsPatrimonio }
+        ];
+        const filas = series.map(s => {
+          const montos = modoPct ? '' : labels.map((lbl, i) => `<strong style="color:var(--tx)">${lbl}</strong> ${fmtS(s.data[i])}`).join(' &middot; ');
+          return `<div style="margin-bottom:6px">
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:9px;height:9px;background:${s.color};border-radius:2px;display:inline-block;flex-shrink:0"></span>${s.nombre}</div>
+            ${montos ? `<div style="font-size:10px;color:var(--mu2);margin-left:15px">${montos}</div>` : ''}
+          </div>`;
+        }).join('');
+        legendEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;justify-items:center;text-align:center">${filas}</div>`;
+      }
     })
     .catch(err => console.error('Error cargando Estructura de Capital:', err));
 }
@@ -3587,23 +3607,30 @@ function loadDeudaCobertura() {
           scales: { y: { ticks: { callback: v => fmtS(v) } } },
           datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
           plugins: {
-            legend: {
-              position: 'bottom',
-              labels: {
-                font: { size: 10 },
-                generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
-                  const valTxt = ': ' + chart.data.labels.map((lbl, qi) => lbl + ' ' + fmtS(ds.data[qi])).join(' · ');
-                  const colorBase = ds.backgroundColor[0].slice(0,7);
-                  return { text: ds.label + valTxt, fillStyle: colorBase, strokeStyle: colorBase, hidden: false, datasetIndex: i };
-                })
-              }
-            },
+            legend: { display: false },
             tooltip: {
               callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtS(ctx.raw)}` }
             }
           }
         }
       });
+
+      // Leyenda propia, 2 columnas simples, Q1/Q2 en negrita.
+      const legendEl = G('deuda-cobertura-legend');
+      if (legendEl) {
+        const series = [
+          { nombre: 'Deuda (Total Pasivo)', color: '#f97316', data: deudaData },
+          { nombre: 'Efectivo y Equivalentes', color: '#2563eb', data: efectivoData }
+        ];
+        const filas = series.map(s => {
+          const montos = labels.map((lbl, i) => `<strong style="color:var(--tx)">${lbl}</strong> ${fmtS(s.data[i])}`).join(' &middot; ');
+          return `<div style="margin-bottom:6px">
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:9px;height:9px;background:${s.color};border-radius:2px;display:inline-block;flex-shrink:0"></span>${s.nombre}</div>
+            <div style="font-size:10px;color:var(--mu2);margin-left:15px">${montos}</div>
+          </div>`;
+        }).join('');
+        legendEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;justify-items:center;text-align:center">${filas}</div>`;
+      }
     })
     .catch(err => console.error('Error cargando Deuda y Cobertura:', err));
 }
@@ -3630,9 +3657,9 @@ function loadEstructuraCapitalDetallada() {
       // Paleta financiera sobria (opcion C, decidida con Andres esta sesion): azul
       // cielo/ambar/teal en vez de azul marino/naranja fuerte -- misma regla de
       // categoria (azul=Activo, naranja=Pasivo, teal=Patrimonio), tonos mas legibles.
-      const paletaAzules = ['#1e3a8a','#2563eb','#7dd3fc','#e0f2fe'];
-      const paletaNaranjas = ['#92400e','#d97706','#fb923c','#fed7aa'];
-      const paletaTeals = ['#0f766e','#14b8a6','#5eead4','#99f6e4'];
+      const paletaAzules = ['#2563eb','#1e3a8a','#7dd3fc','#e0f2fe'];
+      const paletaNaranjas = ['#f97316','#92400e','#fb923c','#fed7aa'];
+      const paletaTeals = ['#0891b2','#0f766e','#5eead4','#99f6e4'];
       const MAX_PARTIDAS = 4;
 
       function prepararItems(partidasRaw) {
@@ -3707,7 +3734,7 @@ function loadEstructuraCapitalDetallada() {
       function renderGrupo(titulo, colorTitulo, items, paleta) {
         const filas = items.map((x, idx) => {
           const color = paleta[idx % paleta.length];
-          const montos = modoPct ? '' : quartersConDatos.map((q,i) => labels[i] + ' ' + fmtS(x.vals[i])).join(' · ');
+          const montos = modoPct ? '' : quartersConDatos.map((q,i) => `<strong style="color:var(--tx)">${labels[i]}</strong> ${fmtS(x.vals[i])}`).join(' &middot; ');
           return `<div style="margin-bottom:6px">
             <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:9px;height:9px;background:${color};border-radius:2px;display:inline-block;flex-shrink:0"></span>${x.r.partida}</div>
             ${montos ? `<div style="font-size:10px;color:var(--mu2);margin-left:15px">${montos}</div>` : ''}
@@ -3718,10 +3745,10 @@ function loadEstructuraCapitalDetallada() {
 
       const legendEl = G('estcapdet-legend');
       if (legendEl) {
-        legendEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        legendEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;justify-items:center;text-align:center">
           ${renderGrupo('Activo', '#2563eb', itemsActivo, paletaAzules)}
-          ${renderGrupo('Pasivo', '#d97706', itemsPasivo, paletaNaranjas)}
-          ${renderGrupo('Patrimonio', '#14b8a6', itemsPatrimonio, paletaTeals)}
+          ${renderGrupo('Pasivo', '#f97316', itemsPasivo, paletaNaranjas)}
+          ${renderGrupo('Patrimonio', '#0891b2', itemsPatrimonio, paletaTeals)}
         </div>`;
       }
     })
@@ -3760,9 +3787,9 @@ function loadSituacionFinanciera() {
         data: {
           labels,
           datasets: [
-            { label: 'Activo Corriente', data: dsAC, backgroundColor: dimPorTrimestre('#1e3a8a', quartersConDatos), stack: 'activo' },
+            { label: 'Activo Corriente', data: dsAC, backgroundColor: dimPorTrimestre('#2563eb', quartersConDatos), stack: 'activo' },
             { label: 'Activo No Corriente', data: dsANC, backgroundColor: dimPorTrimestre('#7dd3fc', quartersConDatos), stack: 'activo' },
-            { label: 'Pasivo Corriente', data: dsPC, backgroundColor: dimPorTrimestre('#92400e', quartersConDatos), stack: 'pasivo' },
+            { label: 'Pasivo Corriente', data: dsPC, backgroundColor: dimPorTrimestre('#f97316', quartersConDatos), stack: 'pasivo' },
             { label: 'Pasivo No Corriente', data: dsPNC, backgroundColor: dimPorTrimestre('#fb923c', quartersConDatos), stack: 'pasivo' }
           ]
         },
@@ -3775,17 +3802,7 @@ function loadSituacionFinanciera() {
           },
           datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
           plugins: {
-            legend: {
-              position: 'bottom',
-              labels: {
-                font: { size: 10 },
-                generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
-                  const valTxt = ': ' + chart.data.labels.map((lbl, qi) => lbl + ' ' + fmtS(ds.data[qi])).join(' · ');
-                  const colorBase = ds.backgroundColor[0].slice(0,7);
-                  return { text: ds.label + valTxt, fillStyle: colorBase, strokeStyle: colorBase, hidden: false, datasetIndex: i };
-                })
-              }
-            },
+            legend: { display: false },
             tooltip: {
               callbacks: {
                 label: (ctx) => `${ctx.dataset.label}: ${fmtS(ctx.raw)}`
@@ -3794,6 +3811,31 @@ function loadSituacionFinanciera() {
           }
         }
       });
+
+      // Leyenda propia agrupada por categoria (Activo/Pasivo), Q1/Q2 en negrita.
+      const legendEl = G('sitfin-legend');
+      if (legendEl) {
+        function renderGrupo(titulo, colorTitulo, series) {
+          const filas = series.map(s => {
+            const montos = labels.map((lbl, i) => `<strong style="color:var(--tx)">${lbl}</strong> ${fmtS(s.data[i])}`).join(' &middot; ');
+            return `<div style="margin-bottom:6px">
+              <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:9px;height:9px;background:${s.color};border-radius:2px;display:inline-block;flex-shrink:0"></span>${s.nombre}</div>
+              <div style="font-size:10px;color:var(--mu2);margin-left:15px">${montos}</div>
+            </div>`;
+          }).join('');
+          return `<div><p style="margin:0 0 6px;font-weight:700;color:${colorTitulo};font-size:11px">${titulo}</p>${filas}</div>`;
+        }
+        legendEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;justify-items:center;text-align:center">
+          ${renderGrupo('Activo', '#2563eb', [
+            { nombre: 'Activo Corriente', color: '#2563eb', data: dsAC },
+            { nombre: 'Activo No Corriente', color: '#7dd3fc', data: dsANC }
+          ])}
+          ${renderGrupo('Pasivo', '#f97316', [
+            { nombre: 'Pasivo Corriente', color: '#f97316', data: dsPC },
+            { nombre: 'Pasivo No Corriente', color: '#fb923c', data: dsPNC }
+          ])}
+        </div>`;
+      }
     })
     .catch(err => console.error('Error cargando Situacion Financiera:', err));
 }
@@ -3857,21 +3899,21 @@ function loadROEROA() {
             scales: { y: { ticks: { callback: v => v.toFixed(0) + '%' } } },
             datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
             plugins: {
-              legend: {
-                position: 'bottom',
-                labels: {
-                  font: { size: 10 },
-                  generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
-                    const valTxt = ': ' + chart.data.labels.map((lbl, qi) => lbl + ' ' + ds.data[qi].toFixed(1) + '%').join(' · ');
-                    const colorBase = ds.backgroundColor[0].slice(0,7);
-                    return { text: ds.label + valTxt, fillStyle: colorBase, strokeStyle: colorBase, hidden: false, datasetIndex: i };
-                  })
-                }
-              },
+              legend: { display: false },
               tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%` } }
             }
           }
         });
+
+        // Leyenda propia, 1 columna simple, Q1/Q2 en negrita.
+        const legendEl = G(id + '-legend');
+        if (legendEl) {
+          const montos = labels.map((lbl, i) => `<strong style="color:var(--tx)">${lbl}</strong> ${valores[i].toFixed(1)}%`).join(' &middot; ');
+          legendEl.innerHTML = `<div style="text-align:center">
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px"><span style="width:9px;height:9px;background:${color};border-radius:2px;display:inline-block;flex-shrink:0"></span>${id.toUpperCase()}</div>
+            <div style="font-size:10px;color:var(--mu2);margin-top:4px">${montos}</div>
+          </div>`;
+        }
       }
 
       renderInd('roe', 'ch-roe-gauge', 'roe-gauge-num', 'ch-roe-bar', '#059669');
@@ -3924,19 +3966,7 @@ function loadIngresosCostosMargen() {
         y1: { type: 'linear', position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, ticks: { callback: v => v.toFixed(0)+'%' } }
       },
       plugins: {
-        legend: {
-          position: 'bottom',
-          labels: {
-            font: { size: 10 },
-            generateLabels: (chart) => chart.data.datasets.map((ds, i) => {
-              const valTxt = ': ' + chart.data.labels.map((lbl, qi) => {
-                const v = ds.data[qi];
-                return lbl + ' ' + (ds.type === 'line' ? v.toFixed(1)+'%' : fmtS(v));
-              }).join(' · ');
-              return { text: ds.label + valTxt, fillStyle: ds.backgroundColor, strokeStyle: ds.borderColor || ds.backgroundColor, hidden: false, datasetIndex: i };
-            })
-          }
-        },
+        legend: { display: false },
         tooltip: {
           callbacks: {
             label: (ctx) => ctx.dataset.type === 'line'
@@ -3947,6 +3977,26 @@ function loadIngresosCostosMargen() {
       }
     }
   });
+
+  // Leyenda propia, 4 filas (3 barras + 1 linea), Q1/Q2 en negrita, formato
+  // segun tipo de serie (monto o %).
+  const legendEl = G('margen-legend');
+  if (legendEl) {
+    const series = [
+      { nombre: 'Ingresos', color: '#2563eb', data: dsIngresos, esPct: false },
+      { nombre: 'Costos', color: '#d97706', data: dsCostos, esPct: false },
+      { nombre: 'Utilidad Bruta', color: '#059669', data: dsUtilidad, esPct: false },
+      { nombre: 'Margen Bruto %', color: '#7c3aed', data: dsMargen, esPct: true }
+    ];
+    const filas = series.map(s => {
+      const montos = labels.map((lbl, i) => `<strong style="color:var(--tx)">${lbl}</strong> ${s.esPct ? s.data[i].toFixed(1)+'%' : fmtS(s.data[i])}`).join(' &middot; ');
+      return `<div style="margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:9px;height:9px;background:${s.color};border-radius:2px;display:inline-block;flex-shrink:0"></span>${s.nombre}</div>
+        <div style="font-size:10px;color:var(--mu2);margin-left:15px">${montos}</div>
+      </div>`;
+    }).join('');
+    legendEl.innerHTML = `<div style="display:flex;justify-content:center"><div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;justify-items:start;text-align:left">${filas}</div></div>`;
+  }
 }
 
 function loadCascadaPL() {
@@ -4025,16 +4075,7 @@ function loadCascadaPL() {
         y: { stacked: true, ticks: { callback: v => fmtS(v) } }
       },
           plugins: {
-            legend: {
-              position: 'bottom',
-              labels: {
-                font: { size: 10 },
-                generateLabels: () => pasos.map((p, i) => {
-                  const color = p.tipo === 'total' ? '#2563eb' : (p.valor >= 0 ? '#059669' : '#dc2626');
-                  return { text: p.label + ': ' + fmtS(p.valor), fillStyle: color, strokeStyle: color, hidden: false, datasetIndex: 1, index: i };
-                })
-              }
-            },
+            legend: { display: false },
             tooltip: {
               callbacks: {
                 title: (items) => pasos[items[0].dataIndex].label,
@@ -4049,6 +4090,16 @@ function loadCascadaPL() {
           }
     }
   });
+
+  // Leyenda propia, una fila por paso (sin trimestres, es un snapshot unico).
+  const legendEl = G('cascada-legend');
+  if (legendEl) {
+    const filas = pasos.map(p => {
+      const color = p.tipo === 'total' ? '#2563eb' : (p.valor >= 0 ? '#059669' : '#dc2626');
+      return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:4px"><span style="width:9px;height:9px;background:${color};border-radius:2px;display:inline-block;flex-shrink:0"></span>${p.label}: <span style="color:var(--mu2)">${fmtS(p.valor)}</span></div>`;
+    }).join('');
+    legendEl.innerHTML = `<div style="display:flex;justify-content:center"><div style="display:grid;grid-template-columns:repeat(4,auto);gap:6px 16px">${filas}</div></div>`;
+  }
 }
 
 function loadHeatmapUtilidadUnidad() {
@@ -4118,6 +4169,14 @@ function loadHeatmapUtilidadUnidad() {
         }
       }
     });
+
+    const legendEl = G('heatmap-un-legend');
+    if (legendEl) {
+      const filas = labels.map((lbl, i) => {
+        return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:4px"><span style="width:9px;height:9px;background:${colores[i]};border-radius:2px;display:inline-block;flex-shrink:0"></span>${lbl}: <span style="color:var(--mu2)">${fmtS(valores[i])}</span></div>`;
+      }).join('');
+      legendEl.innerHTML = `<div style="display:flex;justify-content:center"><div>${filas}</div></div>`;
+    }
   }
 
   const unidades = (DD && DD.por_unidad) || [];
@@ -4180,7 +4239,7 @@ function loadDonaUnidad() {
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { font: { size: 9 } } },
+        legend: { display: false },
         tooltip: { callbacks: { label: function(ctx) {
           const total = ctx.dataset.data.reduce(function(a,b){return a+b;},0);
           const pct = total ? (ctx.raw/total*100).toFixed(1) : 0;
@@ -4189,6 +4248,16 @@ function loadDonaUnidad() {
       }
     }
   });
+
+  const legendEl = G('dona-unidad-legend');
+  if (legendEl) {
+    const total = items.reduce((a,x) => a + x.valor, 0);
+    const filas = items.map((x, i) => {
+      const pct = total ? (x.valor/total*100).toFixed(1) : 0;
+      return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:4px"><span style="width:9px;height:9px;background:${paleta[i % paleta.length]};border-radius:2px;display:inline-block;flex-shrink:0"></span>${x.nombre}: <span style="color:var(--mu2)">${fmtS(x.valor)} (${pct}%)</span></div>`;
+    }).join('');
+    legendEl.innerHTML = `<div style="display:flex;justify-content:center"><div>${filas}</div></div>`;
+  }
 }
 
 function loadDonaSegmento() {
@@ -4210,7 +4279,7 @@ function loadDonaSegmento() {
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { font: { size: 9 } } },
+        legend: { display: false },
         tooltip: { callbacks: { label: function(ctx) {
           const total = ctx.dataset.data.reduce(function(a,b){return a+b;},0);
           const pct = total ? (ctx.raw/total*100).toFixed(1) : 0;
@@ -4219,6 +4288,16 @@ function loadDonaSegmento() {
       }
     }
   });
+
+  const legendEl = G('dona-segmento-legend');
+  if (legendEl) {
+    const total = labels.reduce((a,k) => a + seg[k], 0);
+    const filas = labels.map((k, i) => {
+      const pct = total ? (seg[k]/total*100).toFixed(1) : 0;
+      return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:4px"><span style="width:9px;height:9px;background:${paleta[i % paleta.length]};border-radius:2px;display:inline-block;flex-shrink:0"></span>${k}: <span style="color:var(--mu2)">${fmtS(seg[k])} (${pct}%)</span></div>`;
+    }).join('');
+    legendEl.innerHTML = `<div style="display:flex;justify-content:center"><div>${filas}</div></div>`;
+  }
 }
 
 // ── DASHBOARD LOAD ────────────────────────────────────────────────────────
@@ -4950,11 +5029,9 @@ function toggleDivisaMode(){
           if(opcionExiste) msel.value=mesDefault;
         }
       }
-      if(qsel) qsel.style.display='none';
     }else{
       toggle.parentElement.classList.remove('active');
       if(msel)msel.style.display='none';
-      if(qsel) qsel.style.display='block';
     }
   }
   // Recargar dashboard con nuevo modo
@@ -4971,7 +5048,6 @@ function initDivisaToggle(){
   if(toggle&&modoDivisaReal){
     toggle.parentElement.classList.add('active');
     if(msel)msel.style.display='block';
-    if(qsel)qsel.style.display='none';
   }
 }
 
