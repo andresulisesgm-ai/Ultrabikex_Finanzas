@@ -287,3 +287,17 @@ def eerr_divisa_real():
     if 'error' in estados:
         return jsonify(estados), 400
     return jsonify(estados['eerr_real'])
+
+
+@divisa_real_bp.route('/api/eerr/divisa_real/trimestres', methods=['GET'])
+@login_required
+def eerr_divisa_real_trimestres_route():
+    from engine import eerr_divisa_real_trimestres
+    year = request.args.get('year', str(datetime.now().year))
+    unit = request.args.get('unit', '')
+    empresa_id = request.args.get('empresa_id', type=int)
+    db = get_db()
+    resultado = eerr_divisa_real_trimestres(db, year, unit, empresa_id=empresa_id)
+    if 'error' in resultado:
+        return jsonify(resultado), 400
+    return jsonify(resultado)
