@@ -999,12 +999,9 @@ input[type=file]{display:none;}
 
       <div style="flex:0 0 380px;min-width:340px">
         <div class="card">
-          <div class="stitle">Saldo Efectivo y Equivalentes en Bs</div>
-          <div style="font-size:10px;color:var(--mu);margin-bottom:8px">Click en una cuenta para editar su valor.</div>
+          <div class="stitle">Ganancia / Pérdida en Tasa Cambiaria</div>
+          <div style="font-size:10px;color:var(--mu);margin-bottom:8px">Ajuste manual del trimestre. El sistema sugiere un valor; confirma o corrige.</div>
           <div id="esfdiv-partidas-detalle"></div>
-          <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);font-weight:700;font-size:12px">
-            <span>Total Bs</span><span id="esfdiv-total-bs" style="font-family:'DM Mono',monospace"></span>
-          </div>
         </div>
       </div>
 
@@ -3894,7 +3891,7 @@ function loadROEROA() {
   if (!wRoe && !wRoa) return;
   const year = G('dash-year').value;
   const empresaParam = CURRENT_EMPRESA_ID ? `&empresa_id=${CURRENT_EMPRESA_ID}` : '';
-  fetch(`/api/indicadores?year=${year}${empresaParam}`)
+  fetch(`${modoDivisaReal ? '/api/indicadores/divisa_real' : '/api/indicadores'}?year=${year}${empresaParam}`)
     .then(r => r.ok ? r.json() : null)
     .then(data => {
       if (!data) return;
