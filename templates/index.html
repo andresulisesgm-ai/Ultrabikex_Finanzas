@@ -1040,6 +1040,11 @@ input[type=file]{display:none;}
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div style="font-size:12px;font-weight:700">Indicadores Financieros</div>
         <div style="display:flex;gap:6px;align-items:center">
+          <div class="toggle-divisa" onclick="toggleDivisaModeInd()" title="Cambiar entre modo BCV normal y modo Divisa Real">
+            <span class="toggle-label">Normal</span>
+            <div id="toggle-switch-ind" class="toggle-switch"><div class="toggle-slider"></div></div>
+            <span class="toggle-label">Divisa Real</span>
+          </div>
           <select class="csel" id="ind-year" onchange="loadIndicadores()" style="padding:5px 8px"><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option></select>
         </div>
       </div>
@@ -5066,6 +5071,20 @@ function toggleDivisaMode(){
   }
 }
 
+let modoDivisaRealInd = false;
+function toggleDivisaModeInd(){
+  modoDivisaRealInd = !modoDivisaRealInd;
+  const toggle = G('toggle-switch-ind');
+  if(toggle){
+    if(modoDivisaRealInd){
+      toggle.parentElement.classList.add('active');
+    }else{
+      toggle.parentElement.classList.remove('active');
+    }
+  }
+  loadIndicadores();
+}
+
 // Inicializar estado del toggle al cargar página
 function initDivisaToggle(){
   const toggle=G('toggle-switch');
@@ -6449,7 +6468,8 @@ let ESF_DATA = null, esfQ = 1;
 
 async function loadIndicadores(){
   const year=G('ind-year').value;
-  const r=await fetch(`/api/indicadores?year=${year}&empresa_id=${CURRENT_EMPRESA_ID||''}`);
+  const endpointInd = modoDivisaRealInd ? '/api/indicadores/divisa_real' : '/api/indicadores';
+  const r=await fetch(`${endpointInd}?year=${year}&empresa_id=${CURRENT_EMPRESA_ID||''}`);
   if(!r.ok){
     const err=await r.json();
     G('ind-body').innerHTML=`<div style="padding:30px;text-align:center;color:var(--red)">⚠️ ${err.error||'Error cargando indicadores'}</div>`;
