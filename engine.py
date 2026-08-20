@@ -2827,3 +2827,57 @@ def compute_indicadores_v2_divisa_real(db, year, empresa_id=None):
     }
     return compute_indicadores_v2(db, year, empresa_id=empresa_id, datos_precalculados=datos_precalculados)
 
+
+def eerr_divisa_real_trimestres(db, year, unit='', empresa_id=None):
+    """
+    EERR Divisa Real agrupado por trimestre para consumo del Dashboard (a futuro).
+    Cada trimestre suma SOLO sus 3 meses propios (ENE-FEB-MAR para Q1, etc.) --
+    NO acumulado desde enero. Mismo criterio ya usado en compute_indicadores_v2
+    (_extract_eerr con QUARTER_MONTHS) y confirmado con Yocelin: los trimestres no
+    se suman entre sí en ningún estado financiero de este sistema. Reutiliza
+    calcular_estados_reales() -- no duplica lógica de cálculo.
+
+    Aplica la misma neutralización de plug fantasma que
+    compute_indicadores_v2_divisa_real, para trimestres sin datos reales de ESF
+    (ver _neutralizar_plug_sin_datos, ultrax_deuda_tecnica_refactor.md).
+
+    Retorna: {'year', 'unit', 'quarters': {1: {partida: valor, ...}, 2: {...}, 3: {...}, 4: {...}}}
+    """
+    QUARTER_MONTHS = {
+        1: ['ENE', 'FEB', 'MAR'],
+        2: ['ABR', 'MAY', 'JUN'],
+        3: ['JUL', 'AGO', 'SEPT'],
+        4: ['OCT', 'NOV', 'DIC']
+    }
+
+    estados = calcular_estados_reales(year, unit, empresa_id=empresa_id)
+    if 'error' in estados:
+        return estados
+
+    rows = estados.get('eerr_real', {}).get('rows', [])
+
+    if empresa_id:
+        uc = 'AND empresa_id=?'
+        params_q = [year, empresa_id]
+    else:
+        uc = ''
+        params_q = [year]
+    rows_q = db.execute(f'SELECT DISTINCT quarter FROM esf_data WHERE year=? {uc}', params_q).fetchall()
+    esf_quarters_available = sorted([r['quarter'] for r in rows_q])
+
+    rows = _neutralizar_plug_sin_datos(rows, esf_quarters_available)
+
+    quarters = {q: {} for q in [1, 2, 3, 4]}
+    for row in rows:
+        partida = row.get('partida', '')
+        if not partida:
+            continue
+        for q, months in QUARTER_MONTHS.items():
+            total = 0.0
+            for mes_data in row.get('meses', []):
+                if mes_data.get('month') in months:
+                    total += mes_data.get('ejecutado', {}).get('valor', 0) or 0
+            quarters[q][partida] = round(total, 2)
+
+    return {'year': year, 'unit': unit, 'quarters': quarters}
+
