@@ -2369,6 +2369,44 @@ def validate_esf_integrity(year, unit, esf_output, db, empresa_id=None):
     return discrepancies
 
 
+def _reshape_esf_rows_to_quarters(res):
+    """
+    Transforma la salida de esf_engine (res['rows'] con 'partida'/'quarters') al
+    formato result_quarters {totales, partidas} que consume compute_indicadores_v2.
+    Pura transformación de datos -- sin validación de integridad (esa corre aparte,
+    solo en el camino BCV, nunca sobre revalorizaciones Divisa Real). Extraída de
+    compute_esf() para reutilizarse también en el camino Divisa Real.
+    """
+    result_quarters = {
+        1: {'totales': {}, 'partidas': {}},
+        2: {'totales': {}, 'partidas': {}},
+        3: {'totales': {}, 'partidas': {}},
+        4: {'totales': {}, 'partidas': {}}
+    }
+    for row in res.get('rows', []):
+        partida = row.get('partida')
+        quarters_val = row.get('quarters', {})
+        for q in [1, 2, 3, 4]:
+            val = quarters_val.get(q, 0.0)
+            result_quarters[q]['totales'][partida] = val
+            result_quarters[q]['partidas'][partida] = val
+    for q in [1, 2, 3, 4]:
+        tot = result_quarters[q]['totales']
+        tot['Total Efectivo y Equivalentes']   = tot.get('Efectivo y Equivalentes', 0.0)
+        tot['Total Cuentas por Cobrar (neto)'] = tot.get('Cuentas por Cobrar', 0.0)
+        tot['Total Inventarios']               = tot.get('Inventarios', 0.0)
+        tot['ACTIVOS CORRIENTES']              = tot.get('ACTIVOS CORRIENTES', 0.0)
+        tot['Total Activos No Corrientes']     = tot.get('Total Activos No Corrientes', 0.0) or tot.get('ACTIVOS NO CORRIENTES', 0.0)
+        tot['TOTAL ACTIVOS']                   = tot.get('TOTAL ACTIVOS', 0.0)
+        tot['Total Cuentas por Pagar']         = tot.get('Cuentas por Pagar', 0.0)
+        tot['TOTAL PASIVOS CORRIENTES']        = tot.get('TOTAL PASIVOS CORRIENTES', 0.0) or tot.get('Total Pasivos Corrientes', 0.0) or tot.get('PASIVOS CORRIENTES', 0.0)
+        tot['TOTAL PASIVOS NO CORRIENTES']     = tot.get('TOTAL PASIVOS NO CORRIENTES', 0.0) or tot.get('Total Pasivos No Corrientes', 0.0) or tot.get('PASIVOS NO CORRIENTES', 0.0)
+        tot['TOTAL PASIVOS']                   = tot.get('TOTAL PASIVOS', 0.0)
+        tot['TOTAL PATRIMONIO']                = tot.get('TOTAL PATRIMONIO', 0.0) or tot.get('Total Patrimonio', 0.0) or tot.get('PATRIMONIO', 0.0)
+        tot['TOTAL PASIVOS Y PATRIMONIO']      = tot.get('TOTAL PASIVOS Y PATRIMONIO', 0.0)
+    return result_quarters
+
+
 def compute_esf(db, year, unit='', empresa_id=None):
     """
     Calcula el Estado de Situación Financiera por quarter (consolidando unidades
@@ -2392,37 +2430,7 @@ def compute_esf(db, year, unit='', empresa_id=None):
     except Exception as e:
         logging.getLogger('engine').error(f"Error al ejecutar validacion de integridad ESF: {str(e)}")
     
-    result_quarters = {
-        1: {'totales': {}, 'partidas': {}},
-        2: {'totales': {}, 'partidas': {}},
-        3: {'totales': {}, 'partidas': {}},
-        4: {'totales': {}, 'partidas': {}}
-    }
-    for row in res.get('rows', []):
-        partida = row.get('partida')
-        quarters_val = row.get('quarters', {})
-        for q in [1, 2, 3, 4]:
-            val = quarters_val.get(q, 0.0)
-            result_quarters[q]['totales'][partida] = val
-            result_quarters[q]['partidas'][partida] = val
-            
-    # Mapeo de compatibilidad de nomenclaturas de Totales del Balance (Fase 4 - ESF)
-    for q in [1, 2, 3, 4]:
-        tot = result_quarters[q]['totales']
-        tot['Total Efectivo y Equivalentes']   = tot.get('Efectivo y Equivalentes', 0.0)
-        tot['Total Cuentas por Cobrar (neto)'] = tot.get('Cuentas por Cobrar', 0.0)
-        tot['Total Inventarios']               = tot.get('Inventarios', 0.0)
-        tot['ACTIVOS CORRIENTES']              = tot.get('ACTIVOS CORRIENTES', 0.0)
-        tot['Total Activos No Corrientes']     = tot.get('Total Activos No Corrientes', 0.0) or tot.get('ACTIVOS NO CORRIENTES', 0.0)
-        tot['TOTAL ACTIVOS']                   = tot.get('TOTAL ACTIVOS', 0.0)
-        
-        tot['Total Cuentas por Pagar']         = tot.get('Cuentas por Pagar', 0.0)
-        tot['TOTAL PASIVOS CORRIENTES']        = tot.get('TOTAL PASIVOS CORRIENTES', 0.0) or tot.get('Total Pasivos Corrientes', 0.0) or tot.get('PASIVOS CORRIENTES', 0.0)
-        tot['TOTAL PASIVOS NO CORRIENTES']     = tot.get('TOTAL PASIVOS NO CORRIENTES', 0.0) or tot.get('Total Pasivos No Corrientes', 0.0) or tot.get('PASIVOS NO CORRIENTES', 0.0)
-        tot['TOTAL PASIVOS']                   = tot.get('TOTAL PASIVOS', 0.0)
-        tot['TOTAL PATRIMONIO']                = tot.get('TOTAL PATRIMONIO', 0.0) or tot.get('Total Patrimonio', 0.0) or tot.get('PATRIMONIO', 0.0)
-        tot['TOTAL PASIVOS Y PATRIMONIO']      = tot.get('TOTAL PASIVOS Y PATRIMONIO', 0.0)
-        
+    result_quarters = _reshape_esf_rows_to_quarters(res)
     return result_quarters, quarters_available
 
 
