@@ -3587,7 +3587,11 @@ function loadDeudaCobertura() {
       const rEfectivo = findRow('Efectivo y Equivalentes');
       if (!rPasivos || !rEfectivo) return;
 
-      const quartersConDatos = [1,2,3,4].filter(q => (rPasivos.quarters[q] || 0) !== 0);
+      const selectedQuarterDC = G('dash-quarter') ? G('dash-quarter').value : '';
+      let quartersConDatos = [1,2,3,4].filter(q => (rPasivos.quarters[q] || 0) !== 0);
+      if (selectedQuarterDC) {
+        quartersConDatos = quartersConDatos.filter(q => String(q) === selectedQuarterDC);
+      }
       if (!quartersConDatos.length) return;
 
       const labels = quartersConDatos.map(q => 'Q'+q);
@@ -3650,7 +3654,11 @@ function loadEstructuraCapitalDetallada() {
     .then(rows => {
       if (!rows) return;
       const totalRow = rows.find(r => r.partida === 'TOTAL ACTIVOS');
-      const quartersConDatos = [1,2,3,4].filter(q => totalRow && (totalRow.quarters[q] || 0) !== 0);
+      const selectedQuarterDet = G('dash-quarter') ? G('dash-quarter').value : '';
+      let quartersConDatos = [1,2,3,4].filter(q => totalRow && (totalRow.quarters[q] || 0) !== 0);
+      if (selectedQuarterDet) {
+        quartersConDatos = quartersConDatos.filter(q => String(q) === selectedQuarterDet);
+      }
       if (!quartersConDatos.length) return;
       const labels = quartersConDatos.map(q => 'Q'+q);
 
@@ -3798,7 +3806,11 @@ function loadSituacionFinanciera() {
       const rPNC = find('Total Pasivos No Corrientes');
       if (!rAC || !rANC || !rPC || !rPNC) return;
 
-      const quartersConDatos = [1,2,3,4].filter(q => (rAC.quarters[q] || 0) !== 0);
+      const selectedQuarterSF = G('dash-quarter') ? G('dash-quarter').value : '';
+      let quartersConDatos = [1,2,3,4].filter(q => (rAC.quarters[q] || 0) !== 0);
+      if (selectedQuarterSF) {
+        quartersConDatos = quartersConDatos.filter(q => String(q) === selectedQuarterSF);
+      }
       if (!quartersConDatos.length) return;
       const labels = quartersConDatos.map(q => 'Q'+q);
 
@@ -3907,7 +3919,11 @@ function loadROEROA() {
         const ind = inds.find(x => x.nombre && x.nombre.toLowerCase().startsWith(id.toLowerCase()));
         if (!ind) return;
         const trimestres = ind.trimestres || [];
-        const idxConDatos = [0, 1, 2, 3].filter(i => trimestres[i] && trimestres[i].valor !== null);
+        const selectedQuarterRoe = G('dash-quarter') ? G('dash-quarter').value : '';
+        let idxConDatos = [0, 1, 2, 3].filter(i => trimestres[i] && trimestres[i].valor !== null);
+        if (selectedQuarterRoe) {
+          idxConDatos = idxConDatos.filter(i => String(i + 1) === selectedQuarterRoe);
+        }
         if (!idxConDatos.length) return;
         const labels = idxConDatos.map(i => 'Q' + (i + 1));
         const valores = idxConDatos.map(i => (trimestres[i].valor || 0) * 100);
