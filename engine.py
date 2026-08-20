@@ -2825,7 +2825,21 @@ def compute_indicadores_v2_divisa_real(db, year, empresa_id=None):
         'result_quarters': result_quarters,
         'esf_quarters_available': esf_quarters_available,
     }
-    return compute_indicadores_v2(db, year, empresa_id=empresa_id, datos_precalculados=datos_precalculados)
+    indicadores = compute_indicadores_v2(db, year, empresa_id=empresa_id, datos_precalculados=datos_precalculados)
+    if isinstance(indicadores, dict) and 'error' in indicadores:
+        return indicadores
+
+    esf_totales = None
+    if esf_quarters_available:
+        esf_last_q = max(esf_quarters_available)
+        esf_tot = result_quarters.get(esf_last_q, {}).get('totales', {})
+        esf_totales = {
+            'total_activos': round(esf_tot.get('TOTAL ACTIVOS', 0), 2),
+            'total_pasivos': round(esf_tot.get('TOTAL PASIVOS', 0), 2),
+            'patrimonio': round(esf_tot.get('TOTAL PATRIMONIO', 0), 2),
+        }
+
+    return {'indicadores': indicadores, 'esf_totales': esf_totales}
 
 
 def eerr_divisa_real_trimestres(db, year, unit='', empresa_id=None):
