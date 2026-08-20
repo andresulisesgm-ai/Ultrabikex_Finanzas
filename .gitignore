@@ -21,3 +21,4 @@ data/ultrax.db-shm
 data/ultrax.db-wal
 # Backups automaticos de reset_mapping()
 data/mapping_backup_*.csv
+cookie.txt
