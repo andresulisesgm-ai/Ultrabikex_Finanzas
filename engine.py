@@ -2434,10 +2434,19 @@ def compute_esf(db, year, unit='', empresa_id=None):
     return result_quarters, quarters_available
 
 
-def compute_indicadores_v2(db, year, empresa_id=None):
+def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
     """
     Calcula los 20 indicadores financieros por trimestre + año actual + año anterior.
     Estructura de salida compatible con el módulo Indicadores Financieros del frontend.
+
+    datos_precalculados (opcional): dict con {'rows_curr', 'rows_prev', 'esf_rows',
+    'result_quarters', 'esf_quarters_available'} ya resueltos externamente. Si se
+    provee, la función NO llama a eerr_completo_v2_ui_adapter/esf_engine/compute_esf
+    -- usa esos datos directos. Pensado para reutilizar las mismas 20 fórmulas con
+    una fuente de datos distinta a BCV (ej. Divisa Real, vía calcular_estados_reales),
+    sin duplicar lógica de cálculo -- ver ultrax_deuda_tecnica_refactor.md, regla
+    "no parallel calculation engines".
+    Si es None (default): comportamiento BCV actual, sin cambios.
     """
     import unicodedata
 
@@ -2508,18 +2517,25 @@ def compute_indicadores_v2(db, year, empresa_id=None):
         result['margen_neto']  = safe_div(result['ut_neta'], result['ingresos'])
         return result
 
-    # ── Cache único EERR y ESF ────────────────────────────────────────────────
+    # ── Cache único EERR y ESF (o datos precalculados externos) ───────────────
     all_months = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC']
     year_prev = str(int(year) - 1)
 
-    # EERR: una sola llamada por año
-    _rows_curr = eerr_completo_v2_ui_adapter(db, year, '', empresa_id=empresa_id).get('rows', [])
-    _rows_prev = eerr_completo_v2_ui_adapter(db, year_prev, '', empresa_id=empresa_id).get('rows', [])
+    if datos_precalculados is not None:
+        _rows_curr = datos_precalculados['rows_curr']
+        _rows_prev = datos_precalculados['rows_prev']
+        _esf_rows = datos_precalculados['esf_rows']
+        _result_quarters = datos_precalculados['result_quarters']
+        _esf_quarters_available = datos_precalculados['esf_quarters_available']
+    else:
+        # EERR: una sola llamada por año
+        _rows_curr = eerr_completo_v2_ui_adapter(db, year, '', empresa_id=empresa_id).get('rows', [])
+        _rows_prev = eerr_completo_v2_ui_adapter(db, year_prev, '', empresa_id=empresa_id).get('rows', [])
 
-    # ESF: una sola llamada para el año actual
-    _esf_res = esf_engine(year, '', empresa_id=empresa_id)
-    _esf_rows = {n['partida']: n.get('quarters', {}) for n in _esf_res.get('rows', [])}
-    _result_quarters, _esf_quarters_available = compute_esf(db, year, '', empresa_id=empresa_id)
+        # ESF: una sola llamada para el año actual
+        _esf_res = esf_engine(year, '', empresa_id=empresa_id)
+        _esf_rows = {n['partida']: n.get('quarters', {}) for n in _esf_res.get('rows', [])}
+        _result_quarters, _esf_quarters_available = compute_esf(db, year, '', empresa_id=empresa_id)
 
     def get_esf_quarter(q):
         rows_esf = {p: qs.get(q, 0) or 0 for p, qs in _esf_rows.items()}
