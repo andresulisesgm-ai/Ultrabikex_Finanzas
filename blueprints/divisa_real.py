@@ -301,3 +301,78 @@ def eerr_divisa_real_trimestres_route():
     if 'error' in resultado:
         return jsonify(resultado), 400
     return jsonify(resultado)
+
+
+@divisa_real_bp.route('/api/divisa_real/ganancia_perdida', methods=['GET'])
+def get_ganancia_perdida_divisa():
+    """
+    Retorna el valor sugerido (calculado por el motor, plug_divisa_q incremental del
+    trimestre) y el valor override manual si existe, para que Yocelin confirme o
+    corrija cuanto de la diferencia de tasa cambiaria va a Ganancia vs Perdida.
+    Parametros: year, quarter, empresa_id (opcional).
+    """
+    year = request.args.get('year')
+    quarter = request.args.get('quarter', type=int)
+    empresa_id = request.args.get('empresa_id', type=int)
+    if not year or not quarter:
+        return jsonify({'error': 'year y quarter son requeridos'}), 400
+    from engine import calcular_estados_reales
+    db = get_db()
+    estados = calcular_estados_reales(year, '', empresa_id=empresa_id)
+    if 'error' in estados:
+        return jsonify(estados), 400
+    plug_q = estados.get('esf_real', {}).get('plug_divisa_q', {})
+    valor_acum = plug_q.get(quarter, 0.0)
+    valor_prev = plug_q.get(quarter - 1, 0.0) if quarter > 1 else 0.0
+    sugerido = round(valor_acum - valor_prev, 2)
+    row = db.execute(
+        'SELECT ganancia, perdida FROM ganancia_perdida_divisa_override WHERE year=? AND quarter=? AND empresa_id IS ?',
+        (year, quarter, empresa_id)
+    ).fetchone()
+    return jsonify({
+        'year': year, 'quarter': quarter, 'empresa_id': empresa_id,
+        'sugerido_ganancia': sugerido if sugerido > 0 else 0.0,
+        'sugerido_perdida': abs(sugerido) if sugerido < 0 else 0.0,
+        'override_ganancia': row['ganancia'] if row else None,
+        'override_perdida': row['perdida'] if row else None,
+    })
+
+
+@divisa_real_bp.route('/api/divisa_real/ganancia_perdida', methods=['POST'])
+def save_ganancia_perdida_divisa():
+    """Guarda el ajuste manual de Yocelin para Ganancia/Perdida en tasa cambiaria."""
+    data = request.get_json() or {}
+    year = data.get('year')
+    quarter = data.get('quarter')
+    empresa_id = data.get('empresa_id')
+    ganancia = data.get('ganancia', 0) or 0
+    perdida = data.get('perdida', 0) or 0
+    if not year or not quarter:
+        return jsonify({'error': 'year y quarter son requeridos'}), 400
+    db = get_db()
+    db.execute('''
+        INSERT INTO ganancia_perdida_divisa_override (year, quarter, empresa_id, ganancia, perdida, updated_at)
+        VALUES (?, ?, ?, ?, ?, datetime('now','localtime'))
+        ON CONFLICT(year, quarter, empresa_id) DO UPDATE SET
+            ganancia=excluded.ganancia, perdida=excluded.perdida, updated_at=excluded.updated_at
+    ''', (year, quarter, empresa_id, ganancia, perdida))
+    db.commit()
+    return jsonify({'ok': True, 'year': year, 'quarter': quarter, 'empresa_id': empresa_id, 'ganancia': ganancia, 'perdida': perdida})
+
+
+@divisa_real_bp.route('/api/divisa_real/ganancia_perdida/undo', methods=['POST'])
+def undo_ganancia_perdida_divisa():
+    """Elimina el ajuste manual guardado, volviendo al valor sugerido por el sistema."""
+    data = request.get_json() or {}
+    year = data.get('year')
+    quarter = data.get('quarter')
+    empresa_id = data.get('empresa_id')
+    if not year or not quarter:
+        return jsonify({'error': 'year y quarter son requeridos'}), 400
+    db = get_db()
+    db.execute(
+        'DELETE FROM ganancia_perdida_divisa_override WHERE year=? AND quarter=? AND empresa_id IS ?',
+        (year, quarter, empresa_id)
+    )
+    db.commit()
+    return jsonify({'ok': True})
