@@ -3033,7 +3033,7 @@ function renderSem(mb,mn,rc,rg,un,peCov,ia){
   const STT={g:'🟢 Saludable',a:'🟡 En atención',r:'🔴 Crítico'};
   const ALL_INDS = {
     mb:     {n:'Margen Bruto %',  v:pct(mb),  c:sc(mb,30,20), r:'≥30%', exp:'Rentabilidad antes de gastos', d:'Mide cuánto dinero queda de cada venta después de pagar el costo directo. Meta: ≥30% (saludable) · 20-30% (ajustado) · <20% (peligroso).'},
-    mn:     {n:'Margen Neto %',   v:pct(mn),  c:sc(mn,10,0),  r:'≥10%', exp:'Rentabilidad final del negocio', d:'Mide cuánto dinero realmente te queda al final. Meta: ≥10% (excelente) · 0-10% (ajustado) · <0% (pérdida).'},
+    mn:     {n:'Margen Neto %',   v:pct(mn),  c:sc(mn,5,2),  r:'≥5%', exp:'Rentabilidad final del negocio', d:'Mide cuánto dinero realmente te queda al final. Meta: ≥5% (saludable, estándar retail) · 2-5% (ajustado) · <2% (bajo).'},
     rc:     {n:'% Costo/Venta',   v:pct(rc),  c:rc<=50?'g':rc<=70?'a':'r', r:'≤50%', exp:'Eficiencia en costos directos', d:'Mide qué porcentaje de tus ingresos se va en costos directos. Meta: ≤50% (eficiente) · 50-70% (alto) · >70% (crítico).'},
     rg:     {n:'% Gasto/Venta',   v:pct(rg),  c:rg<=30?'g':rg<=45?'a':'r', r:'≤30%', exp:'Eficiencia operativa', d:'Mide qué porcentaje de tus ingresos se va en gastos operativos. Meta: ≤30% (liviano) · 30-45% (pesado) · >45% (insostenible).'},
     un:     {n:'Utilidad Neta',   v:fmtS(un), c:un>0?'g':un===0?'a':'r', r:'>0', exp:'Resultado final en dinero', d:'Ganancia o pérdida del período. Meta: >0 (ganas) · =0 (punto muerto) · <0 (pérdida).'},
@@ -4343,7 +4343,7 @@ async function loadDash(){
           const qParam=G('dash-quarter')?G('dash-quarter').value:'';
           const [rInd,rEerr]=await Promise.all([
             fetch(`/api/indicadores/divisa_real?year=${year}&empresa_id=${CURRENT_EMPRESA_ID||''}`),
-            fetch(`/api/eerr/divisa_real/trimestres?year=${year}&unit=${unit}&empresa_id=${CURRENT_EMPRESA_ID||''}`)
+            fetch(`/api/eerr/divisa_real/trimestres?year=${year}&unit=${unit==='TODAS'?'':unit}&empresa_id=${CURRENT_EMPRESA_ID||''}`)
           ]);
           if(!rInd.ok||!rEerr.ok){
             G('schips').innerHTML=`<span style="color:var(--red);font-size:12px">⚠️ Error cargando datos Divisa Real</span>`;
