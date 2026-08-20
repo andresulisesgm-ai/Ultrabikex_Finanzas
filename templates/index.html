@@ -5050,7 +5050,7 @@ async function ejecutarCopiarMetodos(){
 }
 
 // ── TOGGLE MODO DIVISA ───────────────────────────────────────────────────
-function toggleDivisaMode(){
+async function toggleDivisaMode(){
   modoDivisaReal=!modoDivisaReal;
   LS.set('modo_divisa_real',modoDivisaReal);
   const toggle=G('toggle-switch');
@@ -5059,13 +5059,34 @@ function toggleDivisaMode(){
   if(toggle){
     if(modoDivisaReal){
       toggle.parentElement.classList.add('active');
-      if(msel){
-        msel.style.display='block';
-        if(!msel.value){
-          // Antes: agarraba el mes calendario actual (ej. AGO), que casi nunca
-          // tiene tasas cargadas todavia -- causaba 404 automatico. Ahora: agarra
-          // el ultimo mes real con datos cargados, segun DD.loaded (si DD ya esta
-          // poblado de una carga previa en modo Normal).
+      if(msel) msel.style.display='block';
+      if(qsel){
+        // Regla: al activar Divisa Real, preseleccionar el ultimo trimestre con
+        // tasa BCV/paralela completa (3 meses cargados en tasas_periodo), no un
+        // mes puntual. Fallback al comportamiento viejo (mes mas reciente con
+        // datos cargados) si ningun trimestre del año tiene los 3 meses.
+        const year=G('dash-year')?G('dash-year').value:String(new Date().getFullYear());
+        const QUARTER_MONTHS_TOGGLE={1:['ENE','FEB','MAR'],2:['ABR','MAY','JUN'],3:['JUL','AGO','SEPT'],4:['OCT','NOV','DIC']};
+        let quarterDefault=null;
+        try{
+          const rTasas=await fetch(`/api/tasas?year=${year}`);
+          if(rTasas.ok){
+            const tasas=await rTasas.json();
+            const mesesConTasa=new Set(tasas.map(t=>t.month));
+            for(const q of [4,3,2,1]){
+              if(QUARTER_MONTHS_TOGGLE[q].every(m=>mesesConTasa.has(m))){
+                quarterDefault=q;
+                break;
+              }
+            }
+          }
+        }catch(e){}
+        if(quarterDefault){
+          qsel.value=String(quarterDefault);
+          qsel.disabled=false;
+          msel.value='';
+          msel.disabled=true;
+        }else{
           let mesDefault=null;
           if(DD&&DD.loaded&&DD.loaded.length){
             const mesesConDatos=[...new Set(DD.loaded.map(l=>l.month))];
@@ -5085,7 +5106,6 @@ function toggleDivisaMode(){
       if(msel)msel.style.display='none';
     }
   }
-  // Recargar dashboard con nuevo modo
   if(G('page-dashboard').classList.contains('active')){
     loadDash();
   }
