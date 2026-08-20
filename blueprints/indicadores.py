@@ -38,9 +38,13 @@ def get_indicadores_divisa_real():
     unit = request.args.get('unit', '')
     empresa_id = request.args.get('empresa_id', type=int) or None
     db   = get_db()
-    indicadores = compute_indicadores_v2_divisa_real(db, year, empresa_id=empresa_id)
-    if isinstance(indicadores, dict) and 'error' in indicadores:
-        return jsonify({'error': indicadores['error']}), 404
+    resultado = compute_indicadores_v2_divisa_real(db, year, empresa_id=empresa_id)
+    if isinstance(resultado, dict) and 'error' in resultado:
+        return jsonify({'error': resultado['error']}), 404
+    if not resultado:
+        return jsonify({'error': 'Sin datos ESF para calcular indicadores en Divisa Real'}), 404
+    indicadores = resultado.get('indicadores')
+    esf_totales = resultado.get('esf_totales')
     if not indicadores:
         return jsonify({'error': 'Sin datos ESF para calcular indicadores en Divisa Real'}), 404
-    return jsonify({'year': year, 'unit': unit, 'empresa_id': empresa_id, 'indicadores': indicadores})
+    return jsonify({'year': year, 'unit': unit, 'empresa_id': empresa_id, 'indicadores': indicadores, 'esf_totales': esf_totales})
