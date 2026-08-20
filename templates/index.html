@@ -4338,40 +4338,78 @@ async function loadDash(){
     const year=G('dash-year').value, unit=G('dash-unit').value;
 
     // Modo Divisa Real: carga datos ajustados de un mes específico
-    if(modoDivisaReal){
-      const month=G('dash-month').value;
-      const res=await fetch(`/api/dashboard_divisa_real?year=${year}&month=${month}&unit=${unit}`);
-      if(!res.ok){
-        const err=await res.json();
-        G('schips').innerHTML=`<span style="color:var(--red);font-size:12px">⚠️ ${err.error}</span>`;
-        return;
-      }
-      const data=await res.json();
-      // Adaptar estructura de divisa_real a formato dashboard
-      DD={
-        months:[{
-          month:month,
-          ingresos:data.divisa_real.ingresos,
-          costos:data.divisa_real.costos,
-          gastos:data.divisa_real.gastos,
-          utilidad_bruta:data.divisa_real.utilidad_bruta,
-          utilidad_neta:data.divisa_real.utilidad_neta,
-          margen_bruto:data.divisa_real.utilidad_bruta/data.divisa_real.ingresos*100||0,
-          margen_neto:data.divisa_real.utilidad_neta/data.divisa_real.ingresos*100||0,
-          ratio_costo:data.divisa_real.costos/data.divisa_real.ingresos*100||0,
-          ratio_gasto:data.divisa_real.gastos/data.divisa_real.ingresos*100||0
-        }],
-        loaded:[{unit:unit==='TODAS'?'TODAS':unit,month:month}],
-        por_unidad:[],
-        top_gastos:[],
-        cat_gastos:[],
-        punto_equilibrio:null,
-        indicadores_avanzados:null,
-        _modo_divisa:true,
-        _tasas:data.tasas
-      };
-      if (mySeq !== _dashSeq) return;
-    }else{
+        if(modoDivisaReal){
+          const month=G('dash-month').value;
+          const qParam=G('dash-quarter')?G('dash-quarter').value:'';
+          const [rInd,rEerr]=await Promise.all([
+            fetch(`/api/indicadores/divisa_real?year=${year}&empresa_id=${CURRENT_EMPRESA_ID||''}`),
+            fetch(`/api/eerr/divisa_real/trimestres?year=${year}&unit=${unit}&empresa_id=${CURRENT_EMPRESA_ID||''}`)
+          ]);
+          if(!rInd.ok||!rEerr.ok){
+            G('schips').innerHTML=`<span style="color:var(--red);font-size:12px">⚠️ Error cargando datos Divisa Real</span>`;
+            return;
+          }
+          const dataInd=await rInd.json();
+          const dataEerr=await rEerr.json();
+          if (mySeq !== _dashSeq) return;
+
+          let quartersUsar;
+          if(qParam){
+            quartersUsar=[parseInt(qParam)];
+          }else{
+            quartersUsar=[1,2,3,4];
+          }
+          const totalesEerr={ingresos:0,costos:0,gastos:0,utilidad_bruta:0,utilidad_neta:0};
+          quartersUsar.forEach(q=>{
+            const qd=dataEerr.quarters[q]||{};
+            totalesEerr.ingresos+=qd['Total Ingresos']||0;
+            totalesEerr.costos+=qd['Total Costo de Ventas']||0;
+            totalesEerr.gastos+=qd['Total Gastos Operacionales']||0;
+            totalesEerr.utilidad_bruta+=qd['Utilidad Bruta']||0;
+            totalesEerr.utilidad_neta+=qd['Utilidad Neta']||0;
+          });
+
+          const esfTot=dataInd.esf_totales||{};
+          const inds=dataInd.indicadores||[];
+          const indRC=inds.find(x=>x.nombre&&x.nombre.startsWith('Ratio Corriente'));
+          const razonCorriente=indRC?indRC.anio_actual:null;
+
+          DD={
+            months:[{
+              month:month||'ANUAL',
+              ingresos:totalesEerr.ingresos,
+              costos:totalesEerr.costos,
+              gastos:totalesEerr.gastos,
+              utilidad_bruta:totalesEerr.utilidad_bruta,
+              utilidad_neta:totalesEerr.utilidad_neta,
+              margen_bruto:totalesEerr.ingresos?totalesEerr.utilidad_bruta/totalesEerr.ingresos*100:0,
+              margen_neto:totalesEerr.ingresos?totalesEerr.utilidad_neta/totalesEerr.ingresos*100:0,
+              ratio_costo:totalesEerr.ingresos?totalesEerr.costos/totalesEerr.ingresos*100:0,
+              ratio_gasto:totalesEerr.ingresos?totalesEerr.gastos/totalesEerr.ingresos*100:0
+            }],
+            loaded:[{unit:unit==='TODAS'?'TODAS':unit,month:month||'ANUAL'}],
+            por_unidad:[],
+            top_gastos:[],
+            cat_gastos:[],
+            punto_equilibrio:null,
+            indicadores_avanzados:inds,
+            totals:{
+              ingresos:totalesEerr.ingresos,
+              costos:totalesEerr.costos,
+              gastos:totalesEerr.gastos,
+              utilidad_bruta:totalesEerr.utilidad_bruta,
+              utilidad_neta:totalesEerr.utilidad_neta,
+              ebitda:totalesEerr.utilidad_neta,
+              total_activos:esfTot.total_activos!=null?esfTot.total_activos:null,
+              total_pasivos:esfTot.total_pasivos!=null?esfTot.total_pasivos:null,
+              patrimonio:esfTot.patrimonio!=null?esfTot.patrimonio:null,
+              razon_corriente:razonCorriente
+            },
+            _modo_divisa:true,
+            _tasas:null
+          };
+          if (mySeq !== _dashSeq) return;
+        }else{
       // Modo BCV normal: carga año completo
       const qParam = G('dash-quarter') ? G('dash-quarter').value : '';
       const res=await fetch(`/api/dashboard?year=${year}&unit=${unit}&empresa_id=${CURRENT_EMPRESA_ID||''}&quarter=${qParam}`);
@@ -4382,14 +4420,9 @@ async function loadDash(){
     }
 
     let mesesFiltrados;
-    if (modoDivisaReal) {
-      const selectedMonth = G('dash-month').value; // '' = Todos
-      if (!selectedMonth) {
-        mesesFiltrados = DD.months;
-      } else {
-        mesesFiltrados = DD.months.filter(m => m.month === selectedMonth);
-      }
-    } else {
+        if (modoDivisaReal) {
+          mesesFiltrados = DD.months;
+        } else {
       // Modo Normal: filtro trimestral universal. QUARTER_MONTHS_DASH replica el
       // mismo agrupamiento que ya usa el backend (engine.py QUARTER_MONTHS).
       const selectedQuarter = G('dash-quarter') ? G('dash-quarter').value : '';
