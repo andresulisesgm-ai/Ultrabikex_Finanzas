@@ -1766,7 +1766,7 @@ const WIDGET_TEMPLATES = {
     <div id="pe-card"></div>
   `,
   'wc-estcap': `
-    <div class="ch"><div><div class="ct">Estructura de Capital</div><div class="cs">Activo vs Pasivo + Patrimonio, por trimestre <span id="estcap-badge" style="display:none;color:var(--red);font-weight:700">⚠ Descuadre</span></div></div>
+    <div class="ch"><div><div class="ct">Estructura de Capital</div><div class="cs">Activo vs Pasivo + Patrimonio <span id="estcap-badge" style="display:none;color:var(--red);font-weight:700">⚠ Descuadre</span></div></div>
       <div class="cact"><span class="dh">⠿</span>
         <select class="csel vsel" id="ct-ch-estcap" onchange="loadEstructuraCapital()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
         <button class="bcl" data-w="wc-estcap">✕</button></div></div>
@@ -1774,7 +1774,7 @@ const WIDGET_TEMPLATES = {
     <div id="estcap-legend" style="padding:8px 4px 0"></div>
   `,
   'wc-estcapdet': `
-    <div class="ch"><div><div class="ct">Estructura de Capital Detallada</div><div class="cs">Activo vs Pasivo + Patrimonio, por partida y por trimestre</div></div>
+    <div class="ch"><div><div class="ct">Estructura de Capital Detallada</div><div class="cs">Activo vs Pasivo + Patrimonio, por partida</div></div>
       <div class="cact"><span class="dh">⠿</span>
         <select class="csel vsel" id="ct-ch-estcapdet" onchange="loadEstructuraCapitalDetallada()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
         <button class="bcl" data-w="wc-estcapdet">✕</button></div></div>
@@ -1782,13 +1782,13 @@ const WIDGET_TEMPLATES = {
     <div id="estcapdet-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-sitfin': `
-    <div class="ch"><div><div class="ct">Situación Financiera Corriente</div><div class="cs">Activo vs Pasivo, corriente y no corriente, por trimestre</div></div>
+    <div class="ch"><div><div class="ct">Situación Financiera Corriente</div><div class="cs">Activo vs Pasivo, corriente y no corriente</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-sitfin">✕</button></div></div>
     <div class="cv" style="height:230px"><canvas id="ch-sitfin"></canvas></div>
     <div id="sitfin-legend" style="padding:8px 4px 0"></div>
   `,
   'wc-deuda-cobertura': `
-    <div class="ch"><div><div class="ct">Deuda y Cobertura</div><div class="cs">Total Pasivo vs Efectivo y Equivalentes, por trimestre</div></div>
+    <div class="ch"><div><div class="ct">Deuda y Cobertura</div><div class="cs">Total Pasivo vs Efectivo y Equivalentes</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-deuda-cobertura">✕</button></div></div>
     <div class="cv" style="height:230px"><canvas id="ch-deuda-cobertura"></canvas></div>
     <div id="deuda-cobertura-legend" style="padding:8px 16px 0"></div>
@@ -1818,7 +1818,7 @@ const WIDGET_TEMPLATES = {
     <div id="roa-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-margen': `
-    <div class="ch"><div><div class="ct">Resultados y margen bruto</div><div class="cs">Por trimestre · Respeta el filtro de unidad de negocio</div></div>
+    <div class="ch"><div><div class="ct">Resultados y margen bruto</div><div class="cs">Respeta el filtro de unidad de negocio</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-margen">✕</button></div></div>
     <div class="cv" style="height:230px"><canvas id="ch-margen"></canvas></div>
     <div id="margen-legend" style="padding:8px 16px 0"></div>
@@ -3657,9 +3657,30 @@ function loadEstructuraCapitalDetallada() {
       // Paleta financiera sobria (opcion C, decidida con Andres esta sesion): azul
       // cielo/ambar/teal en vez de azul marino/naranja fuerte -- misma regla de
       // categoria (azul=Activo, naranja=Pasivo, teal=Patrimonio), tonos mas legibles.
-      const paletaAzules = ['#2563eb','#1e3a8a','#7dd3fc','#e0f2fe'];
-      const paletaNaranjas = ['#f97316','#92400e','#fb923c','#fed7aa'];
-      const paletaTeals = ['#0891b2','#0f766e','#5eead4','#99f6e4'];
+      // Genera un degradado de N tonos a partir de un color base, mezclando
+      // progresivamente hacia blanco -- el color base (idx=0) queda intacto,
+      // los siguientes se aclaran en pasos iguales. Reemplaza las listas fijas
+      // de hex anteriores, cuyo segundo tono era mas oscuro que el base
+      // (rompia el criterio de "mas claro segun se aleja del base" pedido).
+      function generarDegradado(colorBase, cantidad) {
+        const hex = colorBase.replace('#', '');
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        const tonos = [];
+        for (let i = 0; i < cantidad; i++) {
+          const t = i / (cantidad - 1); // 0 = color base, 1 = casi blanco
+          const mezclaHacia = (canal) => Math.round(canal + (255 - canal) * t * 0.85);
+          const rr = mezclaHacia(r).toString(16).padStart(2, '0');
+          const gg = mezclaHacia(g).toString(16).padStart(2, '0');
+          const bb = mezclaHacia(b).toString(16).padStart(2, '0');
+          tonos.push('#' + rr + gg + bb);
+        }
+        return tonos;
+      }
+      const paletaAzules = generarDegradado('#2563eb', 5);
+      const paletaNaranjas = generarDegradado('#f97316', 5);
+      const paletaTeals = generarDegradado('#0891b2', 5);
       const MAX_PARTIDAS = 4;
 
       function prepararItems(partidasRaw) {
