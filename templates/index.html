@@ -3953,18 +3953,23 @@ function loadIngresosCostosMargen() {
   const wActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-margen' && w.visible);
   if (!wActivo || !DD || !DD.months) return;
 
-  const meses = DD.months; // array de 12, ENE..DIC, ya viene de /api/dashboard
-  const trimestres = [
-    { q: 1, meses: meses.slice(0, 3) },
-    { q: 2, meses: meses.slice(3, 6) },
-    { q: 3, meses: meses.slice(6, 9) },
-    { q: 4, meses: meses.slice(9, 12) }
-  ];
-
-  const conDatos = trimestres.filter(t => t.meses.some(m => (m.ingresos || 0) !== 0));
+  const meses = DD.months;
+  const QUARTER_MONTHS_MARGEN = {1:['ENE','FEB','MAR'],2:['ABR','MAY','JUN'],3:['JUL','AGO','SEPT'],4:['OCT','NOV','DIC']};
+  const selectedMonth = G('dash-month') && G('dash-month').value;
+  const selectedQuarter = G('dash-quarter') && G('dash-quarter').value;
+  let conDatos;
+  if (selectedMonth) {
+    const m = meses.find(mm => mm.month === selectedMonth);
+    conDatos = m ? [{ label: selectedMonth, meses: [m] }] : [];
+  } else if (selectedQuarter) {
+    const mesesQ = meses.filter(mm => QUARTER_MONTHS_MARGEN[selectedQuarter].includes(mm.month));
+    conDatos = mesesQ.length ? [{ label: 'Q' + selectedQuarter, meses: mesesQ }] : [];
+  } else {
+    conDatos = [1,2,3,4].map(q => ({ label: 'Q' + q, meses: meses.filter(mm => QUARTER_MONTHS_MARGEN[q].includes(mm.month)) })).filter(t => t.meses.some(m => (m.ingresos || 0) !== 0));
+  }
   if (!conDatos.length) return;
 
-  const labels = conDatos.map(t => 'Q' + t.q);
+  const labels = conDatos.map(t => t.label);
   const dsIngresos = conDatos.map(t => t.meses.reduce((a,m) => a + (m.ingresos || 0), 0));
   const dsCostos   = conDatos.map(t => t.meses.reduce((a,m) => a + (m.costos || 0), 0));
   const dsUtilidad = conDatos.map(t => t.meses.reduce((a,m) => a + (m.utilidad_bruta || 0), 0));
