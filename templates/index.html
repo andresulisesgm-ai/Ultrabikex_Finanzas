@@ -3563,6 +3563,7 @@ function loadEstructuraCapital() {
         }).join('');
         legendEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;justify-items:center;text-align:center">${filas}</div>`;
       }
+      scheduleMasonry();
     })
     .catch(err => console.error('Error cargando Estructura de Capital:', err));
 }
@@ -3631,6 +3632,7 @@ function loadDeudaCobertura() {
         }).join('');
         legendEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;justify-items:center;text-align:center">${filas}</div>`;
       }
+      scheduleMasonry();
     })
     .catch(err => console.error('Error cargando Deuda y Cobertura:', err));
 }
@@ -3772,6 +3774,7 @@ function loadEstructuraCapitalDetallada() {
           ${renderGrupo('Patrimonio', '#0891b2', itemsPatrimonio, paletaTeals)}
         </div>`;
       }
+      scheduleMasonry();
     })
     .catch(err => console.error('Error cargando Estructura de Capital Detallada:', err));
 }
@@ -3857,6 +3860,7 @@ function loadSituacionFinanciera() {
           ])}
         </div>`;
       }
+      scheduleMasonry();
     })
     .catch(err => console.error('Error cargando Situacion Financiera:', err));
 }
@@ -3939,6 +3943,7 @@ function loadROEROA() {
 
       renderInd('roe', 'ch-roe-gauge', 'roe-gauge-num', 'ch-roe-bar', '#059669');
       renderInd('roa', 'ch-roa-gauge', 'roa-gauge-num', 'ch-roa-bar', '#0891b2');
+      scheduleMasonry();
     })
     .catch(err => console.error('Error cargando ROE/ROA:', err));
 }
