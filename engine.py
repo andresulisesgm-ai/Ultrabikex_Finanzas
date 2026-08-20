@@ -2718,3 +2718,46 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
     ]
     return indicadores
 
+
+def compute_indicadores_v2_divisa_real(db, year, empresa_id=None):
+    """
+    Punto de entrada de Indicadores Financieros en modo Divisa Real. Arma
+    datos_precalculados a partir de calcular_estados_reales() (año actual y año
+    anterior) y delega el cálculo de las 20 fórmulas a compute_indicadores_v2 --
+    misma lógica que BCV, distinta fuente de datos. No duplica ninguna fórmula
+    (ver ultrax_deuda_tecnica_refactor.md, regla "no parallel calculation engines").
+    """
+    year_prev = str(int(year) - 1)
+
+    estados_curr = calcular_estados_reales(year, '', empresa_id=empresa_id)
+    if 'error' in estados_curr:
+        return estados_curr
+    estados_prev = calcular_estados_reales(year_prev, '', empresa_id=empresa_id)
+    if 'error' in estados_prev:
+        rows_prev = []
+    else:
+        rows_prev = estados_prev.get('eerr_real', {}).get('rows', [])
+
+    rows_curr = estados_curr.get('eerr_real', {}).get('rows', [])
+    esf_real = estados_curr.get('esf_real', {})
+    esf_rows = {n['partida']: n.get('quarters', {}) for n in esf_real.get('rows', [])}
+    result_quarters = _reshape_esf_rows_to_quarters(esf_real)
+
+    if empresa_id:
+        uc = 'AND empresa_id=?'
+        params_q = [year, empresa_id]
+    else:
+        uc = ''
+        params_q = [year]
+    rows_q = db.execute(f'SELECT DISTINCT quarter FROM esf_data WHERE year=? {uc}', params_q).fetchall()
+    esf_quarters_available = sorted([r['quarter'] for r in rows_q])
+
+    datos_precalculados = {
+        'rows_curr': rows_curr,
+        'rows_prev': rows_prev,
+        'esf_rows': esf_rows,
+        'result_quarters': result_quarters,
+        'esf_quarters_available': esf_quarters_available,
+    }
+    return compute_indicadores_v2(db, year, empresa_id=empresa_id, datos_precalculados=datos_precalculados)
+
