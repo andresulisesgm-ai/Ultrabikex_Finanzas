@@ -488,6 +488,17 @@ def init_db():
             UNIQUE(year, quarter, odoo_code)
         );
 
+        CREATE TABLE IF NOT EXISTS ganancia_perdida_divisa_override (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            year            TEXT NOT NULL,
+            quarter         INTEGER NOT NULL,
+            empresa_id      INTEGER,
+            ganancia        REAL NOT NULL DEFAULT 0,
+            perdida         REAL NOT NULL DEFAULT 0,
+            updated_at      TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+            UNIQUE(year, quarter, empresa_id)
+        );
+
         CREATE TABLE IF NOT EXISTS esf_divisa_real_override_log (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             year            TEXT NOT NULL,
