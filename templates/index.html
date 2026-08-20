@@ -6651,7 +6651,6 @@ async function loadAndRenderESFDivQ(q){
 
 function pintarESFDivisaReal(data, detalle){
   renderESFDivisaPartidasDetalle(detalle);
-  G('esfdiv-total-bs').textContent = data.saldo_total_bs.toLocaleString('es-VE',{minimumFractionDigits:2});
   renderESFDivisaCompleto(data.esf_completo);
 }
 
@@ -6676,32 +6675,82 @@ function pintarESFDivisaRealTodos(year){
     }
   }
   renderESFDivisaPartidasDetalle(null);
-  G('esfdiv-total-bs').textContent = '—';
   renderESFDivisaCompleto(merged);
 }
 
-function renderESFDivisaPartidasDetalle(detalle){
+async function renderESFDivisaPartidasDetalle(detalle){
   const cont = G('esfdiv-partidas-detalle');
-  if(ESFDIV_Q === 0 || detalle === null){
-    cont.innerHTML = `<p style="color:var(--mu);font-size:11px;padding:10px 0">Selecciona un trimestre específico (Q1–Q4) para ver las cuentas.</p>`;
+  if (CURRENT_EMPRESA_ID === null) {
+    cont.innerHTML = '<p style="color:var(--mu);font-size:11px;padding:10px 0">Selecciona una empresa específica (no Holding) para ajustar Ganancia/Pérdida en tasa cambiaria.</p>';
     return;
   }
+  const year = ESFDIV_YEAR || G('esfdiv-year').value;
+  const empresaParam = CURRENT_EMPRESA_ID ? `&empresa_id=${CURRENT_EMPRESA_ID}` : '';
+  const quarters = ESFDIV_Q === 0 ? [1,2,3,4] : [ESFDIV_Q];
+  cont.innerHTML = '<p style="color:var(--mu);font-size:11px;padding:10px 0">Cargando...</p>';
+  const resultados = await Promise.all(quarters.map(q =>
+    fetch(`/api/divisa_real/ganancia_perdida?year=${year}&quarter=${q}${empresaParam}`).then(r => r.ok ? r.json() : null)
+  ));
   let html = '';
-  for(const [partida, cuentas] of Object.entries(detalle.partidas)){
-    const totalPartida = cuentas.reduce((acc,c) => acc + c.valor_real, 0);
-    html += `<div style="margin-bottom:8px">
-      <div style="font-size:11px;font-weight:700;padding:4px 0;border-bottom:1px solid var(--bd)">
-        ${partida} <span style="float:right;font-family:'DM Mono',monospace">${totalPartida.toLocaleString('es-VE',{minimumFractionDigits:2})}</span>
-      </div>`;
-    for(const c of cuentas){
-      html += `<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0 3px 10px">
-        <span>${c.odoo_name}</span>
-        <span style="font-family:'DM Mono',monospace">${c.valor_real.toLocaleString('es-VE',{minimumFractionDigits:2})}</span>
-      </div>`;
-    }
-    html += `</div>`;
+  quarters.forEach((q, idx) => {
+    const d = resultados[idx];
+    if (!d) return;
+    const ganancia = d.override_ganancia !== null ? d.override_ganancia : d.sugerido_ganancia;
+    const perdida = d.override_perdida !== null ? d.override_perdida : d.sugerido_perdida;
+    const esOverride = d.override_ganancia !== null;
+    html += `<div style="margin-bottom:12px;border-bottom:1px solid var(--bd);padding-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;padding:4px 0">
+        <span>Q${q}</span>
+        <span style="font-weight:400;color:${esOverride ? 'var(--green)' : 'var(--mu2)'}">${esOverride ? 'Confirmado' : 'Sugerido'}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:3px 0">
+        <span>Ganancia</span>
+        <input type="number" class="pct-input" id="gpd-ganancia-${q}" value="${ganancia}" step="0.01" style="width:100px;text-align:right">
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:3px 0">
+        <span>Pérdida</span>
+        <input type="number" class="pct-input" id="gpd-perdida-${q}" value="${perdida}" step="0.01" style="width:100px;text-align:right">
+      </div>
+      <div style="display:flex;gap:6px;margin-top:4px">
+        <button class="btnm-sm" onclick="guardarGananciaPerdidaDivisa(${q})">Guardar Q${q}</button>
+        ${esOverride ? `<button class="btnm-sm" style="background:var(--amber-l);color:var(--amber)" onclick="deshacerGananciaPerdidaDivisa(${q})">Deshacer</button>` : ''}
+      </div>
+    </div>`;
+  });
+  cont.innerHTML = html || '<p style="color:var(--mu);font-size:11px;padding:10px 0">Sin datos.</p>';
+}
+
+async function guardarGananciaPerdidaDivisa(q){
+  const year = ESFDIV_YEAR || G('esfdiv-year').value;
+  const empresaId = CURRENT_EMPRESA_ID || null;
+  const ganancia = parseFloat(G(`gpd-ganancia-${q}`).value) || 0;
+  const perdida = parseFloat(G(`gpd-perdida-${q}`).value) || 0;
+  const r = await fetch('/api/divisa_real/ganancia_perdida', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({year, quarter: q, empresa_id: empresaId, ganancia, perdida})
+  });
+  if (r.ok) {
+    renderESFDivisaPartidasDetalle(null);
+  } else {
+    alert('Error al guardar el ajuste.');
   }
-  cont.innerHTML = html;
+}
+
+async function deshacerGananciaPerdidaDivisa(q){
+  if(!confirm(`¿Deshacer el ajuste manual de Q${q} y volver al valor sugerido?`)) return;
+  const year = ESFDIV_YEAR || G('esfdiv-year').value;
+  const empresaId = CURRENT_EMPRESA_ID || null;
+  const r = await fetch('/api/divisa_real/ganancia_perdida/undo', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({year, quarter: q, empresa_id: empresaId})
+  });
+  if (r.ok) {
+    renderESFDivisaPartidasDetalle(null);
+  } else {
+    alert('Error al deshacer el ajuste.');
+  }
 }
 
 function renderESFDivisaCompleto(esfCompleto){
