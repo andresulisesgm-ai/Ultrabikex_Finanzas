@@ -2719,6 +2719,67 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
     return indicadores
 
 
+def _neutralizar_plug_sin_datos(rows, esf_quarters_available):
+    """
+    Bug preexistente en esf_engine/calcular_estados_reales (detectado ago-2026):
+    para un trimestre sin filas reales en esf_data, esf_engine calcula
+    TOTAL ACTIVOS=0 y TOTAL PASIVOS=0 para ese trimestre, lo que produce un
+    'Resultados acumulados' artificial (= -Utilidad Neta arrastrada) y de ahí un
+    plug_divisa_q espurio que se inyecta en el mes de cierre como Ganancia/Pérdida
+    en tasa cambiaria -- un valor fantasma, no un dato real.
+
+    No se corrige en esf_engine/calcular_estados_reales (motor compartido, usado
+    hoy por Dashboard/ESF/EERR Divisa Real en producción) para no arriesgar
+    comportamiento ya validado -- ver ultrax_deuda_tecnica_refactor.md. Esta
+    función neutraliza el efecto solo en los datos ya devueltos, únicamente para
+    trimestres fuera de esf_quarters_available (sin datos reales de balance),
+    antes de que compute_indicadores_v2 los consuma.
+
+    Pone en 0 el mes de cierre de Ganancia/Pérdida en tasa cambiaria para esos
+    trimestres, y resta el mismo monto del subtotal correspondiente
+    (Otros Ingresos/Gastos no Operacionales) para no romper la cascada de
+    subtotales. Muta `rows` in-place (estructura fresca por request, sin
+    persistencia).
+    """
+    quarter_close_month = {1: 'MAR', 2: 'JUN', 3: 'SEPT', 4: 'DIC'}
+    missing_quarters = [q for q in [1, 2, 3, 4] if q not in esf_quarters_available]
+    if not missing_quarters:
+        return rows
+
+    missing_months = {quarter_close_month[q] for q in missing_quarters}
+    plug_partidas = {
+        'Ganancia por tasa cambiaria': 'Otros Ingresos no Operacionales',
+        'Pérdida en tasa cambiaria': 'Otros Gastos no Operacionales',
+    }
+
+    ajustes = {}
+    for row in rows:
+        partida = row.get('partida')
+        if partida not in plug_partidas:
+            continue
+        subtotal_partida = plug_partidas[partida]
+        for m in row.get('meses', []):
+            month = m.get('month')
+            if month not in missing_months:
+                continue
+            valor = m.get('ejecutado', {}).get('valor', 0) or 0
+            if valor:
+                key = (subtotal_partida, month)
+                ajustes[key] = ajustes.get(key, 0) + valor
+                m['ejecutado']['valor'] = 0
+
+    if ajustes:
+        for row in rows:
+            partida = row.get('partida')
+            for m in row.get('meses', []):
+                month = m.get('month')
+                key = (partida, month)
+                if key in ajustes:
+                    m['ejecutado']['valor'] = (m['ejecutado'].get('valor', 0) or 0) - ajustes[key]
+
+    return rows
+
+
 def compute_indicadores_v2_divisa_real(db, year, empresa_id=None):
     """
     Punto de entrada de Indicadores Financieros en modo Divisa Real. Arma
@@ -2751,6 +2812,11 @@ def compute_indicadores_v2_divisa_real(db, year, empresa_id=None):
         params_q = [year]
     rows_q = db.execute(f'SELECT DISTINCT quarter FROM esf_data WHERE year=? {uc}', params_q).fetchall()
     esf_quarters_available = sorted([r['quarter'] for r in rows_q])
+    rows_q_prev = db.execute(f'SELECT DISTINCT quarter FROM esf_data WHERE year=? {uc.replace("year", "year")}', [year_prev] + (params_q[1:] if empresa_id else [])).fetchall()
+    esf_quarters_available_prev = sorted([r['quarter'] for r in rows_q_prev])
+
+    rows_curr = _neutralizar_plug_sin_datos(rows_curr, esf_quarters_available)
+    rows_prev = _neutralizar_plug_sin_datos(rows_prev, esf_quarters_available_prev)
 
     datos_precalculados = {
         'rows_curr': rows_curr,
