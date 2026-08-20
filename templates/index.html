@@ -700,7 +700,7 @@ input[type=file]{display:none;}
         <div id="toggle-switch" class="toggle-switch"><div class="toggle-slider"></div></div>
         <span class="toggle-label">Divisa Real</span>
       </div>
-      <select class="csel" id="dash-unit" onchange="loadDash()" style="padding:5px 8px">
+      <select class="csel" id="dash-unit" onchange="loadDash();updateVisibilidadSeccionESF()" style="padding:5px 8px">
         <option value="TODAS">Todas las Unidades</option>
         {% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
       </select>
@@ -715,29 +715,7 @@ input[type=file]{display:none;}
         <option value="3">Q3</option>
         <option value="4">Q4</option>
       </select>
-      <div id="dash-acum-toggle-container" style="display:none;align-items:center;gap:6px;background:var(--sf2);border:1px solid var(--bd);padding:5px 10px;border-radius:7px;font-size:11px;font-weight:600;color:var(--mu);height:28px;box-sizing:border-box">
-        <span>Mes</span>
-        <label class="switch-label" style="position:relative;display:inline-block;width:32px;height:18px;margin:0">
-          <input type="checkbox" id="dash-acum-toggle" style="opacity:0;width:0;height:0">
-          <span class="slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:var(--bd);border-radius:9px;transition:0.2s"></span>
-        </label>
-        <span>Acumulado</span>
-      </div>
-      <style>
-      #dash-acum-toggle:checked + .slider { background-color: var(--green) !important; }
-      #dash-acum-toggle:checked + .slider:before { transform: translateX(14px); }
-      .switch-label .slider:before {
-        position: absolute;
-        content: "";
-        height: 14px;
-        width: 14px;
-        left: 2px;
-        bottom: 2px;
-        background-color: white;
-        border-radius: 50%;
-        transition: 0.2s;
-      }
-      </style>
+
       <select class="csel" id="dash-year" onchange="loadDash()" style="padding:5px 8px">
         <option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option>
       </select>
@@ -2433,6 +2411,7 @@ function renderDashboardWidgets() {
     if (w.type === 'section') {
       const sec = document.createElement('div');
       sec.className = 'wsection';
+      sec.id = w.id;
       sec.textContent = w.title;
       wcon.appendChild(sec);
       return;
@@ -2477,6 +2456,26 @@ function renderDashboardWidgets() {
   renderKPIs();
   initClose();
   initDrag();
+  layoutMasonry();
+  updateVisibilidadSeccionESF();
+}
+
+// Oculta la sección ESF completa (encabezado + 6 widgets: Estructura de Capital,
+// Estructura de Capital Detallada, Situación Financiera Corriente, Deuda y
+// Cobertura, ROE, ROA) cuando el usuario filtra por Unidad de Negocio específica
+// o por Mes puntual -- en ese contexto ESF es ruido, ya que ESF es siempre
+// consolidado y no aplica a unidad ni a mes puntual (solo a trimestre). Con
+// Trimestre seleccionado, ESF sigue visible normalmente.
+function updateVisibilidadSeccionESF() {
+  const unit = G('dash-unit') ? G('dash-unit').value : 'TODAS';
+  const mes = G('dash-month') ? G('dash-month').value : '';
+  const debeOcultarse = (unit !== 'TODAS') || (mes !== '');
+
+  const idsESF = ['sec-esf', 'wc-estcap', 'wc-estcapdet', 'wc-sitfin', 'wc-deuda-cobertura', 'wc-roe', 'wc-roa'];
+  idsESF.forEach(id => {
+    const el = G(id);
+    if (el) el.style.display = debeOcultarse ? 'none' : '';
+  });
   layoutMasonry();
 }
 
@@ -4375,27 +4374,18 @@ async function loadDash(){
     }else{
       // Modo BCV normal: carga año completo
       const qParam = G('dash-quarter') ? G('dash-quarter').value : '';
-      const acumParam = document.getElementById('dash-acum-toggle') && document.getElementById('dash-acum-toggle').checked ? '1' : '0';
-      const res=await fetch(`/api/dashboard?year=${year}&unit=${unit}&empresa_id=${CURRENT_EMPRESA_ID||''}&quarter=${qParam}&acum=${acumParam}`);
+      const res=await fetch(`/api/dashboard?year=${year}&unit=${unit}&empresa_id=${CURRENT_EMPRESA_ID||''}&quarter=${qParam}`);
       if(!res.ok){G('schips').innerHTML=`<span style="color:var(--red);font-size:12px">Error ${res.status} — recarga</span>`;return;}
       DD=await res.json();
       if (mySeq !== _dashSeq) return;
       DD._modo_divisa=false;
     }
 
-    const modoAcum = document.getElementById('dash-acum-toggle').checked;
     let mesesFiltrados;
     if (modoDivisaReal) {
-      // Divisa Real sigue funcionando exactamente igual que antes -- filtro por mes
-      // puntual, sin cambios. El filtro trimestral universal (pendiente #5) por ahora
-      // solo cubre modo Normal; extenderlo a Divisa Real requiere backend nuevo
-      // (el endpoint /api/dashboard_divisa_real hoy solo acepta un mes puntual, no
-      // un trimestre completo) -- documentado como pendiente aparte.
       const selectedMonth = G('dash-month').value; // '' = Todos
       if (!selectedMonth) {
         mesesFiltrados = DD.months;
-      } else if (modoAcum) {
-        mesesFiltrados = DD.months.filter((m, i) => MO.indexOf(m.month) <= MO.indexOf(selectedMonth));
       } else {
         mesesFiltrados = DD.months.filter(m => m.month === selectedMonth);
       }
@@ -4406,9 +4396,6 @@ async function loadDash(){
       const QUARTER_MONTHS_DASH = {'1':['ENE','FEB','MAR'],'2':['ABR','MAY','JUN'],'3':['JUL','AGO','SEPT'],'4':['OCT','NOV','DIC']};
       if (!selectedQuarter) {
         mesesFiltrados = DD.months;
-      } else if (modoAcum) {
-        const ultimoMesQ = QUARTER_MONTHS_DASH[selectedQuarter][2];
-        mesesFiltrados = DD.months.filter(m => MO.indexOf(m.month) <= MO.indexOf(ultimoMesQ));
       } else {
         mesesFiltrados = DD.months.filter(m => QUARTER_MONTHS_DASH[selectedQuarter].includes(m.month));
       }
@@ -7831,19 +7818,33 @@ function toggleEERRRow(event, rowId) {
 
   G('dash-month').addEventListener('change', function() {
     const hasMes = this.value !== '';
-    document.getElementById('dash-acum-toggle-container').style.display = hasMes ? 'flex' : 'none';
-    if (!hasMes) document.getElementById('dash-acum-toggle').checked = false;
+    const qsel = G('dash-quarter');
+    if (qsel) {
+      if (hasMes) {
+        qsel.value = '';
+        qsel.disabled = true;
+      } else {
+        qsel.disabled = false;
+      }
+    }
+    updateVisibilidadSeccionESF();
     loadDash();
   });
 
   G('dash-quarter').addEventListener('change', function() {
     const hasQ = this.value !== '';
-    document.getElementById('dash-acum-toggle-container').style.display = hasQ ? 'flex' : 'none';
-    if (!hasQ) document.getElementById('dash-acum-toggle').checked = false;
+    const msel = G('dash-month');
+    if (msel) {
+      if (hasQ) {
+        msel.value = '';
+        msel.disabled = true;
+      } else {
+        msel.disabled = false;
+      }
+    }
+    updateVisibilidadSeccionESF();
     loadDash();
   });
-
-  document.getElementById('dash-acum-toggle').addEventListener('change', loadDash);
 
   loadDash();
 })();
