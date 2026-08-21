@@ -3599,7 +3599,7 @@ function loadDeudaCobertura() {
     .then(rows => {
       if (!rows) return;
       const findRow = (partida) => rows.find(r => r.partida === partida);
-      const rPasivos = findRow('TOTAL PASIVOS');
+      const rPasivos = findRow('Total Pasivos Corrientes');
       const rEfectivo = findRow('Efectivo y Equivalentes');
       if (!rPasivos || !rEfectivo) return;
 
@@ -3623,7 +3623,7 @@ function loadDeudaCobertura() {
         data: {
           labels,
           datasets: [
-            { label: 'Deuda (Total Pasivo)', data: deudaData, backgroundColor: dimPorTrimestre('#f97316', quartersConDatos) },
+            { label: 'Deuda (Pasivo Corriente)', data: deudaData, backgroundColor: dimPorTrimestre('#f97316', quartersConDatos) },
             { label: 'Efectivo y Equivalentes', data: efectivoData, backgroundColor: dimPorTrimestre('#2563eb', quartersConDatos) }
           ]
         },
