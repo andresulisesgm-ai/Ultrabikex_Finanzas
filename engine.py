@@ -2605,7 +2605,14 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
         ingresos_acum = ing_cum_q.get(q, 0)
         if not ingresos_acum:
             return None
-        return round((cxc_ext + cxc_grp) / ingresos_acum * 90 * q, 2)
+        valor = round((cxc_ext + cxc_grp) / ingresos_acum * 90 * q, 2)
+        dias_cliente_externo = round(cxc_ext / ingresos_acum * 90 * q, 2)
+        dias_empresas_grupo = round(cxc_grp / ingresos_acum * 90 * q, 2)
+        return {
+            'valor': valor,
+            'dias_cliente_externo': dias_cliente_externo,
+            'dias_empresas_grupo': dias_empresas_grupo,
+        }
 
     def prom_esf(q, key):
         """Promedio del campo `key` del ESF entre el trimestre q y el anterior.
@@ -2668,6 +2675,21 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
     def qv(q, key):
         return quarters_data[q]['eerr'].get(key)
 
+    pc_data_q = {q: periodo_cobro_q(q) for q in [1, 2, 3, 4]}
+    pc_data_aa = periodo_cobro_q(max(_esf_quarters_available) if _esf_quarters_available else 4)
+    ind_pc = build_ind(
+        'Período de cobro (30 a 60 días max)', '30-60 días',
+        None,
+        {q: (pc_data_q[q]['valor'] if pc_data_q[q] else None) for q in [1, 2, 3, 4]},
+        pc_data_aa['valor'] if pc_data_aa else None,
+        es_ratio=True
+    )
+    for t in ind_pc['trimestres']:
+        q = t['q']
+        d = pc_data_q[q]
+        t['dias_cliente_externo'] = d['dias_cliente_externo'] if d else None
+        t['dias_empresas_grupo'] = d['dias_empresas_grupo'] if d else None
+
     indicadores = [
         build_ind('Ingresos Brutos', None,
             prev_eerr['ingresos'],
@@ -2725,11 +2747,7 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
             None,
             {q: safe_div(qv(q,'ingresos'), prom_esf(q,'tot_activos')) for q in [1,2,3,4]},
             safe_div(ing_aa, prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'tot_activos')), es_pct=True),
-        build_ind('Período de cobro (30 a 60 días max)', '30-60 días',
-            None,
-            {q: periodo_cobro_q(q) for q in [1,2,3,4]},
-            periodo_cobro_q(max(_esf_quarters_available) if _esf_quarters_available else 4),
-            es_ratio=True),
+        ind_pc,
         build_ind('Ratio Corriente (entre 1,5 y 2)', '1.5-2',
             None,
             {q: safe_div(qe(q,'act_corr'), qe(q,'pas_corr')) for q in [1,2,3,4]},
