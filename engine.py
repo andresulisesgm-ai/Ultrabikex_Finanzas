@@ -1093,7 +1093,10 @@ def calcular_estados_reales(year, unit='', empresa_id=None):
             if row_ov is not None:
                 inc_q = float(row_ov['ganancia'] or 0.0) - float(row_ov['perdida'] or 0.0)
             else:
-                inc_q = plug_divisa_q[q] - plug_divisa_q.get(q - 1, 0.0)
+                inc_q = 0.0  # ago-2026: sin override, Divisa Real NO cuadra automatico (esa
+                             # regla es exclusiva de BCV) -- Yocelin confirma que solo su ajuste
+                             # manual es valido aca; el plug automatico (BCV) queda descartado
+                             # como fallback.
             plug_efectivo_q[q] = plug_efectivo_q.get(q - 1, 0.0) + inc_q
 
         if empresa_id:
