@@ -1083,6 +1083,30 @@ def calcular_estados_reales(year, unit='', empresa_id=None):
         )
         plug_divisa_q = esf_real.get('plug_divisa_q', {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0})
 
+        # Construir plug_efectivo_q considerando overrides manuales
+        plug_efectivo_q = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}
+        for q in [1, 2, 3, 4]:
+            row_ov = conn_estados.execute(
+                'SELECT ganancia, perdida FROM ganancia_perdida_divisa_override WHERE year=? AND quarter=? AND empresa_id IS ?',
+                (year, q, empresa_id)
+            ).fetchone()
+            if row_ov is not None:
+                inc_q = float(row_ov['ganancia'] or 0.0) - float(row_ov['perdida'] or 0.0)
+            else:
+                inc_q = plug_divisa_q[q] - plug_divisa_q.get(q - 1, 0.0)
+            plug_efectivo_q[q] = plug_efectivo_q.get(q - 1, 0.0) + inc_q
+
+        if empresa_id:
+            rows_q_avail = conn_estados.execute(
+                'SELECT DISTINCT quarter FROM esf_data WHERE year=? AND empresa_id=?',
+                [year, empresa_id]
+            ).fetchall()
+        else:
+            rows_q_avail = conn_estados.execute(
+                'SELECT DISTINCT quarter FROM esf_data WHERE year=?', [year]
+            ).fetchall()
+        esf_quarters_available = set(r['quarter'] for r in rows_q_avail)
+
         # Corrección ago-2026 (10-ago), confirmada contra el Excel de Yocelin: "Resultados del
         # ejercicio" en su hoja 'N ESF ULTRAX' YA INCLUYE la ganancia/perdida en tasa cambiaria
         # (Fila 26 esta ANTES de Utilidad Neta en su hoja, dentro de Total Ingresos No
@@ -1091,12 +1115,19 @@ def calcular_estados_reales(year, unit='', empresa_id=None):
         # (verificado: 30389.95 + 15395.36 = 45785.31, exacto contra el Excel). Se parchea
         # solo 'Resultados del ejercicio' en esf_real -- TOTAL ACTIVOS/PASIVOS/Acumulados no
         # cambian, ya son correctos y no dependen de la utilidad.
-        utilidad_final_q = {q: utilidad_externa_q[q] + plug_divisa_q[q] for q in [1, 2, 3, 4]}
+        utilidad_final_q = {q: utilidad_externa_q[q] + plug_efectivo_q[q] for q in [1, 2, 3, 4]}
         for row in esf_real.get('rows', []):
             if row.get('partida') == 'Resultados del ejercicio':
                 for q in [1, 2, 3, 4]:
-                    row['quarters'][q] = round(utilidad_final_q[q], 2)
+                    if q in esf_quarters_available:
+                        row['quarters'][q] = round(utilidad_final_q[q], 2)
                 break
+
+        for row in esf_real.get('rows', []):
+            if row.get('partida') in ('Total Patrimonio', 'TOTAL PASIVOS Y PATRIMONIO'):
+                for q in [1, 2, 3, 4]:
+                    if q in esf_quarters_available:
+                        row['quarters'][q] = round(row['quarters'].get(q, 0.0) + plug_efectivo_q[q], 2)
 
         # 4. EERR Real final: reinyectar el plug en el mes de cierre correspondiente.
         # Regla confirmada contra el Excel de Yocelin (10-ago-2026): el ajuste consolidado de
@@ -1105,7 +1136,7 @@ def calcular_estados_reales(year, unit='', empresa_id=None):
         # Confirmado con datos literales de "N EERR RODEO" vs "N EERR ULTRAX" (valores identicos)
         # vs "N EERR PIEDEM"/"N EERR TERRA"/"N EERR UCAFE"/"N EERR BARINAS"/"N EERR LOS NA" (vacios).
         unit_recibe_plug = unit in ('', 'Rodeo')
-        plug_a_inyectar = plug_divisa_q if unit_recibe_plug else None
+        plug_a_inyectar = plug_efectivo_q if unit_recibe_plug else None
         eerr_real = _calcular_eerr_divisa_real(conn_estados, year, unit, empresa_id=empresa_id, plug_divisa_q=plug_a_inyectar)
         if 'error' in eerr_real:
             return eerr_real
