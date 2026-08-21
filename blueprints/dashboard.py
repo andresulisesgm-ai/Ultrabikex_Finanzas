@@ -180,6 +180,17 @@ DEFAULT_DASHBOARD_CONFIG = [
     "dataset": "situacion_financiera"
   },
   {
+    "id": "wc-periodo-cobro",
+    "type": "chart",
+    "title": "Período de Cobro en días",
+    "subtitle": "Clientes Externo vs Empresas del Grupo, por trimestre",
+    "visible": True,
+    "order": 12.1,
+    "size": "m",
+    "chartType": "bar",
+    "dataset": "periodo_cobro"
+  },
+  {
     "id": "wc-deuda-cobertura",
     "type": "chart",
     "title": "Deuda y Cobertura",

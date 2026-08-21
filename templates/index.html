@@ -1643,6 +1643,17 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "dataset": "situacion_financiera"
   },
   {
+    "id": "wc-periodo-cobro",
+    "type": "chart",
+    "title": "Período de Cobro en días",
+    "subtitle": "Clientes Externo vs Empresas del Grupo, por trimestre",
+    "visible": true,
+    "order": 12.1,
+    "size": "m",
+    "chartType": "bar",
+    "dataset": "periodo_cobro"
+  },
+  {
     "id": "wc-deuda-cobertura",
     "type": "chart",
     "title": "Deuda y Cobertura",
@@ -1766,6 +1777,12 @@ const WIDGET_TEMPLATES = {
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-sitfin">✕</button></div></div>
     <div class="cv" style="height:230px"><canvas id="ch-sitfin"></canvas></div>
     <div id="sitfin-legend" style="padding:8px 4px 0"></div>
+  `,
+  'wc-periodo-cobro': `
+    <div class="ch"><div><div class="ct">Período de Cobro en días</div><div class="cs">Clientes Externo vs Empresas del Grupo</div></div>
+      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-periodo-cobro">✕</button></div></div>
+    <div class="cv" style="height:230px"><canvas id="ch-periodo-cobro"></canvas></div>
+    <div id="periodo-cobro-legend" style="padding:8px 4px 0"></div>
   `,
   'wc-deuda-cobertura': `
     <div class="ch"><div><div class="ct">Deuda y Cobertura</div><div class="cs">Total Pasivo vs Efectivo y Equivalentes</div></div>
@@ -2468,7 +2485,7 @@ function updateVisibilidadSeccionESF() {
   const mes = G('dash-month') ? G('dash-month').value : '';
   const debeOcultarse = (unit !== 'TODAS') || (mes !== '');
 
-  const idsESF = ['sec-esf', 'wc-estcap', 'wc-estcapdet', 'wc-sitfin', 'wc-deuda-cobertura', 'wc-roe', 'wc-roa'];
+  const idsESF = ['sec-esf', 'wc-estcap', 'wc-estcapdet', 'wc-sitfin', 'wc-periodo-cobro', 'wc-deuda-cobertura', 'wc-roe', 'wc-roa'];
   idsESF.forEach(id => {
     const el = G(id);
     if (el) el.style.display = debeOcultarse ? 'none' : '';
@@ -3882,6 +3899,69 @@ function loadSituacionFinanciera() {
     .catch(err => console.error('Error cargando Situacion Financiera:', err));
 }
 
+function loadPeriodoCobro() {
+  const w = window.DASHBOARD_CONFIG.find(x => x.id === 'wc-periodo-cobro' && x.visible);
+  if (!w) return;
+  const year = G('dash-year').value;
+  const empresaParam = CURRENT_EMPRESA_ID ? `&empresa_id=${CURRENT_EMPRESA_ID}` : '';
+  fetch(`${modoDivisaReal ? '/api/indicadores/divisa_real' : '/api/indicadores'}?year=${year}${empresaParam}`)
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data) return;
+      const inds = data.indicadores || [];
+      const ind = inds.find(x => x.nombre === 'Período de cobro (30 a 60 días max)');
+      if (!ind) return;
+      const trimestres = ind.trimestres || [];
+      const selectedQuarterPC = G('dash-quarter') ? G('dash-quarter').value : '';
+      let idxConDatos = [0, 1, 2, 3].filter(i => trimestres[i] && trimestres[i].valor !== null);
+      if (selectedQuarterPC) {
+        idxConDatos = idxConDatos.filter(i => String(i + 1) === selectedQuarterPC);
+      }
+      if (!idxConDatos.length) return;
+      const labels = idxConDatos.map(i => 'Q' + (i + 1));
+      const dsExt = idxConDatos.map(i => trimestres[i].dias_cliente_externo || 0);
+      const dsGrp = idxConDatos.map(i => trimestres[i].dias_empresas_grupo || 0);
+
+      const canvas = G('ch-periodo-cobro');
+      if (!canvas) return;
+      if (CH['ch-periodo-cobro']) CH['ch-periodo-cobro'].destroy();
+      CH['ch-periodo-cobro'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Clientes Externo', data: dsExt, backgroundColor: dimPorTrimestre('#f97316', idxConDatos.map(i => i+1)), stack: 'pc' },
+            { label: 'Empresas del Grupo', data: dsGrp, backgroundColor: dimPorTrimestre('#059669', idxConDatos.map(i => i+1)), stack: 'pc' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { x: { stacked: true }, y: { stacked: true, ticks: { callback: v => v.toFixed(1) } } },
+          datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toFixed(1)} días` } }
+          }
+        }
+      });
+
+      const legendEl = G('periodo-cobro-legend');
+      if (legendEl) {
+        const montosExt = labels.map((lbl, i) => `<strong style="color:var(--tx)">${lbl}</strong> ${dsExt[i].toFixed(1)}`).join(' &middot; ');
+        const montosGrp = labels.map((lbl, i) => `<strong style="color:var(--tx)">${lbl}</strong> ${dsGrp[i].toFixed(1)}`).join(' &middot; ');
+        legendEl.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px;align-items:center;text-align:center">
+          <div><div style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px"><span style="width:9px;height:9px;background:#f97316;border-radius:2px;display:inline-block;flex-shrink:0"></span>Clientes Externo</div>
+          <div style="font-size:10px;color:var(--mu2);margin-top:4px">${montosExt}</div></div>
+          <div><div style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px"><span style="width:9px;height:9px;background:#059669;border-radius:2px;display:inline-block;flex-shrink:0"></span>Empresas del Grupo</div>
+          <div style="font-size:10px;color:var(--mu2);margin-top:4px">${montosGrp}</div></div>
+        </div>`;
+      }
+      scheduleMasonry();
+    })
+    .catch(err => console.error('Error cargando Período de Cobro:', err));
+}
+
 function crearGauge(canvasId, valorPct, colorFill) {
   const canvas = G(canvasId);
   if (!canvas) return;
@@ -4503,6 +4583,7 @@ async function loadDash(){
     loadEstructuraCapital();
     loadEstructuraCapitalDetallada();
     loadSituacionFinanciera();
+    loadPeriodoCobro();
     loadDeudaCobertura();
     loadROEROA();
     loadIngresosCostosMargen();
