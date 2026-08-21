@@ -3477,15 +3477,14 @@ async function fetchESFRowsDashboard(year) {
   return _esfRowsPromise;
 }
 
-// Atenua visualmente (no oculta) el trimestre que no coincide con el filtro
-// dash-quarter activo -- los graficos ESF siempre muestran todos los trimestres
-// disponibles lado a lado (regla de negocio: ESF no se filtra por periodo como
-// un flujo), pero se resalta cual es el trimestre "activo" segun el filtro del
-// Dashboard. Sin filtro (dash-quarter=''), todos quedan a color completo.
+// Devuelve el color plano para cada trimestre del array recibido. Antes atenuaba
+// (opacidad reducida) los trimestres fuera del filtro dash-quarter activo, pero
+// desde que el filtro de trimestre pasó de "atenuar" a "ocultar" (ago-2026), cada
+// llamador ya filtra su array a 1 solo elemento antes de invocar esta funcion --
+// la logica de atenuado nunca se ejecutaba (nunca habia mas de un elemento para
+// comparar). Simplificada para reflejar el comportamiento real.
 function dimPorTrimestre(colorHex, quartersConDatos) {
-  const selectedQuarter = G('dash-quarter') ? G('dash-quarter').value : '';
-  if (!selectedQuarter) return quartersConDatos.map(() => colorHex);
-  return quartersConDatos.map(q => String(q) === selectedQuarter ? colorHex : colorHex + '33');
+  return quartersConDatos.map(() => colorHex);
 }
 
 function loadEstructuraCapital() {
