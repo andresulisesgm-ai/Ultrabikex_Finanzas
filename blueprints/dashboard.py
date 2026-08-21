@@ -185,7 +185,7 @@ DEFAULT_DASHBOARD_CONFIG = [
     "title": "Período de Cobro en días",
     "subtitle": "Clientes Externo vs Empresas del Grupo, por trimestre",
     "visible": True,
-    "order": 12.1,
+    "order": 12.25,
     "size": "m",
     "chartType": "bar",
     "dataset": "periodo_cobro"
