@@ -762,6 +762,10 @@ def esf_engine(year, unit='', aplicar_divisa_real=False, empresa_id=None,
     # 4. Calcular los saldos trimestrales para cada partida
     quarters_data = {q: {} for q in [1, 2, 3, 4]}
     plug_divisa_q = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}
+    # Fix ago-2026: trimestres sin filas reales en esf_data no deben producir un plug
+    # de Ganancia/Perdida en tasa cambiaria espurio (ver ultrax_deuda_tecnica_refactor.md,
+    # "Plug fantasma"). Derivado directo de db_data, sin query nueva.
+    esf_quarters_available = set(q_db for (q_db, _p) in db_data.keys())
     
     for q in [1, 2, 3, 4]:
         # Inicializar todos los nodos en 0
@@ -842,16 +846,23 @@ def esf_engine(year, unit='', aplicar_divisa_real=False, empresa_id=None,
         superavit = quarters_data[q].get('Superavit por revaluacion', 0.0)
         res_ejer = quarters_data[q].get('Resultados del ejercicio', 0.0)
 
-        res_acum_calculado = quarters_data[q]['TOTAL ACTIVOS'] - quarters_data[q]['TOTAL PASIVOS'] - cap_social - reservas - superavit - res_ejer
-
-        if acumulados_fijos_q is not None:
-            # Metodología ESF Real (ago-2026): Resultados Acumulados queda fijo, idéntico
-            # al de BCV -- no absorbe la diferencia de cuadre. La diferencia se expone
-            # aparte como plug_divisa_q para que la use calcular_estados_reales.
-            quarters_data[q]['Resultados acumulados'] = acumulados_fijos_q[q]
-            plug_divisa_q[q] = res_acum_calculado - acumulados_fijos_q[q]
+        if q not in esf_quarters_available:
+            # Trimestre sin esf_data real -- no calcular plug fantasma. TOTAL ACTIVOS/
+            # TOTAL PASIVOS ya quedaron en 0 por falta de datos; sin esta guarda,
+            # res_acum_calculado tomaría ese 0 como saldo real y generaría un plug de
+            # Ganancia/Perdida en tasa cambiaria espurio.
+            quarters_data[q]['Resultados acumulados'] = acumulados_fijos_q[q] if acumulados_fijos_q is not None else 0.0
+            plug_divisa_q[q] = 0.0
         else:
-            quarters_data[q]['Resultados acumulados'] = res_acum_calculado
+            res_acum_calculado = quarters_data[q]['TOTAL ACTIVOS'] - quarters_data[q]['TOTAL PASIVOS'] - cap_social - reservas - superavit - res_ejer
+            if acumulados_fijos_q is not None:
+                # Metodología ESF Real (ago-2026): Resultados Acumulados queda fijo, idéntico
+                # al de BCV -- no absorbe la diferencia de cuadre. La diferencia se expone
+                # aparte como plug_divisa_q para que la use calcular_estados_reales.
+                quarters_data[q]['Resultados acumulados'] = acumulados_fijos_q[q]
+                plug_divisa_q[q] = res_acum_calculado - acumulados_fijos_q[q]
+            else:
+                quarters_data[q]['Resultados acumulados'] = res_acum_calculado
         
         # Total Patrimonio = Capital social + Reservas + Superavit + Resultados acumulados + Resultados del ejercicio
         level_2_patrimonio = [x[0] for x in ESF_STRUCTURE_V2 if x[5] == 2 and x[7] == 'PATRIMONIO']
