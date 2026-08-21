@@ -1865,7 +1865,8 @@ def _calcular_eerr_divisa_real(db, year, unit, empresa_id=None, plug_divisa_q=No
                             pass
                         elif name == 'Subtotal Gastos de Mercadeo' and c_name in [
                             'Gastos de impresiones de material gráfico',
-                            'Gastos de patrocinio y donación'
+                            'Gastos de patrocinio y donación',
+                            'Gastos de decoración'
                         ]:
                             pass
                         elif name == 'Subtotal Gastos de Comercialización y Logistica' and c_name in [
@@ -2068,7 +2069,8 @@ def _calcular_eerr_divisa_real(db, year, unit, empresa_id=None, plug_divisa_q=No
                         pass
                     elif name == 'Subtotal Gastos de Mercadeo' and c_name in [
                         'Gastos de impresiones de material gráfico',
-                        'Gastos de patrocinio y donación'
+                        'Gastos de patrocinio y donación',
+                        'Gastos de decoración'
                     ]:
                         pass
                     elif name == 'Subtotal Gastos de Comercialización y Logistica' and c_name in [
