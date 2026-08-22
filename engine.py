@@ -1236,8 +1236,13 @@ def eerr_completo_v2_ui_adapter(db, year, unit, empresa_id=None):
     for r in rows_budget:
         by_budget.setdefault(r['partida'], {})[r['month']] = r['amount']
 
-    import unicodedata
+    import unicodedata, functools
+    @functools.lru_cache(maxsize=None)
     def norm(s):
+        # Perf fix (ago-2026): memoizado -- se llamaba miles de veces sobre las
+        # mismas keys de data_dict dentro del loop de fallback, sin cachear el
+        # resultado (1+ segundo por llamada al motor). Funcion pura, cachear es
+        # seguro. Ver ultrax_deuda_tecnica_refactor.md.
         if not s: return ''
         s = ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
         return s.lower().strip()
@@ -1782,8 +1787,11 @@ def _calcular_eerr_divisa_real(db, year, unit, empresa_id=None, plug_divisa_q=No
     # Obtener grupos de presentación de mapping_groups_v2
     groups_v2, _ = get_grouped_partidas_v2(db, 'eerr')
 
-    import unicodedata
+    import unicodedata, functools
+    @functools.lru_cache(maxsize=None)
     def norm(s):
+        # Perf fix (ago-2026): memoizado -- ver nota equivalente en
+        # eerr_completo_v2_ui_adapter, mismo patron duplicado.
         if not s: return ''
         s = ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
         return s.lower().strip()
