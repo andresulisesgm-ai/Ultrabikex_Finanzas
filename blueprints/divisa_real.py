@@ -300,6 +300,21 @@ def eerr_divisa_real_trimestres_route():
     resultado = eerr_divisa_real_trimestres(db, year, unit, empresa_id=empresa_id)
     if 'error' in resultado:
         return jsonify(resultado), 400
+
+    # Desglose por unidad (Divisa Real) -- mismo patron que BCV (blueprints/dashboard.py),
+    # solo si la empresa activa tiene unidades propias. Reutiliza eerr_divisa_real_trimestres
+    # por unidad, mismo motor que el consolidado -- sin calculo paralelo.
+    por_unidad = []
+    if empresa_id is not None:
+        unidades_empresa = [r['nombre'] for r in db.execute(
+            'SELECT nombre FROM unidades WHERE empresa_id=?', (empresa_id,)
+        ).fetchall()]
+        for u in unidades_empresa:
+            res_u = eerr_divisa_real_trimestres(db, year, u, empresa_id=empresa_id)
+            if 'error' not in res_u:
+                por_unidad.append({'unit': u, 'quarters': res_u['quarters']})
+    resultado['por_unidad'] = por_unidad
+
     return jsonify(resultado)
 
 

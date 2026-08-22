@@ -4057,7 +4057,12 @@ function loadIngresosCostosMargen() {
   const selectedMonth = G('dash-month') && G('dash-month').value;
   const selectedQuarter = G('dash-quarter') && G('dash-quarter').value;
   let conDatos;
-  if (selectedMonth) {
+  if (DD._modo_divisa) {
+    // Divisa Real: DD.months ya viene agrupado por trimestre ('Q1','Q2'...), no
+    // por mes -- QUARTER_MONTHS_MARGEN asume nombres de mes reales, no aplica aqui.
+    const mesesDR = selectedQuarter ? meses.filter(mm => mm.month === 'Q' + selectedQuarter) : meses;
+    conDatos = mesesDR.map(mm => ({ label: mm.month, meses: [mm] }));
+  } else if (selectedMonth) {
     const m = meses.find(mm => mm.month === selectedMonth);
     conDatos = m ? [{ label: selectedMonth, meses: [m] }] : [];
   } else if (selectedQuarter) {
@@ -4477,20 +4482,36 @@ async function loadDash(){
           const razonCorriente=indRC?indRC.anio_actual:null;
 
           DD={
-            months:[{
-              month:month||'ANUAL',
-              ingresos:totalesEerr.ingresos,
-              costos:totalesEerr.costos,
-              gastos:totalesEerr.gastos,
-              utilidad_bruta:totalesEerr.utilidad_bruta,
-              utilidad_neta:totalesEerr.utilidad_neta,
-              margen_bruto:totalesEerr.ingresos?totalesEerr.utilidad_bruta/totalesEerr.ingresos*100:0,
-              margen_neto:totalesEerr.ingresos?totalesEerr.utilidad_neta/totalesEerr.ingresos*100:0,
-              ratio_costo:totalesEerr.ingresos?totalesEerr.costos/totalesEerr.ingresos*100:0,
-              ratio_gasto:totalesEerr.ingresos?totalesEerr.gastos/totalesEerr.ingresos*100:0
-            }],
+            months:quartersUsar.map(q=>{
+              const qd=dataEerr.quarters[q]||{};
+              const ing=qd['Total Ingresos']||0;
+              const cos=qd['Total Costo de Ventas']||0;
+              const gas=qd['Total Gastos Operacionales']||0;
+              const ub=qd['Utilidad Bruta']||0;
+              const un=qd['Utilidad Neta']||0;
+              return {
+                month:'Q'+q,
+                ingresos:ing, costos:cos, gastos:gas,
+                utilidad_bruta:ub, utilidad_neta:un,
+                margen_bruto:ing?ub/ing*100:0,
+                margen_neto:ing?un/ing*100:0,
+                ratio_costo:ing?cos/ing*100:0,
+                ratio_gasto:ing?gas/ing*100:0
+              };
+            }),
             loaded:[{unit:unit==='TODAS'?'TODAS':unit,month:month||'ANUAL'}],
-            por_unidad:[],
+            por_unidad:(dataEerr.por_unidad||[]).map(pu=>{
+              const t={ingresos:0,costos:0,gastos:0,utilidad_bruta:0,utilidad_neta:0};
+              quartersUsar.forEach(q=>{
+                const qd=pu.quarters[q]||{};
+                t.ingresos+=qd['Total Ingresos']||0;
+                t.costos+=qd['Total Costo de Ventas']||0;
+                t.gastos+=qd['Total Gastos Operacionales']||0;
+                t.utilidad_bruta+=qd['Utilidad Bruta']||0;
+                t.utilidad_neta+=qd['Utilidad Neta']||0;
+              });
+              return {unit:pu.unit,ingresos:t.ingresos,costos:t.costos,gastos:t.gastos,utilidad_bruta:t.utilidad_bruta,utilidad_neta:t.utilidad_neta};
+            }),
             top_gastos:[],
             cat_gastos:[],
             punto_equilibrio:null,
