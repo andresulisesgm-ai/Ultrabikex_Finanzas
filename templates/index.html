@@ -3645,7 +3645,7 @@ function loadDeudaCobertura() {
       const legendEl = G('deuda-cobertura-legend');
       if (legendEl) {
         const series = [
-          { nombre: 'Deuda (Total Pasivo)', color: '#f97316', data: deudaData },
+          { nombre: 'Deuda (Pasivo Corriente)', color: '#f97316', data: deudaData },
           { nombre: 'Efectivo y Equivalentes', color: '#2563eb', data: efectivoData }
         ];
         const filas = series.map(s => {
