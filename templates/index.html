@@ -1740,7 +1740,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
   {
     "id": "wc-dona-segmento",
     "type": "chart",
-    "title": "Ingresos por Segmentos",
+    "title": "Ingresos por línea de negocio",
     "subtitle": "Venta de Mercancía · Servicios · Eventos · Taller",
     "visible": true,
     "order": 17,
@@ -1843,7 +1843,7 @@ const WIDGET_TEMPLATES = {
     <div id="dona-unidad-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-dona-segmento': `
-    <div class="ch"><div><div class="ct">Ingresos por Segmentos</div><div class="cs">Venta de Mercancía · Servicios · Eventos · Taller</div></div>
+    <div class="ch"><div><div class="ct">Ingresos por línea de negocio</div><div class="cs">Venta de Mercancía · Servicios · Eventos · Taller</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-dona-segmento">✕</button></div></div>
     <div class="cv" style="height:230px"><canvas id="ch-dona-segmento"></canvas></div>
     <div id="dona-segmento-legend" style="padding:8px 16px 0"></div>
@@ -4320,7 +4320,7 @@ function loadHeatmapUtilidadUnidad() {
 
   const empresas = (DD && DD.por_empresa) || [];
   const titulo2 = G('heatmap-un-titulo');
-  if (titulo2) titulo2.textContent = 'Utilidad Neta por Empresa (Holding)';
+  if (titulo2) titulo2.textContent = 'Utilidad Neta por Empresa';
   pintarGrafico(
     empresas.map(function(e) { return { nombre: e.empresa, utilidad_neta: e.utilidad_neta }; }),
     'Sin datos suficientes todavia para mostrar Utilidad Neta por empresa.'
@@ -4400,7 +4400,8 @@ function loadDonaSegmento() {
   const labels = Object.keys(seg).filter(function(k) { return seg[k] !== 0; });
   if (!labels.length) return;
   if (CH['ch-dona-segmento']) CH['ch-dona-segmento'].destroy();
-  const paleta = ['#2563eb','#059669','#d97706','#7c3aed'];
+  const paletaSegmentos = { 'Venta de Mercancía': '#2563eb', 'Servicios': '#f97316', 'Taller': '#7c3aed', 'Eventos': '#059669' };
+  const paleta = labels.map(function(k) { return paletaSegmentos[k] || '#94a3b8'; });
   CH['ch-dona-segmento'] = new Chart(canvas, {
     type: 'doughnut',
     data: {
@@ -4414,7 +4415,7 @@ function loadDonaSegmento() {
         tooltip: { callbacks: { label: function(ctx) {
           const total = ctx.dataset.data.reduce(function(a,b){return a+b;},0);
           const pct = total ? (ctx.raw/total*100).toFixed(1) : 0;
-          return ctx.label + ': ' + fmtS(ctx.raw) + ' (' + pct + '%)';
+          return 'Ingresos por ' + ctx.label + ': ' + fmtS(ctx.raw) + ' (' + pct + '%)';
         } } }
       }
     }
@@ -4425,7 +4426,7 @@ function loadDonaSegmento() {
     const total = labels.reduce((a,k) => a + seg[k], 0);
     const filas = labels.map((k, i) => {
       const pct = total ? (seg[k]/total*100).toFixed(1) : 0;
-      return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:4px"><span style="width:9px;height:9px;background:${paleta[i % paleta.length]};border-radius:2px;display:inline-block;flex-shrink:0"></span>${k}: <span style="color:var(--mu2)">${fmtS(seg[k])} (${pct}%)</span></div>`;
+      return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:4px"><span style="width:9px;height:9px;background:${paleta[i]};border-radius:2px;display:inline-block;flex-shrink:0"></span>Ingresos por ${k}: <span style="color:var(--mu2)">${fmtS(seg[k])} (${pct}%)</span></div>`;
     }).join('');
     legendEl.innerHTML = `<div style="display:flex;justify-content:center"><div>${filas}</div></div>`;
   }

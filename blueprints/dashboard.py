@@ -277,7 +277,7 @@ DEFAULT_DASHBOARD_CONFIG = [
   {
     "id": "wc-dona-segmento",
     "type": "chart",
-    "title": "Ingresos por Segmentos",
+    "title": "Ingresos por línea de negocio",
     "subtitle": "Venta de Mercancía · Servicios · Eventos · Taller",
     "visible": True,
     "order": 17,
