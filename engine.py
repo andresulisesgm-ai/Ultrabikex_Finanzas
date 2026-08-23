@@ -2878,10 +2878,10 @@ def compute_indicadores_v2_divisa_real(db, year, empresa_id=None):
     """
     year_prev = str(int(year) - 1)
 
-    estados_curr = calcular_estados_reales(year, '', empresa_id=empresa_id)
+    estados_curr = calcular_estados_reales(year, '', empresa_id=empresa_id, db=db)
     if 'error' in estados_curr:
         return estados_curr
-    estados_prev = calcular_estados_reales(year_prev, '', empresa_id=empresa_id)
+    estados_prev = calcular_estados_reales(year_prev, '', empresa_id=empresa_id, db=db)
     if 'error' in estados_prev:
         rows_prev = []
     else:
@@ -2952,7 +2952,7 @@ def eerr_divisa_real_trimestres(db, year, unit='', empresa_id=None):
         4: ['OCT', 'NOV', 'DIC']
     }
 
-    estados = calcular_estados_reales(year, unit, empresa_id=empresa_id)
+    estados = calcular_estados_reales(year, unit, empresa_id=empresa_id, db=db)
     if 'error' in estados:
         return estados
 
