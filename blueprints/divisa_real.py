@@ -16,7 +16,8 @@ def get_esf_divisa_real():
         return jsonify({'error': 'year y quarter son requeridos'}), 400
     from engine import calcular_esf_divisa_real, calcular_estados_reales, esf_engine
 
-    result = calcular_esf_divisa_real(year, quarter, empresa_id=empresa_id)
+    db = get_db()
+    result = calcular_esf_divisa_real(year, quarter, empresa_id=empresa_id, db=db)
     if 'error' in result:
         return jsonify(result), 404
 
@@ -24,11 +25,11 @@ def get_esf_divisa_real():
     # directo con aplicar_divisa_real=True (eso mandaba la diferencia a Resultados
     # Acumulados, comportamiento incorrecto para el real) -- ahora usa el orquestador,
     # que mantiene Acumulados fijo (=BCV) y manda la diferencia como plug al EERR Real.
-    estados = calcular_estados_reales(year, '', empresa_id=empresa_id)
+    estados = calcular_estados_reales(year, '', empresa_id=empresa_id, db=db)
     esf_completo = estados['esf_real']
 
     year_prev = str(int(year) - 1)
-    result_prev = esf_engine(year_prev, '', empresa_id=empresa_id)
+    result_prev = esf_engine(year_prev, '', empresa_id=empresa_id, db=db)
     prev_by_partida = {}
     for r in result_prev.get('rows', []):
         prev_by_partida[r['partida']] = r.get('quarters', {}).get(4, 0.0)
@@ -119,7 +120,7 @@ def dashboard_divisa_real():
 
     from engine import calcular_estados_reales
     eerr_unit_param = '' if unit == 'TODAS' else unit
-    estados_real = calcular_estados_reales(year, eerr_unit_param, empresa_id=empresa_id)
+    estados_real = calcular_estados_reales(year, eerr_unit_param, empresa_id=empresa_id, db=db)
     if 'error' in estados_real:
         return jsonify(estados_real), 400
     eerr_data = estados_real['eerr_real']
@@ -283,7 +284,8 @@ def eerr_divisa_real():
     year = request.args.get('year', str(datetime.now().year))
     unit = request.args.get('unit', '')
     empresa_id = request.args.get('empresa_id', type=int)
-    estados = calcular_estados_reales(year, unit, empresa_id=empresa_id)
+    db = get_db()
+    estados = calcular_estados_reales(year, unit, empresa_id=empresa_id, db=db)
     if 'error' in estados:
         return jsonify(estados), 400
     return jsonify(estados['eerr_real'])
