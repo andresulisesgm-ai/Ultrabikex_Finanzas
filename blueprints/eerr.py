@@ -97,43 +97,6 @@ def save_eerr_nodes_overrides():
     return jsonify({'ok': True})
 
 
-@eerr_bp.route('/api/eerr', methods=['GET'])
-def eerr():
-    year  = request.args.get('year', str(datetime.now().year))
-    unit  = request.args.get('unit', '')
-    month = request.args.get('month', '')
-    db    = get_db()
-    uc    = "AND unit=?" if unit else ''
-    mc    = "AND month=?" if month else ''
-    params = [year] + ([unit] if unit else []) + ([month] if month else [])
-
-    rows = db.execute(
-        f'SELECT partida, SUM(amount) total FROM financials WHERE year=? {uc} {mc} GROUP BY partida',
-        params
-    ).fetchall()
-    data = {r['partida']: r['total'] for r in rows}
-
-    ing_codes = set(r['partida'] for r in db.execute("SELECT DISTINCT partida FROM mapping WHERE odoo_code LIKE '4.%'").fetchall())
-    cos_codes = set(r['partida'] for r in db.execute("SELECT DISTINCT partida FROM mapping WHERE odoo_code LIKE '5.%'").fetchall())
-    gas_codes = set(r['partida'] for r in db.execute("SELECT DISTINCT partida FROM mapping WHERE odoo_code LIKE '6.%'").fetchall())
-
-    def total(codes): return sum(data.get(p, 0) for p in codes)
-    tI = total(ing_codes); tC = total(cos_codes); tG = total(gas_codes)
-    ub = tI - tC; un = tI - tC - tG
-
-    detail_ing = {p: data.get(p, 0) for p in ing_codes if data.get(p, 0)}
-    detail_cos = {p: data.get(p, 0) for p in cos_codes if data.get(p, 0)}
-    detail_gas = {p: data.get(p, 0) for p in gas_codes if data.get(p, 0)}
-
-    return jsonify({
-        'ingresos': tI, 'costos': tC, 'gastos': tG,
-        'utilidad_bruta': ub, 'utilidad_neta': un,
-        'margen_bruto': round(ub / tI * 100, 1) if tI else 0,
-        'margen_neto':  round(un / tI * 100, 1) if tI else 0,
-        'detail_ing': detail_ing, 'detail_cos': detail_cos, 'detail_gas': detail_gas
-    })
-
-
 def get_clasificacion_by_type(db):
     """Retorna partidas agrupadas por income_type para el EERR detallado."""
     rows = db.execute(
