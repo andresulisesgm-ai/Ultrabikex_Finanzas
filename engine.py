@@ -609,14 +609,20 @@ ESF_STRUCTURE_V2 = [
 
 
 def esf_engine(year, unit='', aplicar_divisa_real=False, empresa_id=None,
-               utilidad_externa_q=None, acumulados_fijos_q=None):
+               utilidad_externa_q=None, acumulados_fijos_q=None, db=None):
     import sqlite3
     import os
-    
+
     DB_PATH = os.path.join(os.path.dirname(__file__), 'data', 'ultrax.db')
-    
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+
+    _conn_propia = db is None
+    if db is not None:
+        conn = db
+    else:
+        conn = sqlite3.connect(DB_PATH, timeout=30.0, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        conn.execute('PRAGMA journal_mode=WAL')
+        conn.execute('PRAGMA busy_timeout=30000')
     cursor = conn.cursor()
     
     # 1. Obtener grupos de presentación de mapping_groups_v2 para ESF
@@ -708,17 +714,13 @@ def esf_engine(year, unit='', aplicar_divisa_real=False, empresa_id=None,
             detail_by_group[gn][key] = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}
         detail_by_group[gn][key][r['quarter']] = round(r['total'], 2)
 
-    conn.close()
-    
     # 3. Utilidad Neta: externa (metodología EERR Real/ESF Real) o vía EERR V2 normal
     utilidad_q = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}
     if utilidad_externa_q is not None:
         utilidad_q = utilidad_externa_q
     else:
-        conn_adapter = sqlite3.connect(DB_PATH)
-        conn_adapter.row_factory = sqlite3.Row
         try:
-            eerr_data = eerr_completo_v2_ui_adapter(conn_adapter, year, unit, empresa_id=empresa_id)
+            eerr_data = eerr_completo_v2_ui_adapter(conn, year, unit, empresa_id=empresa_id)
             net_income_row = None
             for r in eerr_data.get('rows', []):
                 if r.get('partida') == 'Utilidad Neta despues de ISLR':
@@ -742,14 +744,9 @@ def esf_engine(year, unit='', aplicar_divisa_real=False, empresa_id=None,
             logging.getLogger(__name__).error(
                 f"Error al calcular Utilidad Neta para ESF (year={year}, unit={unit}): {str(e)}"
             )
-        finally:
-            conn_adapter.close()
-
     tasas_por_quarter = {}
     if aplicar_divisa_real:
-        conn_tasas = sqlite3.connect(DB_PATH)
-        conn_tasas.row_factory = sqlite3.Row
-        cursor_tasas = conn_tasas.cursor()
+        cursor_tasas = conn.cursor()
         for q_num, month_cierre in QUARTER_MONTH_CIERRE.items():
             row_tasa = cursor_tasas.execute(
                 'SELECT tasa_bcv_fin, tasa_paralela_fin FROM tasas_periodo WHERE year=? AND month=?',
@@ -757,7 +754,6 @@ def esf_engine(year, unit='', aplicar_divisa_real=False, empresa_id=None,
             ).fetchone()
             if row_tasa and row_tasa['tasa_bcv_fin'] and row_tasa['tasa_paralela_fin']:
                 tasas_por_quarter[q_num] = (row_tasa['tasa_bcv_fin'], row_tasa['tasa_paralela_fin'])
-        conn_tasas.close()
         
     # 4. Calcular los saldos trimestrales para cada partida
     quarters_data = {q: {} for q in [1, 2, 3, 4]}
@@ -918,6 +914,8 @@ def esf_engine(year, unit='', aplicar_divisa_real=False, empresa_id=None,
     }
     if acumulados_fijos_q is not None:
         result['plug_divisa_q'] = plug_divisa_q
+    if _conn_propia:
+        conn.close()
     return result
 
 
