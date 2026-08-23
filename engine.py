@@ -1031,7 +1031,7 @@ SUBTOTAL_EXCLUSIONS = {
 }
 
 
-def calcular_estados_reales(year, unit='', empresa_id=None):
+def calcular_estados_reales(year, unit='', empresa_id=None, db=None):
     """
     Orquestador de la metodología EERR Real / ESF Real (Yocelin, ago-2026, 9-ago).
     Orden de cálculo (sin dependencia circular, confirmado por Yocelin):
@@ -1045,8 +1045,14 @@ def calcular_estados_reales(year, unit='', empresa_id=None):
     """
     import sqlite3, os
     DB_PATH_LOCAL = os.path.join(os.path.dirname(__file__), 'data', 'ultrax.db')
-    conn_estados = sqlite3.connect(DB_PATH_LOCAL)
-    conn_estados.row_factory = sqlite3.Row
+    _conn_propia = db is None
+    if db is not None:
+        conn_estados = db
+    else:
+        conn_estados = sqlite3.connect(DB_PATH_LOCAL, timeout=30.0, check_same_thread=False)
+        conn_estados.row_factory = sqlite3.Row
+        conn_estados.execute('PRAGMA journal_mode=WAL')
+        conn_estados.execute('PRAGMA busy_timeout=30000')
     try:
         # 1. EERR Real preliminar CONSOLIDADO (unit='' siempre, ESF es exclusivamente
         # consolidado -- el plug debe calcularse sobre la utilidad de TODA la empresa,
@@ -1077,7 +1083,7 @@ def calcular_estados_reales(year, unit='', empresa_id=None):
                 utilidad_externa_q[q] = q_sum
 
         # 2. ESF BCV normal -> Acumulados de referencia (fijo en el real)
-        esf_bcv = esf_engine(year, '', aplicar_divisa_real=False, empresa_id=empresa_id)
+        esf_bcv = esf_engine(year, '', aplicar_divisa_real=False, empresa_id=empresa_id, db=conn_estados)
         acumulados_fijos_q = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}
         for r in esf_bcv.get('rows', []):
             if r.get('partida') == 'Resultados acumulados':
@@ -1088,7 +1094,8 @@ def calcular_estados_reales(year, unit='', empresa_id=None):
         # 3. ESF Real: Utilidad externa + Acumulados fijos -> plug de diferencia
         esf_real = esf_engine(
             year, '', aplicar_divisa_real=True, empresa_id=empresa_id,
-            utilidad_externa_q=utilidad_externa_q, acumulados_fijos_q=acumulados_fijos_q
+            utilidad_externa_q=utilidad_externa_q, acumulados_fijos_q=acumulados_fijos_q,
+            db=conn_estados
         )
         plug_divisa_q = esf_real.get('plug_divisa_q', {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0})
 
@@ -1158,7 +1165,8 @@ def calcular_estados_reales(year, unit='', empresa_id=None):
             'esf_real': esf_real,
         }
     finally:
-        conn_estados.close()
+        if _conn_propia:
+            conn_estados.close()
 
 def eerr_completo_v2_ui_adapter(db, year, unit, empresa_id=None):
     from helpers import (
