@@ -1,4 +1,4 @@
-﻿async function cargarMetodosPago(){
+async function cargarMetodosPago(){
   const year=G('metodos-year').value, month=G('metodos-month').value;
   G('metodos-loading').style.display='block';
   G('metodos-container').style.display='none';
@@ -19,7 +19,7 @@
   for(const m of metodos){metMap[`${m.unit}_${m.odoo_code}`]=m.pct_cash;}
 
   // Renderizar tabla
-  const units={{ units|tojson }};
+  const units=window.units;
   let html='';
   for(const c of cuentas){
     const tipo=c.odoo_code.startsWith('4')?'ING':(c.odoo_code.startsWith('5')?'COS':'GAS');
