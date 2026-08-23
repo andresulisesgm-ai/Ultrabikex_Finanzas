@@ -886,6 +886,7 @@
 <script>window.currentUser = {{ user|tojson|safe }};</script>
 <script src="/static/js/core.js"></script>
 <script>
+// ── DASHBOARD BUILDER CONFIG & LOGIC ──
 const DEFAULT_DASHBOARD_CONFIG = [
   {
     "id": "kc-ingr",
@@ -7044,7 +7045,6 @@ async function saveBgt() {
   }
 }
 
-function escAttr(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // Edición inline de una celda de presupuesto
 async function editBgt(inp){

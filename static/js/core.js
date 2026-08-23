@@ -69,4 +69,5 @@ const LS={
 // Estado del modo Divisa Real (BCV o Real)
 let modoDivisaReal=false;
 
-// ── DASHBOARD BUILDER CONFIG & LOGIC ──
+
+function escAttr(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
