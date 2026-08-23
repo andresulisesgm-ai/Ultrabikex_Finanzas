@@ -92,16 +92,16 @@ def esf_completo():
     unit = request.args.get('unit', '')
     empresa_id = request.args.get('empresa_id', type=int) or None
     from engine import esf_engine
-    result = esf_engine(year, unit, empresa_id=empresa_id)
+    db = get_db()
+    result = esf_engine(year, unit, empresa_id=empresa_id, db=db)
     try:
-        db = get_db()
         validate_esf_integrity(year, unit, result, db, empresa_id=empresa_id)
     except Exception as e:
         import logging
         logging.getLogger('esf_integrity_guard').error(f"Error al ejecutar validacion de integridad ESF: {str(e)}")
 
     year_prev = str(int(year) - 1)
-    result_prev = esf_engine(year_prev, unit, empresa_id=empresa_id)
+    result_prev = esf_engine(year_prev, unit, empresa_id=empresa_id, db=db)
     prev_by_partida = {}
     for r in result_prev.get('rows', []):
         prev_by_partida[r['partida']] = r.get('quarters', {}).get(4, 0.0)
