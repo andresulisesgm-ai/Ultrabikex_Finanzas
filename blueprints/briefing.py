@@ -248,12 +248,7 @@ def export_ai():
             lines.append('')
         else:
             from engine import calcular_esf_divisa_real
-            overrides_rows = db.execute(
-                'SELECT odoo_code, valor_override FROM esf_divisa_real_overrides WHERE year=? AND quarter=? AND empresa_id IS ?',
-                (year, quarter, empresa_id)
-            ).fetchall()
-            overrides_flat = {r['odoo_code']: r['valor_override'] for r in overrides_rows}
-            result_dr = calcular_esf_divisa_real(year, quarter, overrides=overrides_flat, empresa_id=empresa_id)
+            result_dr = calcular_esf_divisa_real(year, quarter, empresa_id=empresa_id)
             if 'error' in result_dr:
                 lines.append(f"_{result_dr['error']}_")
                 lines.append('')
