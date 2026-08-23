@@ -927,18 +927,25 @@ PARTIDAS_ESF_DIVISA_REAL = [
 QUARTER_MONTH_CIERRE = {1: 'MAR', 2: 'JUN', 3: 'SEPT', 4: 'DIC'}
 
 
-def calcular_esf_divisa_real(year, quarter, empresa_id=None):
+def calcular_esf_divisa_real(year, quarter, empresa_id=None, db=None):
     import sqlite3
     import os
 
     DB_PATH = os.path.join(os.path.dirname(__file__), 'data', 'ultrax.db')
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    _conn_propia = db is None
+    if db is not None:
+        conn = db
+    else:
+        conn = sqlite3.connect(DB_PATH, timeout=30.0, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        conn.execute('PRAGMA journal_mode=WAL')
+        conn.execute('PRAGMA busy_timeout=30000')
     cursor = conn.cursor()
 
     month = QUARTER_MONTH_CIERRE.get(quarter)
     if not month:
-        conn.close()
+        if _conn_propia:
+            conn.close()
         return {'error': f'Quarter inválido: {quarter}'}
 
     tasa_row = cursor.execute(
@@ -947,7 +954,8 @@ def calcular_esf_divisa_real(year, quarter, empresa_id=None):
     ).fetchone()
 
     if not tasa_row or not tasa_row['tasa_bcv_fin'] or not tasa_row['tasa_paralela_fin']:
-        conn.close()
+        if _conn_propia:
+            conn.close()
         return {'error': f'No hay tasa BCV/paralela fin de mes configurada para {month} {year}'}
 
     tasa_bcv_fin = tasa_row['tasa_bcv_fin']
@@ -972,7 +980,8 @@ def calcular_esf_divisa_real(year, quarter, empresa_id=None):
 
     saldo_total_bs = sum(saldo_por_partida.values())
 
-    conn.close()
+    if _conn_propia:
+        conn.close()
 
     saldo_total_usd = round(saldo_total_bs / tasa_paralela_fin, 2) if tasa_paralela_fin else None
 
