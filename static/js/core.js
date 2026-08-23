@@ -87,3 +87,5 @@ async function fillYears(){
     if (up && !years.includes(up.value)) up.value = years[0];
   } catch(e) { console.error('fillYears:', e); }
 }
+
+function showA(id,msg){const e=G(id);e.textContent=msg;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),7000);}
