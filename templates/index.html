@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>ULTRAX — Financial Intelligence</title>
+<title>Ultrabikex Financial Analytics</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@10.3.1/dist/gridstack.min.css"/>
@@ -633,6 +633,7 @@ input[type=file]{display:none;}
           </span>
         </label>
       </div>
+
 
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px;">
         <button onclick="closePrintModal()" style="padding:8px 16px;border-radius:6px;border:1px solid #ccc;background:#fff;cursor:pointer;">Cancelar</button>
@@ -7390,16 +7391,17 @@ function renderBgt() {
 var PRINT_CHUNK = 4;
 var printModeSel = 'fit';
 var printEerdTabSel = 'resumen';
+var printOrientSel = 'portrait';
 
 function openPrintModal(){
   const activePage = document.querySelector('.page.active');
   const id = activePage ? activePage.id : '';
-  const withOptions = ['page-eerrdet','page-esf','page-presupuesto','page-eerr','page-err_divisa'].includes(id);
+  const withOptions = ['page-eerrdet','page-esf','page-presupuesto','page-eerr','page-err_divisa','page-dashboard'].includes(id);
   if(!withOptions){ window.print(); return; }
 
   const splitOpt = document.getElementById('printSplitOption');
   const tabWrap = document.getElementById('printTabSelectorWrap');
-  if(id === 'page-esf'){
+  if(id === 'page-esf' || id === 'page-dashboard'){
     splitOpt.style.display = 'none';
     tabWrap.style.display = 'none';
     document.querySelector('input[name="printModeRadio"][value="fit"]').checked = true;
@@ -7435,11 +7437,18 @@ function getActivePrintInfo(){
   if(activePage.id==='page-presupuesto') return {id:'page-presupuesto', wrap: document.querySelector('#bgt-body .bgt-wrap')};
   if(activePage.id==='page-eerr') return {id:'page-eerr', wrap: document.querySelector('#eerr-body .eerr-table')};
   if(activePage.id==='page-err_divisa') return {id:'page-err_divisa', wrap: document.querySelector('#err-divisa-body .eerr-table')};
+  if(activePage.id==='page-dashboard') return {id:'page-dashboard', wrap: document.querySelector('#wcon')};
   return null;
 }
 
 function applyPrintLayout(){
   const info = getActivePrintInfo();
+  const orientStyle = document.getElementById('dashboardPrintOrientation');
+  if(orientStyle){
+    orientStyle.textContent = (info && info.id === 'page-dashboard')
+      ? '@media print { @page { size: letter landscape; margin: 9mm; } }'
+      : '';
+  }
   if(!info || !info.wrap) return;
   if(printModeSel === 'split' && info.id !== 'page-esf'){
     applySplitPages(info);
