@@ -248,7 +248,7 @@ def export_ai():
             lines.append('')
         else:
             from engine import calcular_esf_divisa_real
-            result_dr = calcular_esf_divisa_real(year, quarter, empresa_id=empresa_id)
+            result_dr = calcular_esf_divisa_real(year, quarter, empresa_id=empresa_id, db=db)
             if 'error' in result_dr:
                 lines.append(f"_{result_dr['error']}_")
                 lines.append('')
