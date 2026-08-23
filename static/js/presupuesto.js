@@ -125,3 +125,78 @@ function renderBgt() {
   G('bgt-body').innerHTML = html;
 }
 
+
+function openBgtModal() {
+  const y = G('bgt-year').value, u = G('bgt-unit').value;
+  G('bm-year').value = y;
+  if (u) G('bm-unit').value = u;
+  G('bm-partida').value = '';
+  G('bm-amount').value = '';
+  G('bgtmod').classList.add('show');
+}
+
+function closeBgtModal() { G('bgtmod').classList.remove('show'); }
+
+async function saveBgt() {
+  if(!isAdmin()){alert('⛔ Acceso denegado: se requiere rol de administrador');return;}
+  const d = {
+    year: G('bm-year').value,
+    month: G('bm-month').value,
+    unit: G('bm-unit').value,
+    partida: G('bm-partida').value.trim(),
+    amount: parseFloat(G('bm-amount').value) || 0,
+  };
+  if (!d.partida) { alert('Partida obligatoria'); return; }
+  const r = await fetch('/api/budget', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(d) });
+  const res = await r.json();
+  if (res.ok) {
+    const al = G('bm-alert');
+    al.className = 'al al-ok show'; al.textContent = '✅ Guardado';
+    setTimeout(() => al.classList.remove('show'), 3000);
+    loadBgt();
+  } else {
+    alert('Error: ' + res.error);
+  }
+}
+
+
+// Edición inline de una celda de presupuesto
+async function editBgt(inp){
+  if(!isAdmin()){alert('⛔ Acceso denegado: se requiere rol de administrador');return;}
+  const d = {
+    year:    G('bgt-year').value,
+    unit:    G('bgt-unit').value,
+    month:   inp.dataset.month,
+    partida: inp.dataset.partida,
+    amount:  parseFloat(inp.value) || 0,
+  };
+  if (!d.unit) { alert('Selecciona una unidad específica para editar.'); return; }
+  inp.disabled = true;
+  try {
+    const r = await fetch('/api/budget', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(d) });
+    const res = await r.json();
+    if (res.ok) {
+      inp.classList.add('saved');
+      setTimeout(() => loadBgt(), 450);   // recarga para recalcular %Var y acumulados
+    } else { alert('Error: ' + res.error); inp.disabled = false; }
+  } catch(e) { alert('Error de conexión: ' + e.message); inp.disabled = false; }
+}
+
+// Importar presupuesto desde CSV / Excel
+async function importBgt(inp){
+  if(!isAdmin()){alert('⛔ Acceso denegado: se requiere rol de administrador');inp.value='';return;}
+  const f = inp.files[0]; if (!f) return;
+  const unit = G('bgt-unit').value;
+  if (!unit) { alert('Selecciona una unidad específica (no Consolidado) antes de importar.'); inp.value=''; return; }
+  const fd = new FormData();
+  fd.append('file', f); fd.append('year', G('bgt-year').value); fd.append('unit', unit);
+  G('bgt-body').innerHTML = '<p style="color:var(--mu);font-size:12px;padding:20px 0">Importando...</p>';
+  try {
+    const r = await fetch('/api/budget/import', { method:'POST', body: fd });
+    const d = await r.json();
+    if (d.error) { alert('❌ ' + d.error); }
+    else { alert(`✅ Importado en ${unit}: ${d.inserted} valores en ${d.partidas} partidas (${(d.meses||[]).join(', ')}).`); fillYears(); }
+  } catch(e) { alert('Error de conexión: ' + e.message); }
+  inp.value = '';
+  loadBgt();
+}

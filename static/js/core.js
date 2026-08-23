@@ -71,3 +71,19 @@ let modoDivisaReal=false;
 
 
 function escAttr(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+async function fillYears(){
+  try {
+    const r = await fetch('/api/years');
+    let years = await r.json();
+    if (!Array.isArray(years) || !years.length) years = [String(new Date().getFullYear())];
+    years = years.map(String);
+    document.querySelectorAll('select#ysel, select[id$="-year"]').forEach(sel => {
+      const prev = sel.value;
+      sel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+      sel.value = years.includes(prev) ? prev : years[0];
+    });
+    const up = G('up-year');   // input numérico de la página de carga
+    if (up && !years.includes(up.value)) up.value = years[0];
+  } catch(e) { console.error('fillYears:', e); }
+}
