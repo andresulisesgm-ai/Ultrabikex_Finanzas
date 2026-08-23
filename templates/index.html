@@ -3452,6 +3452,12 @@ async function fetchESFRowsDashboard(year) {
 
   _esfRowsCacheKey = cacheKey;
   _esfRowsPromise = (async () => {
+    // Fix ago-2026 (condicion de carrera): captura la key con la que arranco ESTA
+    // promesa. Si para cuando termina de resolver ya cambio _esfRowsCacheKey (otra
+    // llamada mas reciente, ej. cambio de empresa seguido de activar Divisa Real,
+    // arranco en el medio), esta promesa vieja NO debe pisar el cache -- se descarta
+    // en silencio y devuelve su propio resultado sin contaminar el estado global.
+    const cacheKeyDeEstaLlamada = cacheKey;
     const empresaParam = CURRENT_EMPRESA_ID ? `&empresa_id=${CURRENT_EMPRESA_ID}` : '';
     let result = null;
     if (!modoDivisaReal) {
@@ -3470,7 +3476,9 @@ async function fetchESFRowsDashboard(year) {
         }
       }
     }
-    _esfRowsCache = result;
+    if (_esfRowsCacheKey === cacheKeyDeEstaLlamada) {
+      _esfRowsCache = result;
+    }
     return result;
   })();
 
@@ -4446,8 +4454,9 @@ async function loadDash(){
 
     // Modo Divisa Real: carga datos ajustados de un mes específico
         if(modoDivisaReal){
-          const month=G('dash-month').value;
-          const qParam=G('dash-quarter')?G('dash-quarter').value:'';
+              await actualizarDisponibilidadTrimestres();
+              const month=G('dash-month').value;
+              const qParam=G('dash-quarter')?G('dash-quarter').value:'';
           const [rInd,rEerr]=await Promise.all([
             fetch(`/api/indicadores/divisa_real?year=${year}&empresa_id=${CURRENT_EMPRESA_ID||''}`),
             fetch(`/api/eerr/divisa_real/trimestres?year=${year}&unit=${unit==='TODAS'?'':unit}&empresa_id=${CURRENT_EMPRESA_ID||''}`)
@@ -5173,6 +5182,32 @@ async function ejecutarCopiarMetodos(){
   else{showA('al-metodos-er','❌ '+d.error);}
 }
 
+// Deshabilita en el selector de trimestre las opciones sin tasa BCV/paralela
+// completa (3 meses cargados en tasas_periodo) para el año activo. Solo
+// bloquea -- no selecciona ningun valor. Se llama al activar Divisa Real y
+// cada vez que cambia el anio mientras Divisa Real ya esta activo.
+async function actualizarDisponibilidadTrimestres(){
+  const qsel=G('dash-quarter');
+  if(!qsel) return;
+  const year=G('dash-year')?G('dash-year').value:String(new Date().getFullYear());
+  const QUARTER_MONTHS_DISP={1:['ENE','FEB','MAR'],2:['ABR','MAY','JUN'],3:['JUL','AGO','SEPT'],4:['OCT','NOV','DIC']};
+  let mesesConTasa=new Set();
+  try{
+    const rTasas=await fetch(`/api/tasas?year=${year}`);
+    if(rTasas.ok){
+      const tasas=await rTasas.json();
+      mesesConTasa=new Set(tasas.map(t=>t.month));
+    }
+  }catch(e){}
+  Array.from(qsel.options).forEach(opt=>{
+    if(!opt.value) return; // "Trimestres" (sin filtro) siempre habilitado
+    const q=parseInt(opt.value);
+    const completo=QUARTER_MONTHS_DISP[q].every(m=>mesesConTasa.has(m));
+    opt.disabled=!completo;
+    opt.textContent=completo?`Q${q}`:`Q${q} (sin tasa)`;
+  });
+}
+
 // ── TOGGLE MODO DIVISA ───────────────────────────────────────────────────
 async function toggleDivisaMode(){
   modoDivisaReal=!modoDivisaReal;
@@ -5185,45 +5220,15 @@ async function toggleDivisaMode(){
       toggle.parentElement.classList.add('active');
       if(msel) msel.style.display='block';
       if(qsel){
-        // Regla: al activar Divisa Real, preseleccionar el ultimo trimestre con
-        // tasa BCV/paralela completa (3 meses cargados en tasas_periodo), no un
-        // mes puntual. Fallback al comportamiento viejo (mes mas reciente con
-        // datos cargados) si ningun trimestre del año tiene los 3 meses.
-        const year=G('dash-year')?G('dash-year').value:String(new Date().getFullYear());
-        const QUARTER_MONTHS_TOGGLE={1:['ENE','FEB','MAR'],2:['ABR','MAY','JUN'],3:['JUL','AGO','SEPT'],4:['OCT','NOV','DIC']};
-        let quarterDefault=null;
-        try{
-          const rTasas=await fetch(`/api/tasas?year=${year}`);
-          if(rTasas.ok){
-            const tasas=await rTasas.json();
-            const mesesConTasa=new Set(tasas.map(t=>t.month));
-            for(const q of [4,3,2,1]){
-              if(QUARTER_MONTHS_TOGGLE[q].every(m=>mesesConTasa.has(m))){
-                quarterDefault=q;
-                break;
-              }
-            }
-          }
-        }catch(e){}
-        if(quarterDefault){
-          qsel.value=String(quarterDefault);
-          qsel.disabled=false;
-          msel.value='';
-          msel.disabled=true;
-        }else{
-          let mesDefault=null;
-          if(DD&&DD.loaded&&DD.loaded.length){
-            const mesesConDatos=[...new Set(DD.loaded.map(l=>l.month))];
-            mesesConDatos.sort((a,b)=>MO.indexOf(b)-MO.indexOf(a));
-            mesDefault=mesesConDatos[0]||null;
-          }
-          if(!mesDefault){
-            const mesesAbrev=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC'];
-            mesDefault=mesesAbrev[new Date().getMonth()];
-          }
-          const opcionExiste=Array.from(msel.options).some(o=>o.value===mesDefault);
-          if(opcionExiste) msel.value=mesDefault;
-        }
+        // Regla (ago-2026, revisado): al activar Divisa Real, NO preseleccionar
+        // ningun trimestre puntual -- arranca en "Trimestres" (sin filtro = todos).
+        // Las opciones sin tasa BCV/paralela completa quedan deshabilitadas en el
+        // dropdown para que el usuario solo pueda elegir trimestres con datos.
+        qsel.value='';
+        qsel.disabled=false;
+        msel.value='';
+        msel.disabled=true;
+        await actualizarDisponibilidadTrimestres();
       }
     }else{
       toggle.parentElement.classList.remove('active');
