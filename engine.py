@@ -1111,17 +1111,29 @@ def calcular_estados_reales(year, unit='', empresa_id=None, db=None):
         # Construir plug_efectivo_q considerando overrides manuales
         plug_efectivo_q = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}
         for q in [1, 2, 3, 4]:
-            row_ov = conn_estados.execute(
-                'SELECT ganancia, perdida FROM ganancia_perdida_divisa_override WHERE year=? AND quarter=? AND empresa_id IS ?',
-                (year, q, empresa_id)
-            ).fetchone()
-            if row_ov is not None:
-                inc_q = float(row_ov['ganancia'] or 0.0) - float(row_ov['perdida'] or 0.0)
+            if empresa_id:
+                row_ov = conn_estados.execute(
+                    'SELECT ganancia, perdida FROM ganancia_perdida_divisa_override WHERE year=? AND quarter=? AND empresa_id=?',
+                    (year, q, empresa_id)
+                ).fetchone()
+                inc_q = (float(row_ov['ganancia'] or 0.0) - float(row_ov['perdida'] or 0.0)) if row_ov is not None else 0.0
             else:
-                inc_q = 0.0  # ago-2026: sin override, Divisa Real NO cuadra automatico (esa
-                             # regla es exclusiva de BCV) -- Yocelin confirma que solo su ajuste
-                             # manual es valido aca; el plug automatico (BCV) queda descartado
-                             # como fallback.
+                # Bug real corregido (ago-2026): el Holding (empresa_id=None) buscaba una fila de
+                # override con empresa_id IS NULL, que estructuralmente nunca se llega a cargar --
+                # Yocelin confirma que el ajuste manual siempre lo carga por empresa, nunca a nivel
+                # Holding (decisión de negocio). El Holding es agregado, no fuente de datos propia
+                # (mismo criterio ya aplicado en el resto del sistema) -- ahora suma los overrides
+                # de las empresas reales que ya tengan uno guardado para ese trimestre, en vez de
+                # buscar uno propio que nunca existe.
+                rows_ov = conn_estados.execute(
+                    'SELECT ganancia, perdida FROM ganancia_perdida_divisa_override WHERE year=? AND quarter=? AND empresa_id IS NOT NULL',
+                    (year, q)
+                ).fetchall()
+                inc_q = sum(float(r['ganancia'] or 0.0) - float(r['perdida'] or 0.0) for r in rows_ov)
+            # ago-2026: sin override, Divisa Real NO cuadra automatico (esa
+            # regla es exclusiva de BCV) -- Yocelin confirma que solo su ajuste
+            # manual es valido aca; el plug automatico (BCV) queda descartado
+            # como fallback.
             plug_efectivo_q[q] = plug_efectivo_q.get(q - 1, 0.0) + inc_q
 
         if empresa_id:
