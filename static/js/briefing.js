@@ -2,11 +2,13 @@
 let aiTipoActual = 'eerr';
 
 const AI_TIPO_META = {
-  eerr:        { label: 'EERR',            desc: 'Estado de resultados en bolívares' },
-  eerr_divisa: { label: 'EERR Divisa Real', desc: 'EERR ajustado a dólares reales' },
-  esf:         { label: 'ESF',             desc: 'Balance general consolidado' },
-  completo:    { label: 'Completo',         desc: 'EERR + ESF en un solo archivo' },
-  comparativa: { label: 'Comparativa',      desc: 'Comparación de unidades del grupo' }
+  eerr:               { label: 'EERR',                  desc: 'Estado de resultados en bolívares' },
+  eerr_divisa:        { label: 'EERR Divisa Real',       desc: 'EERR ajustado a dólares reales' },
+  esf:                { label: 'ESF',                    desc: 'Balance general consolidado' },
+  esf_divisa:         { label: 'ESF Divisa Real',        desc: 'Balance ajustado a divisa real, por trimestre' },
+  completo:           { label: 'Completo',               desc: 'EERR + EERR Divisa Real + ESF + ESF Divisa Real' },
+  comparativa:        { label: 'Comparativa',            desc: 'Comparación de unidades del grupo' },
+  comparativa_divisa: { label: 'Comparativa Divisa Real', desc: 'Comparación de unidades en dólares reales' }
 };
 
 const AI_MONTH_LABELS = {
@@ -38,7 +40,7 @@ function setAiTipo(tipo, el) {
     quarterWrapper.style.display = (tipo === 'esf_divisa' || tipo === 'completo') ? 'block' : 'none';
   }
 
-  if (tipo === 'comparativa') {
+  if (tipo === 'comparativa' || tipo === 'comparativa_divisa') {
     if (unitWrapper) unitWrapper.style.display = 'none';
     if (unitsCompWrapper) unitsCompWrapper.style.display = 'block';
   } else {
@@ -71,19 +73,26 @@ function updateAiBriefingPreview() {
   const tipoLabel  = AI_TIPO_META[tipo] ? AI_TIPO_META[tipo].label : tipo;
 
   const TIPO_FOCO = {
-    eerr:        'rentabilidad operativa, estructura de costos y evolución de márgenes',
-    eerr_divisa: 'impacto cambiario sobre el resultado, ajuste por diferencial BCV/paralela y poder adquisitivo real',
-    esf:         'posición patrimonial, estructura de activos y nivel de endeudamiento',
-    completo:    'visión integral: resultado operativo, posición de balance y coherencia entre ambos estados',
-    comparativa: 'descomposición de brechas operativas y cambiarias entre las distintas unidades del grupo'
+    eerr:               'rentabilidad operativa, estructura de costos y evolución de márgenes',
+    eerr_divisa:         'impacto cambiario sobre el resultado, ajuste por diferencial BCV/paralela y poder adquisitivo real',
+    esf:                 'posición patrimonial, estructura de activos y nivel de endeudamiento',
+    esf_divisa:          'posición líquida real (efectivo y obligaciones de corto plazo) en dólares, por trimestre',
+    completo:            'visión integral: resultado operativo, posición de balance y coherencia entre ambos estados',
+    comparativa:         'descomposición de brechas operativas y cambiarias entre las distintas unidades del grupo',
+    comparativa_divisa:  'descomposición de brechas de rendimiento entre unidades en poder adquisitivo real'
   };
 
   const foco = TIPO_FOCO[tipo] || tipo;
 
   let promptLabel, contexto;
-  if (tipo === 'comparativa') {
-    promptLabel = 'CFO comparativo — brechas de portafolio';
-    if (!month) {
+  if (tipo === 'comparativa' || tipo === 'comparativa_divisa') {
+    const esDivisaComp = (tipo === 'comparativa_divisa');
+    promptLabel = esDivisaComp ? 'CFO comparativo — brechas en dólares reales' : 'CFO comparativo — brechas de portafolio';
+    if (esDivisaComp) {
+      contexto = !month
+        ? 'El CFO evaluará si la brecha real entre unidades se amplió o se cerró durante el año, ya sin ruido cambiario nominal.'
+        : 'El CFO descompondrá la brecha en poder adquisitivo real entre las unidades para el mes seleccionado.';
+    } else if (!month) {
       contexto = 'El CFO analizará la trayectoria anual comparada entre las unidades del grupo, evaluando cambios estructurales y consistencia.';
     } else {
       contexto = 'El CFO realizará una descomposición de brechas operativas y cambiarias entre las unidades para el mes seleccionado.';
@@ -121,29 +130,60 @@ function updateAiBriefingPreview() {
   cargarPromptConfigurado();
 }
 
+function getTipoPromptActual() {
+  const unit  = document.getElementById('ai-unit') ? document.getElementById('ai-unit').value : '';
+  const month = document.getElementById('ai-month') ? document.getElementById('ai-month').value : '';
+  const tipo  = aiTipoActual;
+  // 'tipo' ya lleva la señal de Divisa Real en su propio nombre (eerr_divisa,
+  // esf_divisa, comparativa_divisa) -- no depende de ningún estado global.
+  const es_divisa = tipo.includes('divisa');
+
+  if (tipo === 'comparativa' || tipo === 'comparativa_divisa') {
+    if (es_divisa) {
+      return (month === '') ? 'comparativo_divisa_anual' : 'comparativo_divisa_mes';
+    } else {
+      return (month === '') ? 'comparativo_anual' : 'comparativo_mes';
+    }
+  } else if (tipo === 'esf') {
+    return 'esf_consolidado';
+  } else if (tipo === 'esf_divisa') {
+    return 'esf_divisa_real';
+  } else {
+    if (unit === '') {
+      if (es_divisa) {
+        return (month === '') ? 'consolidado_divisa_anual' : 'consolidado_divisa_mes';
+      } else {
+        return (month === '') ? 'consolidado' : 'consolidado_mes';
+      }
+    } else if (month === '') {
+      return es_divisa ? 'unidad_divisa_anual' : 'anual';
+    } else {
+      return es_divisa ? 'unidad_divisa_mes' : 'unidad_mes';
+    }
+  }
+}
+
 async function cargarPromptConfigurado() {
   const unit = document.getElementById('ai-unit') ? document.getElementById('ai-unit').value : '';
   const month = document.getElementById('ai-month') ? document.getElementById('ai-month').value : '';
   const tipo = aiTipoActual;
 
-  let tipo_prompt = '';
-  if (tipo === 'comparativa') {
-    tipo_prompt = (month === '') ? 'comparativo_anual' : 'comparativo_mes';
-  } else {
-    if (unit === '') {
-      tipo_prompt = 'consolidado';
-    } else if (month === '') {
-      tipo_prompt = 'anual';
-    } else {
-      tipo_prompt = 'unidad_mes';
-    }
-  }
+  const tipo_prompt = getTipoPromptActual();
 
   try {
-    const r = await fetch(`/api/briefing-prompt?tipo=${tipo_prompt}`);
+    let r = await fetch(`/api/briefing-prompt?tipo=${tipo_prompt}`);
+    if (!r.ok) {
+      // Bug real corregido: si no hay fila guardada para este tipo (404 -- el caso
+      // normal para cualquier tipo que nunca se guardó manualmente), el editor
+      // quedaba con el contenido anterior sin avisar, en vez de mostrar el prompt
+      // de fábrica. Cae automáticamente al default, igual que restablecerPromptDefault().
+      r = await fetch(`/api/briefing-prompt?tipo=${tipo_prompt}&default=1`);
+    }
     if (r.ok) {
       const d = await r.json();
       document.getElementById('ai-prompt-editor').value = d.prompt_text;
+    } else {
+      console.error('No se pudo cargar ningún prompt (ni guardado ni default) para', tipo_prompt);
     }
   } catch (e) {
     console.error('Error al cargar el prompt:', e);
@@ -163,7 +203,7 @@ async function downloadAiBriefing() {
   let unit = '';
   let units = [];
 
-  if (tipo === 'comparativa') {
+  if (tipo === 'comparativa' || tipo === 'comparativa_divisa') {
     units = getSelectedComparativaUnits();
     if (units.length < 2) {
       alert('Selecciona al menos 2 unidades para comparar.');
@@ -209,18 +249,7 @@ async function guardarPromptDefault() {
   const month = document.getElementById('ai-month') ? document.getElementById('ai-month').value : '';
   const tipo = aiTipoActual;
 
-  let tipo_prompt = '';
-  if (tipo === 'comparativa') {
-    tipo_prompt = (month === '') ? 'comparativo_anual' : 'comparativo_mes';
-  } else {
-    if (unit === '') {
-      tipo_prompt = 'consolidado';
-    } else if (month === '') {
-      tipo_prompt = 'anual';
-    } else {
-      tipo_prompt = 'unidad_mes';
-    }
-  }
+  const tipo_prompt = getTipoPromptActual();
 
   const prompt_text = document.getElementById('ai-prompt-editor').value;
 
@@ -254,18 +283,7 @@ async function restablecerPromptDefault() {
   const month = document.getElementById('ai-month') ? document.getElementById('ai-month').value : '';
   const tipo = aiTipoActual;
 
-  let tipo_prompt = '';
-  if (tipo === 'comparativa') {
-    tipo_prompt = (month === '') ? 'comparativo_anual' : 'comparativo_mes';
-  } else {
-    if (unit === '') {
-      tipo_prompt = 'consolidado';
-    } else if (month === '') {
-      tipo_prompt = 'anual';
-    } else {
-      tipo_prompt = 'unidad_mes';
-    }
-  }
+  const tipo_prompt = getTipoPromptActual();
 
   try {
     const r = await fetch(`/api/briefing-prompt?tipo=${tipo_prompt}&default=1`);

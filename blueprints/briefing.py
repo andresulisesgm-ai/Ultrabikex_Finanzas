@@ -18,15 +18,29 @@ def get_briefing_prompt():
 
     if default_flag:
         from db import (
-            PROMPT_CONSOLIDADO_DEFAULT, PROMPT_UNIDAD_MES_DEFAULT, PROMPT_ANUAL_DEFAULT,
-            PROMPT_COMPARATIVO_MES_DEFAULT, PROMPT_COMPARATIVO_ANUAL_DEFAULT
+            PROMPT_CONSOLIDADO_DEFAULT, PROMPT_CONSOLIDADO_MES_DEFAULT,
+            PROMPT_CONSOLIDADO_DIVISA_ANUAL_DEFAULT, PROMPT_CONSOLIDADO_DIVISA_MES_DEFAULT,
+            PROMPT_ANUAL_DEFAULT, PROMPT_UNIDAD_DIVISA_ANUAL_DEFAULT,
+            PROMPT_UNIDAD_MES_DEFAULT, PROMPT_UNIDAD_DIVISA_MES_DEFAULT,
+            PROMPT_ESF_CONSOLIDADO_DEFAULT, PROMPT_ESF_DIVISA_REAL_DEFAULT,
+            PROMPT_COMPARATIVO_ANUAL_DEFAULT, PROMPT_COMPARATIVO_MES_DEFAULT,
+            PROMPT_COMPARATIVO_DIVISA_ANUAL_DEFAULT, PROMPT_COMPARATIVO_DIVISA_MES_DEFAULT
         )
         fallbacks = {
             'consolidado': PROMPT_CONSOLIDADO_DEFAULT,
-            'unidad_mes': PROMPT_UNIDAD_MES_DEFAULT,
+            'consolidado_mes': PROMPT_CONSOLIDADO_MES_DEFAULT,
+            'consolidado_divisa_anual': PROMPT_CONSOLIDADO_DIVISA_ANUAL_DEFAULT,
+            'consolidado_divisa_mes': PROMPT_CONSOLIDADO_DIVISA_MES_DEFAULT,
             'anual': PROMPT_ANUAL_DEFAULT,
+            'unidad_divisa_anual': PROMPT_UNIDAD_DIVISA_ANUAL_DEFAULT,
+            'unidad_mes': PROMPT_UNIDAD_MES_DEFAULT,
+            'unidad_divisa_mes': PROMPT_UNIDAD_DIVISA_MES_DEFAULT,
+            'esf_consolidado': PROMPT_ESF_CONSOLIDADO_DEFAULT,
+            'esf_divisa_real': PROMPT_ESF_DIVISA_REAL_DEFAULT,
+            'comparativo_anual': PROMPT_COMPARATIVO_ANUAL_DEFAULT,
             'comparativo_mes': PROMPT_COMPARATIVO_MES_DEFAULT,
-            'comparativo_anual': PROMPT_COMPARATIVO_ANUAL_DEFAULT
+            'comparativo_divisa_anual': PROMPT_COMPARATIVO_DIVISA_ANUAL_DEFAULT,
+            'comparativo_divisa_mes': PROMPT_COMPARATIVO_DIVISA_MES_DEFAULT
         }
         return jsonify({'tipo_reporte': tipo, 'prompt_text': fallbacks.get(tipo, '')})
 
@@ -71,8 +85,13 @@ def save_briefing_prompt():
 def export_ai():
     import io
     from db import (
-        PROMPT_CONSOLIDADO_DEFAULT, PROMPT_UNIDAD_MES_DEFAULT, PROMPT_ANUAL_DEFAULT,
-        PROMPT_COMPARATIVO_MES_DEFAULT, PROMPT_COMPARATIVO_ANUAL_DEFAULT
+        PROMPT_CONSOLIDADO_DEFAULT, PROMPT_CONSOLIDADO_MES_DEFAULT,
+        PROMPT_CONSOLIDADO_DIVISA_ANUAL_DEFAULT, PROMPT_CONSOLIDADO_DIVISA_MES_DEFAULT,
+        PROMPT_ANUAL_DEFAULT, PROMPT_UNIDAD_DIVISA_ANUAL_DEFAULT,
+        PROMPT_UNIDAD_MES_DEFAULT, PROMPT_UNIDAD_DIVISA_MES_DEFAULT,
+        PROMPT_ESF_CONSOLIDADO_DEFAULT, PROMPT_ESF_DIVISA_REAL_DEFAULT,
+        PROMPT_COMPARATIVO_ANUAL_DEFAULT, PROMPT_COMPARATIVO_MES_DEFAULT,
+        PROMPT_COMPARATIVO_DIVISA_ANUAL_DEFAULT, PROMPT_COMPARATIVO_DIVISA_MES_DEFAULT
     )
 
     if request.method == 'POST':
@@ -97,27 +116,54 @@ def export_ai():
 
     # ── Selección de prompt ────────────────────────────────────────────────────
     if not prompt_text:
-        if tipo == 'comparativa':
-            tipo_prompt = 'comparativo_anual' if month == '' else 'comparativo_mes'
+        # 'tipo' ya lleva la señal de Divisa Real en su propio nombre (eerr_divisa,
+        # esf_divisa, comparativa_divisa) -- no hace falta ningún parámetro aparte.
+        es_divisa = 'divisa' in tipo
+        if tipo in ('comparativa', 'comparativa_divisa'):
+            if es_divisa:
+                tipo_prompt = 'comparativo_divisa_anual' if month == '' else 'comparativo_divisa_mes'
+            else:
+                tipo_prompt = 'comparativo_anual' if month == '' else 'comparativo_mes'
+        elif tipo == 'esf':
+            tipo_prompt = 'esf_consolidado'
+        elif tipo == 'esf_divisa':
+            tipo_prompt = 'esf_divisa_real'
         else:
             if unit == '':
-                tipo_prompt = 'consolidado'
+                if es_divisa:
+                    tipo_prompt = 'consolidado_divisa_anual' if month == '' else 'consolidado_divisa_mes'
+                else:
+                    tipo_prompt = 'consolidado' if month == '' else 'consolidado_mes'
             elif month == '':
-                tipo_prompt = 'anual'
+                tipo_prompt = 'unidad_divisa_anual' if es_divisa else 'anual'
             else:
-                tipo_prompt = 'unidad_mes'
+                tipo_prompt = 'unidad_divisa_mes' if es_divisa else 'unidad_mes'
 
         row_p = db.execute("SELECT prompt_text FROM briefing_prompts WHERE tipo_reporte = ?", (tipo_prompt,)).fetchone()
         if row_p:
             prompt = row_p['prompt_text']
         else:
-            # Fallback a constantes importadas de db.py
+            # Fallback a constantes importadas de db.py -- las 14 combinaciones,
+            # no solo las 5 originales (bug encontrado en auditoría: este
+            # diccionario había quedado desactualizado respecto al de
+            # get_briefing_prompt(), dejando los 9 tipos nuevos inalcanzables
+            # en la práctica mientras la tabla briefing_prompts no tuviera fila
+            # guardada para ellos).
             fallbacks = {
                 'consolidado': PROMPT_CONSOLIDADO_DEFAULT,
-                'unidad_mes': PROMPT_UNIDAD_MES_DEFAULT,
+                'consolidado_mes': PROMPT_CONSOLIDADO_MES_DEFAULT,
+                'consolidado_divisa_anual': PROMPT_CONSOLIDADO_DIVISA_ANUAL_DEFAULT,
+                'consolidado_divisa_mes': PROMPT_CONSOLIDADO_DIVISA_MES_DEFAULT,
                 'anual': PROMPT_ANUAL_DEFAULT,
+                'unidad_divisa_anual': PROMPT_UNIDAD_DIVISA_ANUAL_DEFAULT,
+                'unidad_mes': PROMPT_UNIDAD_MES_DEFAULT,
+                'unidad_divisa_mes': PROMPT_UNIDAD_DIVISA_MES_DEFAULT,
+                'esf_consolidado': PROMPT_ESF_CONSOLIDADO_DEFAULT,
+                'esf_divisa_real': PROMPT_ESF_DIVISA_REAL_DEFAULT,
+                'comparativo_anual': PROMPT_COMPARATIVO_ANUAL_DEFAULT,
                 'comparativo_mes': PROMPT_COMPARATIVO_MES_DEFAULT,
-                'comparativo_anual': PROMPT_COMPARATIVO_ANUAL_DEFAULT
+                'comparativo_divisa_anual': PROMPT_COMPARATIVO_DIVISA_ANUAL_DEFAULT,
+                'comparativo_divisa_mes': PROMPT_COMPARATIVO_DIVISA_MES_DEFAULT
             }
             prompt = fallbacks.get(tipo_prompt, PROMPT_CONSOLIDADO_DEFAULT)
     else:
@@ -268,8 +314,16 @@ def export_ai():
         lines.append('')
 
     # ── COMPARATIVA POR UNIDAD ────────────────────────────────────────────────
-    if tipo == 'comparativa':
-        from engine import eerr_completo_v2_ui_adapter
+    if tipo in ('comparativa', 'comparativa_divisa'):
+        # Bug encontrado en auditoría: esta sección siempre usaba el adaptador BCV
+        # (eerr_completo_v2_ui_adapter), incluso cuando el modo elegido era Divisa
+        # Real -- el prompt cambiaba pero los números seguían siendo BCV. Corregido:
+        # ahora usa el motor correcto según el tipo.
+        es_comparativa_divisa = (tipo == 'comparativa_divisa')
+        if es_comparativa_divisa:
+            from engine import _calcular_eerr_divisa_real
+        else:
+            from engine import eerr_completo_v2_ui_adapter
         empresa_id_comp = request.args.get('empresa_id', type=int) if request.method == 'GET' else data.get('empresa_id')
         # Ucafe excluida: es venta de café, negocio distinto al resto (retail) — no es comparable, decisión de negocio.
         if empresa_id_comp is not None:
@@ -289,13 +343,16 @@ def export_ai():
         if len(units) < 2:
             return jsonify({'error': 'Selecciona al menos 2 unidades válidas para comparar'}), 400
 
-        lines.append('## COMPARATIVA DE UNIDADES OPERATIVAS')
+        lines.append('## COMPARATIVA DE UNIDADES OPERATIVAS' + (' — DIVISA REAL' if es_comparativa_divisa else ''))
         lines.append('')
         lines.append('| Unidad | Ingresos | Costos | Gastos Operacionales | Otros | Utilidad Neta | Margen Bruto | Margen Neto |')
         lines.append('|---|---|---|---|---|---|---|---|')
 
         for u in units:
-            data_u = eerr_completo_v2_ui_adapter(db, year, u)
+            if es_comparativa_divisa:
+                data_u = _calcular_eerr_divisa_real(db, year, u, empresa_id=empresa_id_comp)
+            else:
+                data_u = eerr_completo_v2_ui_adapter(db, year, u)
             rows_u = data_u.get('rows', [])
 
             def valor_partida(nombre_partida):
