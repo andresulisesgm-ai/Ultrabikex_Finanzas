@@ -1069,31 +1069,6 @@ function renderKPIPills() {
   });
 }
 
-// ── PAGES ─────────────────────────────────────────────────────────────────
-function togglePin(){
-  const sb=document.querySelector('.sidebar');
-  const main=document.querySelector('.main');
-  const btn=G('pin-btn');
-  const pinned=btn.classList.toggle('pinned');
-  localStorage.setItem('sb-pinned', pinned?'1':'0');
-  if(pinned){
-    sb.classList.remove('collapsed');
-    main.classList.remove('collapsed');
-  } else {
-    sb.classList.add('collapsed');
-    main.classList.add('collapsed');
-  }
-}
-function toggleCompanySel(e){
-  e.stopPropagation();
-  document.getElementById('company-sel').classList.toggle('open');
-}
-function deriveInitials(nombre){
-  const words = nombre.replace(/C\.A\.?/i,'').trim().split(/\s+/).filter(Boolean);
-  if(words.length >= 2) return (words[0][0]+words[1][0]).toUpperCase();
-  return nombre.substring(0,2).toUpperCase();
-}
-
 async function loadEmpresasDropdown(){
   try{
     const res = await fetch('/api/empresas');
@@ -1288,82 +1263,6 @@ function updateSidebarForEmpresa(){
   const esHolding = CURRENT_EMPRESA_ID === null;
   G('nav-cargar').style.display = esHolding ? 'none' : '';
   G('nav-tasas').style.display = esHolding ? 'none' : '';
-}
-
-function selectCompany(el,name,color,initials,empresaId){
-  document.getElementById('company-sel-label').textContent=name;
-  document.getElementById('logo-icon').style.background=color;
-  document.getElementById('logo-icon').style.boxShadow='0 2px 8px rgba(15,23,42,.35)';
-  document.getElementById('logo-icon').textContent=initials;
-  document.querySelectorAll('.company-sel-item').forEach(function(i){i.classList.remove('active');});
-  el.classList.add('active');
-  document.getElementById('company-sel').classList.remove('open');
-
-  CURRENT_EMPRESA_ID = empresaId;
-  updateSidebarForEmpresa();
-
-  updateUnitSelectorsForEmpresa();
-
-  showPage('dashboard', G('nav-dashboard'));
-}
-
-function reloadCurrentPage(){
-  if(CURRENT_PAGE === 'dashboard') loadDash();
-  else if(CURRENT_PAGE === 'eerr') loadEERR();
-  else if(CURRENT_PAGE === 'esf') loadESF();
-  else if(CURRENT_PAGE === 'indicadores') loadIndicadores();
-}
-document.addEventListener('click',function(e){
-  var sel=document.getElementById('company-sel');
-  if(sel && !sel.contains(e.target)) sel.classList.remove('open');
-});
-document.addEventListener('DOMContentLoaded',function(){
-  const now=new Date();
-  const MONTHS=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC'];
-  const my=G('metodos-year');const mm=G('metodos-month');
-  if(my)my.value=now.getFullYear();
-  if(mm){mm.value=MONTHS[now.getMonth()];}
-  const pinned=localStorage.getItem('sb-pinned')!=='0';
-  const sb=document.querySelector('.sidebar');
-  const main=document.querySelector('.main');
-  const btn=G('pin-btn');
-  if(!btn)return;
-  if(pinned){
-    btn.classList.add('pinned');
-  } else {
-    sb.classList.add('collapsed');
-    main.classList.add('collapsed');
-  }
-});
-function showPage(name,el){
-  CURRENT_PAGE = name;
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  G('page-'+name).classList.add('active');
-  if(el) el.classList.add('active');
-  const T={dashboard:'Dashboard Financiero',carga:'Cargar Reportes',historial:'Historial de Cargas',mapping:'Mapeo de Cuentas',datos:'Ver Datos',backup:'Backup y Restaurar',comparativa:'Comparativas',eerr:'Estados de Resultados (EERR)',eerrdet:'ERR Detallado',esf:'Estado de Situación Financiera (ESF)',presupuesto:'Presupuesto vs Real',config_tasas:'Configuración de Tasas',err_divisa:'Estados de Resultados Divisa Real (EERR)',esf_divisa:'ESF Divisa Real',export_ai:'Exportar Briefing IA'};
-  const S={dashboard:'Estado de resultados consolidado',carga:'Importar XLS de Odoo',historial:'Auditoría y reversión',mapping:'Configuración de cuentas contables',datos:'Explorador de datos',backup:'Gestión de copias de seguridad',comparativa:'Mismo período vs año anterior',eerr:'P&L estructurado por partida',eerrdet:'Desglose por tipo de ingreso + ACUM EJEC',esf:'Balance trimestral Q1–Q4',presupuesto:'Real vs valores presupuestados',config_tasas:'Tasas BCV/Paralela y métodos de pago por cuenta',esf_divisa:'Revalorización trimestral de efectivo en Bs',export_ai:'Generar prompt y datos para análisis con IA'};
-  G('ptitle').textContent=T[name]||''; G('psub').textContent=S[name]||'';
-  if(name==='dashboard'){ initDivisaToggle(); loadDash(); }
-  if(name==='historial') loadHist();
-  if(name==='mapping')   loadMap();
-  if(name==='datos')     loadData();
-  if(name==='comparativa') loadCmp();
-  if(name==='eerr')      loadEERR();
-  if(name==='eerrdet')   loadEERRDet();
-  if(name==='esf')       loadESF();
-  if(name==='config_tasas'){cargarTasas();cargarMetodosPago();cargarHistorialTasas();}
-  if(name==='err_divisa') loadERRDivisa();
-  if(name==='indicadores') loadIndicadores();
-  if(name==='presupuesto') loadBgt();
-  if(name==='esf_divisa') loadESFDivisaReal();
-  if(name==='export_ai') cargarPromptConfigurado();
-
-  const PAGES_WITH_EXCEL = ['eerr','err_divisa','esf','esf_divisa','presupuesto','comparativa','indicadores'];
-  const btnExcel = document.getElementById('btn-export-excel');
-  if (btnExcel) {
-    btnExcel.style.display = PAGES_WITH_EXCEL.includes(name) ? '' : 'none';
-  }
 }
 
 // ── KPI PILLS ─────────────────────────────────────────────────────────────
