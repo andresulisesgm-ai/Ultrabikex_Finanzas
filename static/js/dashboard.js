@@ -364,21 +364,6 @@ const WIDGET_TEMPLATES = {
     <div class="cv" style="height:230px"><canvas id="ch-dona-segmento"></canvas></div>
     <div id="dona-segmento-legend" style="padding:8px 16px 0"></div>
   `,
-  'wc-sem': `
-    <div class="ch"><div><div class="ct">🚦 Semáforo Financiero</div><div class="cs">Estado de salud por indicador</div></div>
-      <div class="cact"><span class="dh">⠿</span>
-        <button onclick="openSemConfig()" style="background:var(--sf2);border:1px solid var(--bd);border-radius:4px;padding:2px 7px;font-size:10px;cursor:pointer;color:var(--mu)">⚙️</button>
-        <button class="bcl" data-w="wc-sem">✕</button></div></div>
-    <div class="semrow" id="semrow"></div>
-    <div id="sem-config-panel" style="display:none;padding:10px;border-top:1px solid var(--bd);margin-top:8px">
-      <div style="font-size:11px;font-weight:600;color:var(--fg);margin-bottom:8px">Indicadores visibles en el semáforo:</div>
-      <div id="sem-config-checks" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-      <div style="margin-top:10px;display:flex;justify-content:flex-end;gap:6px">
-        <button onclick="closeSemConfig()" style="background:var(--sf2);border:1px solid var(--bd);border-radius:4px;padding:4px 10px;font-size:10px;cursor:pointer">Cancelar</button>
-        <button onclick="saveSemConfig()" style="background:var(--blue);color:white;border:none;border-radius:4px;padding:4px 10px;font-size:10px;cursor:pointer;font-weight:600">Guardar</button>
-      </div>
-    </div>
-  `,
   'wc-gau': `
     <div class="ch"><div><div class="ct">⏱ Indicadores Gauge</div><div class="cs">Margen Neto · Cobertura PE · Eficiencia Operativa</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-gau">✕</button></div></div>
@@ -1378,99 +1363,6 @@ function initModalResize(){
     });
     document.addEventListener('mouseup',()=>{if(isResizing)isResizing=false;});
   });
-}
-
-// ── SEMÁFORO ──────────────────────────────────────────────────────────────
-const SEM_ALL_IDS = [
-  {id:'mb',    label:'Margen Bruto %'},
-  {id:'mn',    label:'Margen Neto %'},
-  {id:'rc',    label:'% Costo/Venta'},
-  {id:'rg',    label:'% Gasto/Venta'},
-  {id:'un',    label:'Utilidad Neta'},
-  {id:'pe',    label:'Cobertura P.E.'},
-  {id:'roe',   label:'ROE %'},
-  {id:'roa',   label:'ROA %'},
-  {id:'ratio_c',label:'Ratio Corriente'},
-  {id:'pa',    label:'Prueba Ácida'},
-  {id:'pd',    label:'Prueba Defensiva'},
-  {id:'end',   label:'Endeudamiento'},
-  {id:'rotinv',label:'Rotación Inv.'},
-  {id:'rotact',label:'Rotación Activos'},
-  {id:'cobro', label:'Período Cobro'},
-];
-
-function getSemActivos() {
-  const w = window.DASHBOARD_CONFIG.find(x => x.id === 'wc-sem');
-  return w?.sem_activos || SEM_ALL_IDS.map(x => x.id);
-}
-
-function openSemConfig() {
-  const activos = getSemActivos();
-  const panel = G('sem-config-panel');
-  const checks = G('sem-config-checks');
-  if (!panel || !checks) return;
-  checks.innerHTML = SEM_ALL_IDS.map(({id, label}) => `
-    <label style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--fg);background:var(--sf2);border:1px solid var(--bd);border-radius:4px;padding:4px 8px;cursor:pointer">
-      <input type="checkbox" data-sem-id="${id}" ${activos.includes(id)?'checked':''} style="accent-color:var(--blue)">
-      ${label}
-    </label>
-  `).join('');
-  panel.style.display = 'block';
-}
-
-function closeSemConfig() {
-  const panel = G('sem-config-panel');
-  if (panel) panel.style.display = 'none';
-}
-
-function saveSemConfig() {
-  const checked = [...document.querySelectorAll('#sem-config-checks input:checked')].map(cb => cb.dataset.semId);
-  const w = window.DASHBOARD_CONFIG.find(x => x.id === 'wc-sem');
-  if (w) w.sem_activos = checked;
-  closeSemConfig();
-  if (window._lastSemArgs) renderSem(...window._lastSemArgs);
-}
-
-function renderSem(mb,mn,rc,rg,un,peCov,ia){
-  window._lastSemArgs = [mb,mn,rc,rg,un,peCov,ia];
-  const activos = getSemActivos();
-  const sc=(v,g,a)=>v>=g?'g':v>=a?'a':'r';
-  const STT={g:'🟢 Saludable',a:'🟡 En atención',r:'🔴 Crítico'};
-  const ALL_INDS = {
-    mb:     {n:'Margen Bruto %',  v:pct(mb),  c:sc(mb,30,20), r:'≥30%', exp:'Rentabilidad antes de gastos', d:'Mide cuánto dinero queda de cada venta después de pagar el costo directo. Meta: ≥30% (saludable) · 20-30% (ajustado) · <20% (peligroso).'},
-    mn:     {n:'Margen Neto %',   v:pct(mn),  c:sc(mn,5,2),  r:'≥5%', exp:'Rentabilidad final del negocio', d:'Mide cuánto dinero realmente te queda al final. Meta: ≥5% (saludable, estándar retail) · 2-5% (ajustado) · <2% (bajo).'},
-    rc:     {n:'% Costo/Venta',   v:pct(rc),  c:rc<=50?'g':rc<=70?'a':'r', r:'≤50%', exp:'Eficiencia en costos directos', d:'Mide qué porcentaje de tus ingresos se va en costos directos. Meta: ≤50% (eficiente) · 50-70% (alto) · >70% (crítico).'},
-    rg:     {n:'% Gasto/Venta',   v:pct(rg),  c:rg<=30?'g':rg<=45?'a':'r', r:'≤30%', exp:'Eficiencia operativa', d:'Mide qué porcentaje de tus ingresos se va en gastos operativos. Meta: ≤30% (liviano) · 30-45% (pesado) · >45% (insostenible).'},
-    un:     {n:'Utilidad Neta',   v:fmtS(un), c:un>0?'g':un===0?'a':'r', r:'>0', exp:'Resultado final en dinero', d:'Ganancia o pérdida del período. Meta: >0 (ganas) · =0 (punto muerto) · <0 (pérdida).'},
-    pe:     {n:'Cobertura P.E.',  v:peCov!=null?pct(peCov):'N/A', c:peCov!=null?(peCov>=100?'g':peCov>=80?'a':'r'):'a', r:'≥100%', exp:'¿Vendes lo suficiente para no perder?', d:'Mide si tus ingresos superan el punto de equilibrio. Meta: ≥100% (cubres costos) · 80-100% (límite) · <80% (peligro).'},
-  };
-
-  if(ia){
-    if(ia.roe!==null){const v=ia.roe*100; ALL_INDS.roe={n:'ROE %',v:pct(v),c:sc(v,10,5),r:'10-20%',exp:'Rentabilidad sobre el patrimonio',d:'ROE = Utilidad Neta / Patrimonio. Meta: ≥10% (excelente) · 5-10% (aceptable) · <5% (bajo).'};}
-    if(ia.roa!==null){const v=ia.roa*100; ALL_INDS.roa={n:'ROA %',v:pct(v),c:sc(v,5,2),r:'5-15%',exp:'Rentabilidad sobre los activos',d:'ROA = Utilidad Neta / Total Activos. Meta: ≥5% (eficiente) · 2-5% (regular) · <2% (ineficiente).'};}
-    if(ia.ratio_corriente!==null){const v=ia.ratio_corriente; ALL_INDS.ratio_c={n:'Ratio Corriente',v:v.toFixed(2),c:v>=1.5?(v<=2?'g':'a'):(v>=1?'a':'r'),r:'1.5-2',exp:'Capacidad para pagar deudas a corto plazo',d:'Ratio = Activos Corrientes / Pasivos Corrientes. Meta: 1.5-2 (saludable) · 1-1.5 (ajustado) · <1 (peligro).'};}
-    if(ia.prueba_acida!==null){const v=ia.prueba_acida; ALL_INDS.pa={n:'Prueba Ácida',v:v.toFixed(2),c:v>=0.8?(v<=1?'g':'a'):(v>=0.5?'a':'r'),r:'0.8-1',exp:'Liquidez inmediata sin inventarios',d:'(Activos Corrientes − Inventarios) / Pasivos Corrientes. Meta: 0.8-1 (óptimo) · 0.5-0.8 (ajustado) · <0.5 (muy justo).'};}
-    if(ia.prueba_defensiva!==null){const v=ia.prueba_defensiva; ALL_INDS.pd={n:'Prueba Defensiva',v:v.toFixed(2),c:v>=0.5?(v<=0.7?'g':'a'):(v>=0.3?'a':'r'),r:'0.5-0.7',exp:'Cobertura con efectivo puro',d:'Efectivo / Pasivos Corrientes. Meta: 0.5-0.7 (sano) · 0.3-0.5 (justo) · <0.3 (crítico).'};}
-    if(ia.ratio_endeud!==null){const v=ia.ratio_endeud; ALL_INDS.end={n:'Endeudamiento',v:v.toFixed(2),c:v>=0.4?(v<=0.6?'g':'a'):(v<=1?'a':'r'),r:'0.4-0.6',exp:'Nivel de apalancamiento',d:'Total Pasivos / Patrimonio. Meta: 0.4-0.6 (equilibrado) · 0.6-1 (alta deuda) · >1 (sobreendeudado).'};}
-    if(ia.rotacion_inv!==null){const v=ia.rotacion_inv; ALL_INDS.rotinv={n:'Rotación Inv. (meses)',v:v.toFixed(1),c:v<=3?(v>=2?'g':'a'):(v<=4?'a':'r'),r:'2-3',exp:'Velocidad de venta del inventario',d:'(Inventario × 3) / Costo Ventas Trimestral. Meta: 2-3 meses (saludable) · 3-4 (lento) · >4 (crítico).'};}
-    if(ia.rotacion_activos!==null){const v=ia.rotacion_activos*4; ALL_INDS.rotact={n:'Rotación Activos (veces/año)',v:v.toFixed(1),c:v>=1.5?(v<=2?'g':'a'):(v>=1?'a':'r'),r:'1.5-2',exp:'Eficiencia en uso de activos',d:'Ingresos Anuales / Total Activos. Meta: 1.5-2 (eficiente) · 1-1.5 (regular) · <1 (ineficiente).'};}
-    if(ia.periodo_cobro!==null){const v=ia.periodo_cobro; ALL_INDS.cobro={n:'Período Cobro (días)',v:Math.round(v),c:v<=60?(v<=30?'g':'a'):(v<=90?'a':'r'),r:'30-60',exp:'Tiempo promedio de cobro',d:'(Cuentas por Cobrar / Ingresos Trimestral) × 90. Meta: 30-60 días (saludable) · 60-90 (lento) · >90 (moroso).'};}
-  }
-
-  const inds = activos.map(id => ALL_INDS[id]).filter(Boolean);
-
-  G('semrow').innerHTML=inds.map(({n,v,c,r,exp,d})=>`
-    <div class="semcol" title="${escAttr(d)}">
-      <div class="semlw">
-        <div class="seml ${c==='r'?'on-r':'off'}"></div>
-        <div class="seml ${c==='a'?'on-a':'off'}"></div>
-        <div class="seml ${c==='g'?'on-g':'off'}"></div>
-      </div>
-      <div class="semnm">${n}</div>
-      <div class="semvl">${v}</div>
-      <div class="semrf">Meta ${r}</div>
-      <div class="semexp">${exp}</div>
-    </div>`).join('');
 }
 
 // ── GAUGES ────────────────────────────────────────────────────────────────
