@@ -5,7 +5,7 @@ from db import get_db
 
 briefing_bp = Blueprint('briefing', __name__)
 
-TIPOS_PROMPT_VALIDOS = {'consolidado', 'unidad_mes', 'anual', 'comparativo_mes', 'comparativo_anual'}
+TIPOS_PROMPT_VALIDOS = {'consolidado', 'unidad_mes', 'anual', 'comparativo_mes', 'comparativo_anual', 'consolidado_mes', 'consolidado_divisa_anual', 'consolidado_divisa_mes', 'unidad_divisa_anual', 'unidad_divisa_mes', 'esf_consolidado', 'esf_divisa_real', 'comparativo_divisa_mes', 'comparativo_divisa_anual'}
 
 
 @briefing_bp.route('/api/briefing-prompt', methods=['GET'])
