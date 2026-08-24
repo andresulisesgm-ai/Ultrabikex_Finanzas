@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -139,9 +139,6 @@
           <select class="csel" id="err-divisa-unit" onchange="loadERRDivisa()" style="padding:5px 8px">
             <option value="">Consolidado</option>
             {% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
-          </select>
-          <select class="csel" id="err-divisa-month" onchange="loadERRDivisa()" style="padding:5px 8px">
-            {% for m in months %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
           </select>
           <select class="csel" id="err-divisa-year" onchange="loadERRDivisa()" style="padding:5px 8px">
             <option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option>
