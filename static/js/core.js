@@ -89,3 +89,9 @@ async function fillYears(){
 }
 
 function showA(id,msg){const e=G(id);e.textContent=msg;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),7000);}
+// ── CERRAR APP ────────────────────────────────────────────────────────────
+async function closeApp(){
+  if(!confirm('¿Cerrar Ultrabikex Financial Analytics? Esto detendrá el servidor.'))return;
+  try{await fetch('/api/shutdown',{method:'POST'});}catch{}
+  document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:DM Sans,sans-serif;color:#64748b;flex-direction:column;gap:10px"><div style="font-size:32px">⏻</div><div style="font-weight:600">Servidor detenido.</div><div style="font-size:12px">Puedes cerrar esta ventana.</div></div>';
+}
