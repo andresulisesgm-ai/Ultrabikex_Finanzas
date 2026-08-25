@@ -770,8 +770,12 @@ def esf_engine(year, unit='', aplicar_divisa_real=False, empresa_id=None,
         for item in ESF_STRUCTURE_V2:
             quarters_data[q][item[0]] = 0.0
             
-        # Asignar Resultados del ejercicio
-        quarters_data[q]['Resultados del ejercicio'] = utilidad_q[q]
+        # Asignar Resultados del ejercicio -- solo si el trimestre tiene esf_data
+        # real. Sin esta guarda, utilidad_q[q] sigue trayendo la Utilidad Neta
+        # acumulada de EERR (que puede tener meses cargados aunque ESF no tenga
+        # balance para ese trimestre), inflando TOTAL PASIVOS Y PATRIMONIO en
+        # trimestres sin datos reales de balance (ver ultrax_errores_evitar.md).
+        quarters_data[q]['Resultados del ejercicio'] = utilidad_q[q] if q in esf_quarters_available else 0.0
         
         # Asignar valores a hojas (is_header == False) excluyendo calculados
         for item in ESF_STRUCTURE_V2:
