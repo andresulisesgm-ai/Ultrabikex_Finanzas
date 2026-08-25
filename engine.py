@@ -2646,20 +2646,22 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
     def periodo_cobro_q(q):
         """Período de cobro en días para el trimestre q: CxC clientes externos
         más CxC empresas del grupo/socios/empleados (cada una promediada con el
-        trimestre anterior), sobre ingresos acumulados desde enero hasta q,
-        por 90 días multiplicados por el número de trimestres transcurridos."""
+        trimestre anterior), sobre ingresos DEL TRIMESTRE puntual (no acumulados
+        desde enero), por 90 días fijo -- réplica exacta de la metodología real
+        de Yocelin (ver E123=(((E14+C14)/2)/(E108))*90 en su Excel BCV, donde
+        E108 es el ingreso del trimestre puntual, no el acumulado)."""
         if q not in _esf_quarters_available:
             return None
         cxc_ext = prom_esf(q, 'cxc_clientes')
         cxc_grp = prom_esf(q, 'cxc_grupo')
         if cxc_ext is None or cxc_grp is None:
             return None
-        ingresos_acum = ing_cum_q.get(q, 0)
-        if not ingresos_acum:
+        ingresos_trimestre = quarters_data[q]['eerr'].get('ingresos', 0) or 0
+        if not ingresos_trimestre:
             return None
-        valor = round((cxc_ext + cxc_grp) / ingresos_acum * 90 * q, 2)
-        dias_cliente_externo = round(cxc_ext / ingresos_acum * 90 * q, 2)
-        dias_empresas_grupo = round(cxc_grp / ingresos_acum * 90 * q, 2)
+        valor = round((cxc_ext + cxc_grp) / ingresos_trimestre * 90, 2)
+        dias_cliente_externo = round(cxc_ext / ingresos_trimestre * 90, 2)
+        dias_empresas_grupo = round(cxc_grp / ingresos_trimestre * 90, 2)
         return {
             'valor': valor,
             'dias_cliente_externo': dias_cliente_externo,
