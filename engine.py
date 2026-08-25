@@ -2676,6 +2676,18 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
             return (curr + qe(prev_q, key)) / 2
         return curr
 
+    def inc_esf(q, key):
+        """Valor incremental del trimestre q para un campo ESF acumulado (ej. Resultados
+        del ejercicio) -- resta el valor del trimestre anterior si está disponible.
+        Réplica de la metodología real de Yocelin (ver E119=E104-C104 en su Excel BCV)."""
+        if q not in _esf_quarters_available:
+            return None
+        curr = qe(q, key)
+        prev_q = q - 1
+        if prev_q >= 1 and prev_q in _esf_quarters_available:
+            return curr - qe(prev_q, key)
+        return curr
+
     # ── Año anterior (acumulado anual) ────────────────────────────────────────
     prev_eerr = _extract_eerr(_rows_prev, all_months)
     prev_esf  = {
@@ -2788,7 +2800,7 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
             safe_div(acum_eerr['ut_neta'], ing_aa), es_pct=True),
         build_ind('ROE (10% y 20%)', '10%-20%',
             None,
-            {q: safe_div(qe(q,'res_ejercicio'), prom_esf(q,'patrimonio')) for q in [1,2,3,4]},
+            {q: safe_div(inc_esf(q,'res_ejercicio'), prom_esf(q,'patrimonio')) for q in [1,2,3,4]},
             safe_div(esf_last['res_ejercicio'], prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'patrimonio')), es_pct=True),
         build_ind('Rotación de Inventarios (2 y 3 meses)', '2-3 meses',
             None,
@@ -2796,8 +2808,8 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
             safe_div(esf_last['inventarios']*12, cos_aa), es_ratio=True),
         build_ind('ROA (5% a 15%)', '5%-15%',
             None,
-            {q: safe_div(qv(q,'ingresos'), prom_esf(q,'tot_activos')) for q in [1,2,3,4]},
-            safe_div(ing_aa, prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'tot_activos')), es_pct=True),
+            {q: safe_div(inc_esf(q,'res_ejercicio'), prom_esf(q,'tot_activos')) for q in [1,2,3,4]},
+            safe_div(esf_last['res_ejercicio'], prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'tot_activos')), es_pct=True),
         ind_pc,
         build_ind('Ratio Corriente (entre 1,5 y 2)', '1.5-2',
             None,
