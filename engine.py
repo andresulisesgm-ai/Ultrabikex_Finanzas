@@ -2714,6 +2714,12 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
         'tot_activos':0,'act_corr':0,'pas_corr':0,'tot_pas':0,
         'patrimonio':0,'efectivo':0,'inventarios':0,'cxc':0,'res_ejercicio':0
     }
+    # prev_esf es un stub sin calcular (ver ultrax_deuda_tecnica_refactor.md) --
+    # no hay ESF real del año anterior cargado en el sistema. Los indicadores que
+    # dependen de un promedio interanual real (ROE, ROA, Rotación de Inventarios,
+    # Período de Cobro -- columna "Año Actual") deben devolver None en vez de una
+    # aproximación intra-año-actual que aparenta ser un cálculo interanual válido.
+    hay_esf_prev = False
 
     # ── Calcular por trimestre ────────────────────────────────────────────────
     quarters_data = {}
@@ -2764,7 +2770,7 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
         'Período de cobro (30 a 60 días max)', '30-60 días',
         None,
         {q: (pc_data_q[q]['valor'] if pc_data_q[q] else None) for q in [1, 2, 3, 4]},
-        pc_data_aa['valor'] if pc_data_aa else None,
+        (pc_data_aa['valor'] if pc_data_aa else None) if hay_esf_prev else None,
         es_ratio=True
     )
     for t in ind_pc['trimestres']:
@@ -2821,15 +2827,15 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
         build_ind('ROE (10% y 20%)', '10%-20%',
             None,
             {q: safe_div(inc_esf(q,'res_ejercicio'), prom_esf(q,'patrimonio')) for q in [1,2,3,4]},
-            safe_div(esf_last['res_ejercicio'], prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'patrimonio')), es_pct=True),
+            safe_div(esf_last['res_ejercicio'], prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'patrimonio')) if hay_esf_prev else None, es_pct=True),
         build_ind('Rotación de Inventarios (2 y 3 meses)', '2-3 meses',
             None,
             {q: safe_div(prom_esf(q,'inventarios')*3, qv(q,'costo_merc')) if prom_esf(q,'inventarios') is not None else None for q in [1,2,3,4]},
-            safe_div(esf_last['inventarios']*12, acum_eerr.get('costo_merc', 0)), es_ratio=True),
+            safe_div(esf_last['inventarios']*12, acum_eerr.get('costo_merc', 0)) if hay_esf_prev else None, es_ratio=True),
         build_ind('ROA (5% a 15%)', '5%-15%',
             None,
             {q: safe_div(inc_esf(q,'res_ejercicio'), prom_esf(q,'tot_activos')) for q in [1,2,3,4]},
-            safe_div(esf_last['res_ejercicio'], prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'tot_activos')), es_pct=True),
+            safe_div(esf_last['res_ejercicio'], prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'tot_activos')) if hay_esf_prev else None, es_pct=True),
         ind_pc,
         build_ind('Ratio Corriente (entre 1,5 y 2)', '1.5-2',
             None,
