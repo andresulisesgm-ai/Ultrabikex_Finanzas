@@ -2564,6 +2564,7 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
     NODOS = {
         'Total Ingresos': 'ingresos',
         'Total Costo de Ventas': 'costos',
+        'Subtotal Costo de Ventas por Mercancia': 'costo_merc',
         'Utilidad Bruta': 'ut_bruta',
         'Total Gastos Operacionales': 'gas_op',
         'Utilidad Neta Operacional': 'ut_op',
@@ -2697,7 +2698,7 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
 
     # ── Calcular por trimestre ────────────────────────────────────────────────
     quarters_data = {}
-    acum_eerr = {k: 0 for k in ['ingresos','costos','ut_bruta','gas_op','ut_op','otros_nop','ut_ai','islr','ut_neta']}
+    acum_eerr = {k: 0 for k in ['ingresos','costos','costo_merc','ut_bruta','gas_op','ut_op','otros_nop','ut_ai','islr','ut_neta']}
     for q in [1, 2, 3, 4]:
         months = QUARTER_MONTHS[q]
         eerr_q = _extract_eerr(_rows_curr, months)
@@ -2804,8 +2805,8 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
             safe_div(esf_last['res_ejercicio'], prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'patrimonio')), es_pct=True),
         build_ind('Rotación de Inventarios (2 y 3 meses)', '2-3 meses',
             None,
-            {q: safe_div(qe(q,'inventarios')*3, qv(q,'costos')) for q in [1,2,3,4]},
-            safe_div(esf_last['inventarios']*12, cos_aa), es_ratio=True),
+            {q: safe_div(prom_esf(q,'inventarios')*3, qv(q,'costo_merc')) if prom_esf(q,'inventarios') is not None else None for q in [1,2,3,4]},
+            safe_div(esf_last['inventarios']*12, acum_eerr.get('costo_merc', 0)), es_ratio=True),
         build_ind('ROA (5% a 15%)', '5%-15%',
             None,
             {q: safe_div(inc_esf(q,'res_ejercicio'), prom_esf(q,'tot_activos')) for q in [1,2,3,4]},
