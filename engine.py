@@ -636,7 +636,9 @@ def esf_engine(year, unit='', aplicar_divisa_real=False, empresa_id=None,
     
     groups_v2 = {}
     for r in rows_groups:
-        groups_v2.setdefault(r['group_name'], []).append(r['partida'])
+        lista = groups_v2.setdefault(r['group_name'], [])
+        if r['partida'] not in lista:
+            lista.append(r['partida'])
         
     # 2. Leer datos de esf_data
     if unit:
@@ -2617,7 +2619,18 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
 
         # ESF: una sola llamada para el año actual
         _esf_res = esf_engine(year, '', empresa_id=empresa_id)
-        _esf_rows = {n['partida']: n.get('quarters', {}) for n in _esf_res.get('rows', [])}
+        # Puede haber más de una fila con el mismo 'partida' (grupo nivel 3 +
+        # detalle nivel 4 de una única cuenta hija) -- priorizar la fila de
+        # grupo (nivel más bajo) para no perder la suma completa si el grupo
+        # agrupa más de una cuenta Odoo bajo el mismo nombre de partida.
+        _esf_rows = {}
+        for n in _esf_res.get('rows', []):
+            p = n['partida']
+            if p not in _esf_rows or n.get('level', 99) < _esf_rows[p].get('_level', 99):
+                qd = dict(n.get('quarters', {}))
+                qd['_level'] = n.get('level', 99)
+                _esf_rows[p] = qd
+        _esf_rows = {p: {k: v for k, v in qd.items() if k != '_level'} for p, qd in _esf_rows.items()}
         _result_quarters, _esf_quarters_available = compute_esf(db, year, '', empresa_id=empresa_id)
 
     def get_esf_quarter(q):
