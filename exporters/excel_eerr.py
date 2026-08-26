@@ -7,6 +7,10 @@ MONTH_TYPE = {
 
 HEADER_FONT = Font(name='Arial', bold=True)
 HEADER_ALIGN = Alignment(horizontal='center', vertical='center')
+ALIGN_RIGHT_CENTER = Alignment(horizontal='right', vertical='center')
+ALIGN_RIGHT = Alignment(horizontal='right')
+ALIGN_CENTER_CENTER = Alignment(horizontal='center', vertical='center')
+ALIGN_INDENT = {i: Alignment(vertical='center', indent=i) for i in range(4)}
 
 
 def _month_subcols(tipo):
@@ -365,7 +369,7 @@ class ExcelExporter:
                 a_cell = ws.cell(row=row_num, column=1, value=partida)
                 a_cell.font      = fnt
                 a_cell.fill      = fill
-                a_cell.alignment = Alignment(vertical='center', indent=indent)
+                a_cell.alignment = ALIGN_INDENT.get(indent, ALIGN_INDENT[0])
                 a_cell.border    = border
 
                 yp_vals = [
@@ -380,7 +384,7 @@ class ExcelExporter:
                     c.number_format = PCT_FMT if fmt == 'pct' else NUM_FMT
                     c.font      = fnt
                     c.fill      = fill
-                    c.alignment = Alignment(horizontal='right', vertical='center')
+                    c.alignment = ALIGN_RIGHT_CENTER
                     c.border    = border
 
                 for month in self.months:
@@ -394,7 +398,7 @@ class ExcelExporter:
                         c.number_format = PCT_FMT if fmt == 'pct' else NUM_FMT
                         c.font      = fnt
                         c.fill      = fill
-                        c.alignment = Alignment(horizontal='right', vertical='center')
+                        c.alignment = ALIGN_RIGHT_CENTER
                         c.border    = border
 
                 partida_rows[partida] = row_num
@@ -774,7 +778,7 @@ class ExcelExporter:
             cell = ws.cell(row=2, column=ci, value=h)
             cell.font = WHITE_FONT
             cell.fill = HDR_FILL
-            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.alignment = ALIGN_CENTER_CENTER
             cell.border = border
 
         ws.column_dimensions['A'].width = 45
@@ -801,7 +805,7 @@ class ExcelExporter:
                 c.number_format = NUM_FMT
                 c.font = NORM_FONT
                 c.border = border
-                c.alignment = Alignment(horizontal='right')
+                c.alignment = ALIGN_RIGHT
 
                 if not es_header:
                     partida_month_rows[nombre_mostrado][month].append(row_num)
@@ -813,7 +817,7 @@ class ExcelExporter:
             tot.number_format = NUM_FMT
             tot.font = NORM_FONT
             tot.border = border
-            tot.alignment = Alignment(horizontal='right')
+            tot.alignment = ALIGN_RIGHT
 
         for item in _reordenar_estructura_para_notas(EERR_STRUCTURE):
             partida_nombre = item[0]
@@ -881,7 +885,7 @@ class ExcelExporter:
                     cell.number_format = NUM_FMT
                     cell.font = DARK_FONT
                     cell.border = border
-                    cell.alignment = Alignment(horizontal='right')
+                    cell.alignment = ALIGN_RIGHT
 
                 if ti_row is not None:
                     refs_oin = [f'{col_letter}{hr}' for hr in partida_month_rows.get('Otros Ingresos no Operacionales', {}).get(month, [])]
@@ -892,7 +896,7 @@ class ExcelExporter:
                     cell_ti.number_format = NUM_FMT
                     cell_ti.font = DARK_FONT
                     cell_ti.border = border
-                    cell_ti.alignment = Alignment(horizontal='right')
+                    cell_ti.alignment = ALIGN_RIGHT
 
         # --- Fase 1 trazabilidad: subtotales Grupo A como fórmula SUM ---
         # GRUPO_A_HIJOS: solo los 2 subtotales que SÍ tienen fila activa en Notas
@@ -936,7 +940,7 @@ class ExcelExporter:
                 cell.number_format = NUM_FMT
                 cell.font = DARK_FONT
                 cell.border = border
-                cell.alignment = Alignment(horizontal='right')
+                cell.alignment = ALIGN_RIGHT
 
         # --- Fase 1 trazabilidad: Grupo C, totales de negocio (combinación de subtotales) ---
         LEAVES_INGRESO_OPERATIVO = ['Ingresos por venta de mercancias', 'Devoluciones sobre ventas', 'Descuentos sobre ventas',
@@ -969,7 +973,7 @@ class ExcelExporter:
                     cell.number_format = NUM_FMT
                     cell.font = DARK_FONT
                     cell.border = border
-                    cell.alignment = Alignment(horizontal='right')
+                    cell.alignment = ALIGN_RIGHT
 
             # Total Gastos (sintético) = subtotales gasto operacional + Otros Gastos no Operacionales
             if 'Total Gastos' in header_rows:
@@ -980,7 +984,7 @@ class ExcelExporter:
                     cell.number_format = NUM_FMT
                     cell.font = DARK_FONT
                     cell.border = border
-                    cell.alignment = Alignment(horizontal='right')
+                    cell.alignment = ALIGN_RIGHT
 
             # Utilidad Neta = Utilidad Bruta - Total Gastos
             if 'Utilidad Neta' in header_rows and 'Utilidad Bruta' in header_rows and 'Total Gastos' in header_rows:
@@ -989,7 +993,7 @@ class ExcelExporter:
                 cell.number_format = NUM_FMT
                 cell.font = DARK_FONT
                 cell.border = border
-                cell.alignment = Alignment(horizontal='right')
+                cell.alignment = ALIGN_RIGHT
 
             # Utilidad Neta despues de ISLR = Utilidad Neta - ISLR
             if 'Utilidad Neta despues de ISLR' in header_rows and 'Utilidad Neta' in header_rows and 'ISLR' in header_rows:
@@ -998,7 +1002,7 @@ class ExcelExporter:
                 cell.number_format = NUM_FMT
                 cell.font = DARK_FONT
                 cell.border = border
-                cell.alignment = Alignment(horizontal='right')
+                cell.alignment = ALIGN_RIGHT
 
         ws.freeze_panes = 'A3'
         return notes_sheet_name, partida_month_rows, header_rows
