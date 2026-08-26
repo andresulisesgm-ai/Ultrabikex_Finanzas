@@ -24,4 +24,6 @@ data/mapping_backup_*.csv
 cookie.txt
 .env
 password_reset_audit.log
+data/backups/
+
 

@@ -54,6 +54,10 @@ if not FLASK_SECRET_KEY:
     )
 app.secret_key = FLASK_SECRET_KEY
 
+from backup_scheduler import start_scheduler
+start_scheduler()
+
+
 limiter = Limiter(get_remote_address, app=app, default_limits=[])
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
