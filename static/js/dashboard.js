@@ -1,4 +1,4 @@
-﻿// ── DASHBOARD BUILDER CONFIG & LOGIC ──
+// ── DASHBOARD BUILDER CONFIG & LOGIC ──
 const DEFAULT_DASHBOARD_CONFIG = [
   {
     "id": "kc-ingr",
@@ -1074,7 +1074,9 @@ async function loadEmpresasDropdown(){
     poblarSelectorEmpresaBriefing();
   }catch(e){
     console.error('Error cargando empresas', e);
+    showA('global-error', 'No se pudieron cargar las empresas. Intenta recargar la pagina.');
   }
+
 }
 
 function poblarSelectorEmpresaESF(){
@@ -1123,7 +1125,9 @@ async function loadUnidadesCache(){
     UNIDADES_CACHE = await res.json();
   }catch(e){
     console.error('Error cargando unidades', e);
+    showA('global-error', 'No se pudieron cargar las unidades. Intenta recargar la pagina.');
   }
+
 }
 
 function updateAiUnitOptions(){
