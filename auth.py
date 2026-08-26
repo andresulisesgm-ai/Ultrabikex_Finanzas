@@ -1,20 +1,34 @@
+import os
 import hashlib
 import secrets
 import bcrypt
+from dotenv import load_dotenv
 from functools import wraps
 from flask import session, redirect, url_for, jsonify
+
+load_dotenv()
+
+YOCE_PASSWORD = os.environ.get('YOCE_PASSWORD')
+CAMILO_PASSWORD = os.environ.get('CAMILO_PASSWORD')
+
+if not YOCE_PASSWORD or not CAMILO_PASSWORD:
+    raise RuntimeError(
+        "Faltan variables de entorno YOCE_PASSWORD y/o CAMILO_PASSWORD. "
+        "Verifica que el archivo .env existe en la raiz del proyecto."
+    )
 
 # Usuarios hardcodeados con contraseñas hasheadas (bcrypt)
 USERS = {
     'Yoce': {
-        'password_hash': bcrypt.hashpw('Yoce2026'.encode(), bcrypt.gensalt()).decode(),
+        'password_hash': bcrypt.hashpw(YOCE_PASSWORD.encode(), bcrypt.gensalt()).decode(),
         'role': 'admin'
     },
     'Camilo': {
-        'password_hash': bcrypt.hashpw('Camilo2026'.encode(), bcrypt.gensalt()).decode(),
+        'password_hash': bcrypt.hashpw(CAMILO_PASSWORD.encode(), bcrypt.gensalt()).decode(),
         'role': 'viewer'
     }
 }
+
 
 def verify_password(username, password):
     """Verifica credenciales y retorna el rol si son correctas."""
