@@ -66,3 +66,17 @@ def is_admin():
 def is_viewer():
     """Verifica si el usuario actual es viewer."""
     return session.get('role') == 'viewer'
+
+def change_password(username, current_password, new_password):
+    """Cambia la clave de un usuario, validando la clave actual primero."""
+    if not verify_password(username, current_password):
+        return False, "Clave actual incorrecta."
+    if len(new_password) < 8:
+        return False, "La clave nueva debe tener al menos 8 caracteres."
+    new_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute('UPDATE users SET password_hash = ? WHERE username = ?', (new_hash, username))
+    conn.commit()
+    conn.close()
+    return True, "Clave actualizada correctamente."
+

@@ -3,7 +3,7 @@ import os, secrets
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from db import init_db, migrate_db, close_db
-from auth import login_required, admin_required, verify_password, get_current_user
+from auth import login_required, admin_required, verify_password, get_current_user, change_password
 from blueprints.backup import backup_bp
 from blueprints.tasas import tasas_bp
 from blueprints.metodo_pago import metodo_pago_bp
@@ -116,6 +116,19 @@ def logout():
 @login_required
 def current_user():
     return jsonify(get_current_user())
+
+@app.route('/api/change_password', methods=['POST'])
+@login_required
+def change_password_route():
+    data = request.get_json()
+    current_password = data.get('current_password', '')
+    new_password = data.get('new_password', '')
+    username = session['username']
+    success, message = change_password(username, current_password, new_password)
+    if success:
+        return jsonify({'success': True, 'message': message})
+    return jsonify({'success': False, 'message': message}), 400
+
 
 
 # ── Rutas base ────────────────────────────────────────────────────────────────
