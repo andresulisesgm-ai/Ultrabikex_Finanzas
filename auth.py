@@ -80,3 +80,33 @@ def change_password(username, current_password, new_password):
     conn.close()
     return True, "Clave actualizada correctamente."
 
+def admin_reset_password(username, new_password, admin_username):
+    """Resetea la clave de un usuario sin requerir la clave anterior. Solo para uso admin. Registra el evento en log."""
+    if len(new_password) < 8:
+        return False, "La clave nueva debe tener al menos 8 caracteres."
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.execute('SELECT username FROM users WHERE username = ?', (username,))
+    if not cur.fetchone():
+        conn.close()
+        return False, "Usuario no encontrado."
+    new_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    conn.execute('UPDATE users SET password_hash = ? WHERE username = ?', (new_hash, username))
+    conn.commit()
+    conn.close()
+
+    import datetime
+    log_path = os.path.join(os.path.dirname(__file__), 'password_reset_audit.log')
+    with open(log_path, 'a', encoding='utf-8') as f:
+        f.write(f"{datetime.datetime.now().isoformat()} | admin={admin_username} | usuario_afectado={username}\n")
+
+    return True, "Clave restablecida correctamente."
+
+
+def list_users():
+    """Retorna username y role de todos los usuarios, sin el hash."""
+    conn = sqlite3.connect(DB_PATH)
+    rows = conn.execute('SELECT username, role FROM users ORDER BY username').fetchall()
+    conn.close()
+    return [{'username': r[0], 'role': r[1]} for r in rows]
+
+

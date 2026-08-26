@@ -3,7 +3,7 @@ import os, secrets
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from db import init_db, migrate_db, close_db
-from auth import login_required, admin_required, verify_password, get_current_user, change_password
+from auth import login_required, admin_required, verify_password, get_current_user, change_password, admin_reset_password, list_users
 from blueprints.backup import backup_bp
 from blueprints.tasas import tasas_bp
 from blueprints.metodo_pago import metodo_pago_bp
@@ -128,6 +128,30 @@ def change_password_route():
     if success:
         return jsonify({'success': True, 'message': message})
     return jsonify({'success': False, 'message': message}), 400
+
+@app.route('/api/admin/list_users', methods=['GET'])
+@login_required
+def admin_list_users_route():
+    if session.get('username') != 'AdminSys':
+        return jsonify({'error': 'Acceso denegado.'}), 403
+    return jsonify(list_users())
+
+@app.route('/api/admin/reset_password', methods=['POST'])
+@login_required
+def admin_reset_password_route():
+    if session.get('username') != 'AdminSys':
+        return jsonify({'error': 'Acceso denegado.'}), 403
+    data = request.get_json()
+    username = data.get('username', '')
+    new_password = data.get('new_password', '')
+    admin_username = session['username']
+    success, message = admin_reset_password(username, new_password, admin_username)
+    if success:
+        return jsonify({'success': True, 'message': message})
+    return jsonify({'success': False, 'message': message}), 400
+
+
+
 
 
 
