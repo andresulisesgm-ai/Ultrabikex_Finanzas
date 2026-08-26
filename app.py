@@ -1,7 +1,11 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import os, secrets
+from dotenv import load_dotenv
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+
+load_dotenv()
+
 from db import init_db, migrate_db, close_db
 from auth import login_required, admin_required, verify_password, get_current_user, admin_reset_password, list_users
 from blueprints.backup import backup_bp
@@ -42,7 +46,14 @@ app.register_blueprint(briefing_bp)
 app.register_blueprint(mapeo_bp)
 app.register_blueprint(upload_bp)
 app.config['UPLOAD_FOLDER'] = 'uploads'
-app.secret_key = secrets.token_hex(32)
+FLASK_SECRET_KEY = os.environ.get('FLASK_SECRET_KEY')
+if not FLASK_SECRET_KEY:
+    raise RuntimeError(
+        "Falta la variable de entorno FLASK_SECRET_KEY. "
+        "Verifica que el archivo .env existe en la raiz del proyecto."
+    )
+app.secret_key = FLASK_SECRET_KEY
+
 limiter = Limiter(get_remote_address, app=app, default_limits=[])
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
