@@ -47,6 +47,8 @@
   <div class="nav-sec">Sistema</div>
   <div class="nav-item" onclick="showPage('export_ai',this)"><span class="nav-icon"><i class="ph ph-sparkle"></i></span>Exportar Briefing IA</div>
   <div class="nav-item" onclick="showPage('backup',this)"><span class="nav-icon"><i class="ph ph-archive"></i></span>Backup / Restaurar</div>
+  <div class="nav-item" id="nav-reset-pwd" onclick="showPage('reset_pwd',this)" style="display:none"><span class="nav-icon"><i class="ph ph-key"></i></span>Restablecer Clave</div>
+
   <div class="sidebar-footer">
     <div id="userInfo"></div>
     <div class="footer-actions">
@@ -773,6 +775,21 @@
     </div>
     <div style="margin-top:11px;padding:9px 13px;background:var(--amber-l);border:1px solid rgba(217,119,6,.2);border-radius:8px;font-size:11px;color:var(--amber);max-width:600px">⚠️ La restauración reemplaza <strong>todos</strong> los datos actuales.</div>
   </div>
+
+  <!-- RESTABLECER CLAVE -->
+  <div class="page" id="page-reset_pwd">
+    <div class="al al-ok" id="rp-ok"></div><div class="al al-er" id="rp-er"></div>
+    <div class="bkgrid">
+      <div class="bkcard">
+        <div style="font-size:24px;margin-bottom:7px">🔑</div><h3>Restablecer Clave de Usuario</h3>
+        <p>Solo para uso administrativo de emergencia.</p>
+        <div class="fg"><label>Usuario</label><select id="rp-user"></select></div>
+        <div class="fg"><label>Clave nueva</label><input type="password" id="rp-newpass" placeholder="Minimo 8 caracteres"></div>
+        <button class="bkdl" onclick="doResetPassword()">🔑 Restablecer Clave</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- MODAL MAPPING -->

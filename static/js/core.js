@@ -58,7 +58,15 @@ function updateUserInfo() {
     const roleName = currentUser.role === 'admin' ? 'Administrador' : 'Visor';
     info.innerHTML = `<span class="user-badge ${roleClass}">${currentUser.username} - ${roleName}</span>`;
   }
+  const resetPwdNav = document.getElementById('nav-reset-pwd');
+  if (resetPwdNav) {
+    resetPwdNav.style.display = (currentUser && currentUser.username === 'AdminSys') ? '' : 'none';
+  }
+  if (currentUser && currentUser.username === 'AdminSys') {
+    loadUsersForReset();
+  }
 }
+
 
 // ── LOCAL STORAGE ─────────────────────────────────────────────────────────
 const LS={
@@ -277,4 +285,47 @@ function showPage(name,el){
     btnExcel.style.display = PAGES_WITH_EXCEL.includes(name) ? '' : 'none';
   }
 }
+
+async function loadUsersForReset() {
+  try {
+    const res = await fetch('/api/admin/list_users');
+    const users = await res.json();
+    const sel = document.getElementById('rp-user');
+    if (sel) sel.innerHTML = users.map(u => `<option value="${u.username}">${u.username} (${u.role})</option>`).join('');
+  } catch (e) {
+    console.error('Error cargando usuarios', e);
+  }
+}
+
+async function doResetPassword() {
+  const username = document.getElementById('rp-user').value;
+  const newPassword = document.getElementById('rp-newpass').value;
+  const okBox = document.getElementById('rp-ok');
+  const erBox = document.getElementById('rp-er');
+  okBox.innerHTML = '';
+  erBox.innerHTML = '';
+
+  if (!newPassword || newPassword.length < 8) {
+    erBox.innerHTML = 'La clave nueva debe tener al menos 8 caracteres.';
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/reset_password', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: username, new_password: newPassword})
+    });
+    const data = await res.json();
+    if (data.success) {
+      okBox.innerHTML = data.message;
+      document.getElementById('rp-newpass').value = '';
+    } else {
+      erBox.innerHTML = data.message || 'Error al restablecer la clave.';
+    }
+  } catch (e) {
+    erBox.innerHTML = 'Error de conexion. Intenta de nuevo.';
+  }
+}
+
 
