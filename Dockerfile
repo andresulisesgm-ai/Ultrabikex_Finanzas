@@ -21,4 +21,4 @@ RUN mkdir -p /app/data
 # Expose port
 EXPOSE 5000
 # Initialize/migrate DB and then start Gunicorn
-CMD ["sh", "-c", "python -c 'from db import init_db, migrate_db; init_db(); migrate_db()' && gunicorn --bind 0.0.0.0:${PORT} --workers 4 app:app"]
+CMD ["sh", "-c", "python -c 'from db import init_db, migrate_db; init_db(); migrate_db()' && gunicorn --bind 0.0.0.0:${PORT} --workers 1 app:app"]
