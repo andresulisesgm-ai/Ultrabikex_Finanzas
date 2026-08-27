@@ -322,7 +322,6 @@ class ExcelExporter:
 
         _registrar_estilo('notas_hdr', DARK_FONT, None, Alignment(), border)
         _registrar_estilo('notas_nrm', NORM_FONT, None, Alignment(), border)
-        _registrar_estilo('notas_yp', NORM_FONT, None, Alignment(), border, NUM_FMT)
         _registrar_estilo('notas_val', NORM_FONT, None, ALIGN_RIGHT, border, NUM_FMT)
         # --- fin registro de estilos (paso 1) ---
 
@@ -819,8 +818,7 @@ class ExcelExporter:
         row_num = 3
 
         def _escribir_fila_notas(nombre_mostrado, r, es_header, row_num):
-            ws.cell(row=row_num, column=1, value=nombre_mostrado).border = border
-            ws.cell(row=row_num, column=1).font = DARK_FONT if es_header else NORM_FONT
+            ws.cell(row=row_num, column=1, value=nombre_mostrado).style = 'notas_hdr' if es_header else 'notas_nrm'
 
             yp = r.get('year_prev', {}).get('valor', 0)
             ws.cell(row=row_num, column=2, value=yp).number_format = NUM_FMT
@@ -831,10 +829,7 @@ class ExcelExporter:
                 val = mes_data.get('ejecutado', {}).get('valor', 0)
                 col = 3 + m_idx
                 c = ws.cell(row=row_num, column=col, value=val)
-                c.number_format = NUM_FMT
-                c.font = NORM_FONT
-                c.border = border
-                c.alignment = ALIGN_RIGHT
+                c.style = 'notas_val'
 
                 if not es_header:
                     partida_month_rows[nombre_mostrado][month].append(row_num)
@@ -843,10 +838,7 @@ class ExcelExporter:
             m_end = get_column_letter(2 + N)
             tot = ws.cell(row=row_num, column=3 + N,
                           value=f'=SUM({m_start}{row_num}:{m_end}{row_num})')
-            tot.number_format = NUM_FMT
-            tot.font = NORM_FONT
-            tot.border = border
-            tot.alignment = ALIGN_RIGHT
+            tot.style = 'notas_val'
 
         for item in _reordenar_estructura_para_notas(EERR_STRUCTURE):
             partida_nombre = item[0]
