@@ -399,17 +399,15 @@ class ExcelExporter:
                 ws.row_dimensions[row_num].height = 16
 
                 if partida in TOTALES_HDR:
-                    fill, fnt = TEAL_FILL, DARK_FONT
+                    fill, fnt, _prefijo_estilo = TEAL_FILL, DARK_FONT, 'tot'
                 elif is_header:
-                    fill, fnt = SEC_FILL, DARK_FONT
+                    fill, fnt, _prefijo_estilo = SEC_FILL, DARK_FONT, 'sec'
                 else:
-                    fill, fnt = WHITE_FILL, NORM_FONT
+                    fill, fnt, _prefijo_estilo = WHITE_FILL, NORM_FONT, 'nrm'
 
+                _indent_estilo = min(indent, 3)
                 a_cell = ws.cell(row=row_num, column=1, value=partida)
-                a_cell.font      = fnt
-                a_cell.fill      = fill
-                a_cell.alignment = ALIGN_INDENT.get(indent, ALIGN_INDENT[0])
-                a_cell.border    = border
+                a_cell.style = f'{_prefijo_estilo}_a{_indent_estilo}'
 
                 yp_vals = [
                     (_blank(year_prev.get('valor')), 'num'),
