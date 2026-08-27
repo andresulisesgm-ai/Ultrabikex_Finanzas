@@ -418,11 +418,7 @@ class ExcelExporter:
                     if fmt == 'pct' and val is not None:
                         val = val / 100
                     c = ws.cell(row=row_num, column=2 + i, value=val)
-                    c.number_format = PCT_FMT if fmt == 'pct' else NUM_FMT
-                    c.font      = fnt
-                    c.fill      = fill
-                    c.alignment = ALIGN_RIGHT_CENTER
-                    c.border    = border
+                    c.style = f'{_prefijo_estilo}_{"pct" if fmt == "pct" else "num"}'
 
                 for month in self.months:
                     mes_data = next((m for m in meses if m.get('month') == month), {}) or {}
@@ -432,11 +428,7 @@ class ExcelExporter:
                         if fmt == 'pct' and val is not None:
                             val = val / 100
                         c = ws.cell(row=row_num, column=start_c + i, value=val)
-                        c.number_format = PCT_FMT if fmt == 'pct' else NUM_FMT
-                        c.font      = fnt
-                        c.fill      = fill
-                        c.alignment = ALIGN_RIGHT_CENTER
-                        c.border    = border
+                        c.style = f'{_prefijo_estilo}_{"pct" if fmt == "pct" else "num"}'
 
                 partida_rows[partida] = row_num
                 row_num += 1
