@@ -319,7 +319,7 @@ const WIDGET_TEMPLATES = {
     <div id="roe-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-roa': `
-    <div class="ch"><div><div class="ct">ROA Acumulado</div><div class="cs">Ingresos acumulados / Activos promedio</div></div>
+    <div class="ch"><div><div class="ct">ROA Acumulado</div><div class="cs">Utilidad Neta acumulada / Activos promedio</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-roa">✕</button></div></div>
     <div style="position:relative;height:110px"><canvas id="ch-roa-gauge"></canvas>
       <div style="position:absolute;top:55%;left:50%;transform:translate(-50%,-50%);text-align:center">
@@ -2262,7 +2262,12 @@ function loadROEROA() {
         if (!idxConDatos.length) return;
         const labels = idxConDatos.map(i => 'Q' + (i + 1));
         const valores = idxConDatos.map(i => (trimestres[i].valor || 0) * 100);
-        const ultimoVal = valores[valores.length - 1];
+        // El gauge muestra el acumulado real "Año Actual" (utilidad acumulada /
+        // promedio del periodo completo), no el ultimo trimestre -- activado en
+        // el backend esta misma sesion (engine.py, hay_esf_prev). Si no hay
+        // acumulado disponible (ej. un solo trimestre sin fallback valido),
+        // usar el ultimo trimestre como estaba antes.
+        const ultimoVal = (ind.anio_actual != null) ? ind.anio_actual * 100 : valores[valores.length - 1];
 
         crearGauge(gaugeCanvasId, ultimoVal, color);
         const numEl = G(gaugeNumId);
