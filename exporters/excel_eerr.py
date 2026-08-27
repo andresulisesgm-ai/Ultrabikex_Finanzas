@@ -260,7 +260,7 @@ class ExcelExporter:
             nombre_emp = _nombre_empresa_display(db_conn, self.empresa_id)
             consolidado_name = f'EERR {nombre_emp}'[:31]
         import openpyxl
-        from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+        from openpyxl.styles import PatternFill, Font, Alignment, Border, Side, NamedStyle
         from openpyxl.utils import get_column_letter
         from engine import eerr_completo_v2_ui_adapter, _calcular_eerr_divisa_real
         from constants import PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO
@@ -286,6 +286,45 @@ class ExcelExporter:
         PCT_FMT   = '0.0%;(0.0%);"-"'
         thin      = Side(style='thin', color='D9D9D9')
         border    = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+        # --- Fix de lentitud: estilos consolidados en NamedStyle ---
+        # Paso 1 de 4: SOLO registra los estilos en el workbook, no cambia
+        # ninguna asignacion de celda todavia. Debe generar el mismo
+        # archivo exacto que antes. Ver ultrax_logs.md, backlog "Fix real
+        # lentitud export ESF Divisa Real Holding".
+        def _registrar_estilo(nombre, font, fill, alignment, border_obj, number_format=None):
+            ns = NamedStyle(name=nombre)
+            ns.font = font
+            if fill is not None:
+                ns.fill = fill
+            ns.alignment = alignment
+            ns.border = border_obj
+            if number_format:
+                ns.number_format = number_format
+            try:
+                wb.add_named_style(ns)
+            except ValueError:
+                pass
+
+        _FILAS_ESTILO = {
+            'tot': (TEAL_FILL, DARK_FONT),
+            'sec': (SEC_FILL, DARK_FONT),
+            'nrm': (WHITE_FILL, NORM_FONT),
+        }
+        for _prefijo, (_fill, _font) in _FILAS_ESTILO.items():
+            for _indent in range(4):
+                _registrar_estilo(
+                    f'{_prefijo}_a{_indent}', _font, _fill,
+                    ALIGN_INDENT.get(_indent, ALIGN_INDENT[0]), border
+                )
+            _registrar_estilo(f'{_prefijo}_num', _font, _fill, ALIGN_RIGHT_CENTER, border, NUM_FMT)
+            _registrar_estilo(f'{_prefijo}_pct', _font, _fill, ALIGN_RIGHT_CENTER, border, PCT_FMT)
+
+        _registrar_estilo('notas_hdr', DARK_FONT, None, Alignment(), border)
+        _registrar_estilo('notas_nrm', NORM_FONT, None, Alignment(), border)
+        _registrar_estilo('notas_yp', NORM_FONT, None, Alignment(), border, NUM_FMT)
+        _registrar_estilo('notas_val', NORM_FONT, None, ALIGN_RIGHT, border, NUM_FMT)
+        # --- fin registro de estilos (paso 1) ---
 
         TOTALES_HDR = {
             'Total Ingresos', 'Total Costo de Ventas', 'Utilidad Bruta',
