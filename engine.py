@@ -2660,6 +2660,31 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
     def qe(q, key):
         return quarters_data[q]['esf'].get(key, 0) or 0
 
+    def periodo_cobro_acumulado():
+        """Período de cobro acumulado 'Año Actual': mismo promedio de CxC que
+        el último trimestre disponible, pero sobre ingresos acumulados del año
+        y días acumulados (90 x trimestres cargados) -- no el trimestre puntual.
+        Réplica de la metodología real de Yocelin (reunión dashboard, minuto ~17:00)."""
+        if not _esf_quarters_available:
+            return None
+        q_last = max(_esf_quarters_available)
+        cxc_ext = prom_esf(q_last, 'cxc_clientes')
+        cxc_grp = prom_esf(q_last, 'cxc_grupo')
+        if cxc_ext is None or cxc_grp is None:
+            return None
+        ingresos_acum = acum_eerr.get('ingresos', 0) or 0
+        if not ingresos_acum:
+            return None
+        dias_totales = 90 * len(_esf_quarters_available)
+        valor = round((cxc_ext + cxc_grp) / ingresos_acum * dias_totales, 2)
+        dias_cliente_externo = round(cxc_ext / ingresos_acum * dias_totales, 2)
+        dias_empresas_grupo = round(cxc_grp / ingresos_acum * dias_totales, 2)
+        return {
+            'valor': valor,
+            'dias_cliente_externo': dias_cliente_externo,
+            'dias_empresas_grupo': dias_empresas_grupo,
+        }
+
     def periodo_cobro_q(q):
         """Período de cobro en días para el trimestre q: CxC clientes externos
         más CxC empresas del grupo/socios/empleados (cada una promediada con el
@@ -2767,7 +2792,7 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
         return quarters_data[q]['eerr'].get(key)
 
     pc_data_q = {q: periodo_cobro_q(q) for q in [1, 2, 3, 4]}
-    pc_data_aa = periodo_cobro_q(max(_esf_quarters_available) if _esf_quarters_available else 4)
+    pc_data_aa = periodo_cobro_acumulado()
     ind_pc = build_ind(
         'Período de cobro (30 a 60 días max)', '30-60 días',
         None,
