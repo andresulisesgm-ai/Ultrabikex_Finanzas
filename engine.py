@@ -2715,11 +2715,13 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
         'patrimonio':0,'efectivo':0,'inventarios':0,'cxc':0,'res_ejercicio':0
     }
     # prev_esf es un stub sin calcular (ver ultrax_deuda_tecnica_refactor.md) --
-    # no hay ESF real del año anterior cargado en el sistema. Los indicadores que
-    # dependen de un promedio interanual real (ROE, ROA, Rotación de Inventarios,
-    # Período de Cobro -- columna "Año Actual") deben devolver None en vez de una
-    # aproximación intra-año-actual que aparenta ser un cálculo interanual válido.
-    hay_esf_prev = False
+    # no hay ESF real del año anterior cargado en el sistema. El acumulado "Año
+    # Actual" de ROE, ROA, Rotación de Inventarios y Período de Cobro NO depende
+    # de 2025: usa prom_esf()/inc_esf() sobre los trimestres YA cargados del año
+    # actual, con el mismo fallback que la columna trimestral cuando solo hay un
+    # trimestre (Q1 sin Q2 previo). Verificado contra informe real de Yocelin:
+    # ROE 16.74% y ROA 8.41% con Q1+Q2 2026 cargados, coincide con su reporte.
+    hay_esf_prev = bool(_esf_quarters_available)
 
     # ── Calcular por trimestre ────────────────────────────────────────────────
     quarters_data = {}
@@ -2831,7 +2833,7 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
         build_ind('Rotación de Inventarios (2 y 3 meses)', '2-3 meses',
             None,
             {q: safe_div(prom_esf(q,'inventarios')*3, qv(q,'costo_merc')) if prom_esf(q,'inventarios') is not None else None for q in [1,2,3,4]},
-            safe_div(esf_last['inventarios']*12, acum_eerr.get('costo_merc', 0)) if hay_esf_prev else None, es_ratio=True),
+            safe_div(prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'inventarios') * 3 * len(_esf_quarters_available), acum_eerr.get('costo_merc', 0)) if hay_esf_prev else None, es_ratio=True),
         build_ind('ROA (5% a 15%)', '5%-15%',
             None,
             {q: safe_div(inc_esf(q,'res_ejercicio'), prom_esf(q,'tot_activos')) for q in [1,2,3,4]},
