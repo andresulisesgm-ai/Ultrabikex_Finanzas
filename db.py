@@ -705,6 +705,12 @@ def init_db():
             UNIQUE(year, month, unit, odoo_code)
         );
 
+        CREATE TABLE IF NOT EXISTS users (
+            username        TEXT PRIMARY KEY,
+            password_hash   TEXT NOT NULL,
+            role            TEXT NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS dashboard_config (
             username TEXT PRIMARY KEY,
             config_json TEXT NOT NULL,
