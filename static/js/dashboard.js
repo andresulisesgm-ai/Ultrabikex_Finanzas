@@ -2715,7 +2715,7 @@ async function loadDash(){
           }else{
             quartersUsar=[1,2,3,4];
           }
-          const totalesEerr={ingresos:0,costos:0,gastos:0,utilidad_bruta:0,utilidad_neta:0,ebitda:0};
+          const totalesEerr={ingresos:0,costos:0,gastos:0,utilidad_bruta:0,utilidad_neta:0,ebitda:0,otros_ing:0,otros_gas:0};
           quartersUsar.forEach(q=>{
             const qd=dataEerr.quarters[q]||{};
             totalesEerr.ingresos+=qd['Total Ingresos']||0;
@@ -2724,6 +2724,8 @@ async function loadDash(){
             totalesEerr.utilidad_bruta+=qd['Utilidad Bruta']||0;
             totalesEerr.utilidad_neta+=qd['Utilidad Neta']||0;
             totalesEerr.ebitda+=qd['Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)']||0;
+            totalesEerr.otros_ing+=qd['Otros Ingresos no Operacionales']||0;
+            totalesEerr.otros_gas+=qd['Otros Gastos no Operacionales']||0;
           });
 
           const esfTot=dataInd.esf_totales||{};
@@ -2773,6 +2775,8 @@ async function loadDash(){
               utilidad_bruta:totalesEerr.utilidad_bruta,
               utilidad_neta:totalesEerr.utilidad_neta,
               ebitda:totalesEerr.ebitda,
+              otros_ingresos_no_operacionales:totalesEerr.otros_ing,
+              otros_gastos_no_operacionales:totalesEerr.otros_gas,
               total_activos:esfTot.total_activos!=null?esfTot.total_activos:null,
               total_pasivos:esfTot.total_pasivos!=null?esfTot.total_pasivos:null,
               patrimonio:esfTot.patrimonio!=null?esfTot.patrimonio:null,
