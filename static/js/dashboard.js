@@ -40,19 +40,6 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "dataset": "utilidad_neta"
   },
   {
-    "id": "kc-mn",
-    "type": "kpi",
-    "title": "Margen Neto %",
-    "subtitle": "Ref ≥5%",
-    "tooltip": "Utilidad Neta como porcentaje de los Ingresos Totales.",
-    "icon": "%",
-    "colorClass": "ct",
-    "visible": true,
-    "order": 4,
-    "widthSpan": 1,
-    "dataset": "margen_neto"
-  },
-  {
     "id": "kc-ebt",
     "type": "kpi",
     "title": "EBITDA",
@@ -2728,7 +2715,7 @@ async function loadDash(){
           }else{
             quartersUsar=[1,2,3,4];
           }
-          const totalesEerr={ingresos:0,costos:0,gastos:0,utilidad_bruta:0,utilidad_neta:0};
+          const totalesEerr={ingresos:0,costos:0,gastos:0,utilidad_bruta:0,utilidad_neta:0,ebitda:0};
           quartersUsar.forEach(q=>{
             const qd=dataEerr.quarters[q]||{};
             totalesEerr.ingresos+=qd['Total Ingresos']||0;
@@ -2736,6 +2723,7 @@ async function loadDash(){
             totalesEerr.gastos+=qd['Total Gastos Operacionales']||0;
             totalesEerr.utilidad_bruta+=qd['Utilidad Bruta']||0;
             totalesEerr.utilidad_neta+=qd['Utilidad Neta']||0;
+            totalesEerr.ebitda+=qd['Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)']||0;
           });
 
           const esfTot=dataInd.esf_totales||{};
@@ -2784,7 +2772,7 @@ async function loadDash(){
               gastos:totalesEerr.gastos,
               utilidad_bruta:totalesEerr.utilidad_bruta,
               utilidad_neta:totalesEerr.utilidad_neta,
-              ebitda:totalesEerr.utilidad_neta,
+              ebitda:totalesEerr.ebitda,
               total_activos:esfTot.total_activos!=null?esfTot.total_activos:null,
               total_pasivos:esfTot.total_pasivos!=null?esfTot.total_pasivos:null,
               patrimonio:esfTot.patrimonio!=null?esfTot.patrimonio:null,

@@ -61,19 +61,6 @@ DEFAULT_DASHBOARD_CONFIG = [
     "dataset": "utilidad_neta"
   },
   {
-    "id": "kc-mn",
-    "type": "kpi",
-    "title": "Margen Neto %",
-    "subtitle": "Ref ≥5%",
-    "tooltip": "Utilidad Neta como porcentaje de los Ingresos Totales.",
-    "icon": "%",
-    "colorClass": "ct",
-    "visible": True,
-    "order": 4,
-    "widthSpan": 1,
-    "dataset": "margen_neto"
-  },
-  {
     "id": "kc-ebt",
     "type": "kpi",
     "title": "EBITDA",

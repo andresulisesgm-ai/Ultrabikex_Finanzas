@@ -2694,10 +2694,14 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
         E108 es el ingreso del trimestre puntual, no el acumulado)."""
         if q not in _esf_quarters_available:
             return None
-        cxc_ext = prom_esf(q, 'cxc_clientes')
-        cxc_grp = prom_esf(q, 'cxc_grupo')
-        if cxc_ext is None or cxc_grp is None:
-            return None
+        # Saldo de cierre del trimestre, NO promedio con el trimestre anterior.
+        # Verificado contra el grafico real de Yocelin (sep-2026): con saldo de
+        # cierre las 4 cifras de su grafico se reproducen exacto (Q1 36.06/2.52,
+        # Q2 32.42/2.78 vs su 36.1/2.5 y 32.4/2.8). Su transcripcion de reunion
+        # dice "promedio" -- contradiccion documentada, pendiente de confirmar
+        # con ella. Ver yocelin_preguntas_2.md.
+        cxc_ext = qe(q, 'cxc_clientes')
+        cxc_grp = qe(q, 'cxc_grupo')
         ingresos_trimestre = quarters_data[q]['eerr'].get('ingresos', 0) or 0
         if not ingresos_trimestre:
             return None
@@ -2966,7 +2970,18 @@ def compute_indicadores_v2_divisa_real(db, year, empresa_id=None):
 
     rows_curr = estados_curr.get('eerr_real', {}).get('rows', [])
     esf_real = estados_curr.get('esf_real', {})
-    esf_rows = {n['partida']: n.get('quarters', {}) for n in esf_real.get('rows', [])}
+    # Fix: puede haber mas de una fila con el mismo 'partida' (grupo nivel 3 +
+    # detalle nivel 4 de una unica cuenta hija) -- priorizar la fila de grupo
+    # (nivel mas bajo) para no perder la suma completa. Misma logica ya aplicada
+    # en el camino BCV de compute_indicadores_v2 (ver construccion de _esf_rows).
+    esf_rows = {}
+    for n in esf_real.get('rows', []):
+        p = n['partida']
+        if p not in esf_rows or n.get('level', 99) < esf_rows[p].get('_level', 99):
+            qd = dict(n.get('quarters', {}))
+            qd['_level'] = n.get('level', 99)
+            esf_rows[p] = qd
+    esf_rows = {p: {k: v for k, v in qd.items() if k != '_level'} for p, qd in esf_rows.items()}
     result_quarters = _reshape_esf_rows_to_quarters(esf_real)
 
     if empresa_id:
