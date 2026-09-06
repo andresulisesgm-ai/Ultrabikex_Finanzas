@@ -2646,12 +2646,17 @@ function loadDonaUnidad() {
 
 function loadDonaSegmento() {
   const wActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-dona-segmento' && w.visible);
-  if (!wActivo || !DD || !DD.totals || !DD.totals.ingresos_segmentos) return;
+  const limpiarSiExiste = function() {
+    if (CH['ch-dona-segmento']) { CH['ch-dona-segmento'].destroy(); CH['ch-dona-segmento'] = null; }
+    const legendEl = G('dona-segmento-legend');
+    if (legendEl) legendEl.innerHTML = '';
+  };
+  if (!wActivo || !DD || !DD.totals || !DD.totals.ingresos_segmentos) { limpiarSiExiste(); return; }
   const canvas = G('ch-dona-segmento');
   if (!canvas) return;
   const seg = DD.totals.ingresos_segmentos;
   const labels = Object.keys(seg).filter(function(k) { return seg[k] !== 0; });
-  if (!labels.length) return;
+  if (!labels.length) { limpiarSiExiste(); return; }
   if (CH['ch-dona-segmento']) CH['ch-dona-segmento'].destroy();
   const paletaSegmentos = { 'Venta de Mercancía': '#2563eb', 'Servicios': '#f97316', 'Taller': '#7c3aed', 'Eventos': '#059669' };
   const paleta = labels.map(function(k) { return paletaSegmentos[k] || '#94a3b8'; });
@@ -2715,7 +2720,8 @@ async function loadDash(){
           }else{
             quartersUsar=[1,2,3,4];
           }
-          const totalesEerr={ingresos:0,costos:0,gastos:0,utilidad_bruta:0,utilidad_neta:0,ebitda:0,otros_ing:0,otros_gas:0};
+          const totalesEerr={ingresos:0,costos:0,gastos:0,utilidad_bruta:0,utilidad_neta:0,ebitda:0,otros_ing:0,otros_gas:0,
+            seg_mercancia:0,seg_servicios:0,seg_eventos:0,seg_taller:0};
           quartersUsar.forEach(q=>{
             const qd=dataEerr.quarters[q]||{};
             totalesEerr.ingresos+=qd['Total Ingresos']||0;
@@ -2726,6 +2732,10 @@ async function loadDash(){
             totalesEerr.ebitda+=qd['Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)']||0;
             totalesEerr.otros_ing+=qd['Otros Ingresos no Operacionales']||0;
             totalesEerr.otros_gas+=qd['Otros Gastos no Operacionales']||0;
+            totalesEerr.seg_mercancia+=qd['Subtotal Ingresos por Venta de Mercancia']||0;
+            totalesEerr.seg_servicios+=qd['Subtotal Ingresos por Servicios']||0;
+            totalesEerr.seg_eventos+=qd['Subtotal Ingresos por Eventos']||0;
+            totalesEerr.seg_taller+=qd['Subtotal Ingresos por Taller']||0;
           });
 
           const esfTot=dataInd.esf_totales||{};
@@ -2780,7 +2790,13 @@ async function loadDash(){
               total_activos:esfTot.total_activos!=null?esfTot.total_activos:null,
               total_pasivos:esfTot.total_pasivos!=null?esfTot.total_pasivos:null,
               patrimonio:esfTot.patrimonio!=null?esfTot.patrimonio:null,
-              razon_corriente:razonCorriente
+              razon_corriente:razonCorriente,
+              ingresos_segmentos:{
+                'Venta de Mercancía':totalesEerr.seg_mercancia,
+                'Servicios':totalesEerr.seg_servicios,
+                'Eventos':totalesEerr.seg_eventos,
+                'Taller':totalesEerr.seg_taller
+              }
             },
             _modo_divisa:true,
             _tasas:null
