@@ -540,4 +540,6 @@ input[type=file]{display:none;}
 .home-esf-row .v{font-family:'DM Mono',monospace;color:var(--tx);}
 .home-esf-row.tot{background:var(--blue-l);font-weight:700;}
 .home-esf-row.tot .p,.home-esf-row.tot .v{color:var(--blue);}
+.home-esf-row.hdr{font-weight:700;}
+.home-esf-row.hdr .p,.home-esf-row.hdr .v{color:var(--tx);font-weight:700;}
 

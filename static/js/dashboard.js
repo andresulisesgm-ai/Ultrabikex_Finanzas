@@ -2700,13 +2700,26 @@ function _homeBentoInd(clave, label, valor, tipo){
   }
   return `<div class="home-b sm"><div class="l">${label}</div><div class="v">${txt}</div></div>`;
 }
-function _homeEsfPanel(esfDetalle){
-  return esfDetalle.map(function(sec){
-    const filas = sec.detalle.map(function(d){
-      return `<div class="home-esf-row"><span class="p">${d.partida}</span><span class="v">${fmtS(d.valor)}</span></div>`;
-    }).join('');
-    return filas + `<div class="home-esf-row tot"><span class="p">${sec.label}</span><span class="v">${fmtS(sec.total)}</span></div>`;
-  }).join('');
+function _homeEsfRow(label, valor, cls){
+  return `<div class="home-esf-row ${cls||''}"><span class="p">${label}</span><span class="v">${fmtS(valor)}</span></div>`;
+}
+function _homeEsfSeccion(sec){
+  return _homeEsfRow(sec.label, sec.total, 'hdr') + sec.detalle.map(function(d){return _homeEsfRow(d.partida, d.valor, '');}).join('');
+}
+function _homeEsfPanel(data){
+  const bySec = {};
+  data.esf_detalle.forEach(function(s){ bySec[s.clave]=s; });
+  let html = '';
+  html += _homeEsfSeccion(bySec.activo_corriente);
+  html += _homeEsfSeccion(bySec.activo_no_corriente);
+  html += _homeEsfRow('TOTAL ACTIVOS', data.total_activo_gral, 'tot');
+  html += _homeEsfSeccion(bySec.pasivo_corriente);
+  html += _homeEsfSeccion(bySec.pasivo_no_corriente);
+  html += _homeEsfRow('TOTAL PASIVOS', data.total_pasivo_gral, 'tot');
+  html += _homeEsfSeccion(bySec.patrimonio);
+  html += _homeEsfRow('Total Patrimonio', bySec.patrimonio.total, 'hdr');
+  html += _homeEsfRow('TOTAL PASIVOS Y PATRIMONIO', data.total_pasivo_patrimonio_gral, 'tot');
+  return html;
 }
 
 async function loadHome(){
@@ -2723,7 +2736,7 @@ async function loadHome(){
 
     G('home-eerr-bento').innerHTML = HOME_EERR_ITEMS.map(function(x){return _homeBento(x[0],x[1],data.eerr[x[0]],x[2]);}).join('');
     G('home-ind-bento').innerHTML = HOME_IND_ITEMS.map(function(x){return _homeBentoInd(x[0],x[1],data.indicadores[x[0]],x[2]);}).join('');
-    G('home-esf-panel').innerHTML = `<div class="home-esf-head">Año ${data.year} · último período cargado (Q${data.quarter})</div>` + _homeEsfPanel(data.esf_detalle);
+    G('home-esf-panel').innerHTML = `<div class="home-esf-head">Año ${data.year} · último período cargado (Q${data.quarter})</div>` + _homeEsfPanel(data);
   }catch(e){
     G('home-subtitulo').textContent='Error cargando datos del Home';
   }

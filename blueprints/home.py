@@ -130,6 +130,7 @@ def home_resumen():
 
     total_activo_gral = _valor_q('TOTAL ACTIVOS', nivel=0)
     total_pasivo_gral = _valor_q('TOTAL PASIVOS', nivel=0)
+    total_pasivo_patrimonio_gral = _valor_q('TOTAL PASIVOS Y PATRIMONIO', nivel=0)
 
     saludo, extra = _saludo_dinamico()
 
@@ -144,5 +145,6 @@ def home_resumen():
         'esf_detalle': esf_detalle,
         'total_activo_gral': total_activo_gral,
         'total_pasivo_gral': total_pasivo_gral,
+        'total_pasivo_patrimonio_gral': total_pasivo_patrimonio_gral,
         'indicadores': ind_home,
     })
