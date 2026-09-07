@@ -21,6 +21,7 @@ from blueprints.comparativas import comparativas_bp
 from blueprints.presupuesto import presupuesto_bp
 from blueprints.datos import datos_bp
 from blueprints.divisa_real import divisa_real_bp
+from blueprints.home import home_bp
 from blueprints.exportables import exportables_bp
 from blueprints.briefing import briefing_bp
 from blueprints.mapeo import mapeo_bp
@@ -41,6 +42,7 @@ app.register_blueprint(comparativas_bp)
 app.register_blueprint(presupuesto_bp)
 app.register_blueprint(datos_bp)
 app.register_blueprint(divisa_real_bp)
+app.register_blueprint(home_bp)
 app.register_blueprint(exportables_bp)
 app.register_blueprint(briefing_bp)
 app.register_blueprint(mapeo_bp)
