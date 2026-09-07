@@ -1,8 +1,12 @@
 from flask import Blueprint, jsonify, request
 from datetime import datetime, timezone, timedelta
 import calendar
+import random
 
 VENEZUELA_TZ = timezone(timedelta(hours=-4))
+SALUDOS_MANANA = ['Buenos días', 'Qué tal la mañana', 'Arrancando el día']
+SALUDOS_TARDE = ['Buenas tardes', 'Qué tal la tarde', 'Buenas']
+SALUDOS_NOCHE = ['Buenas noches', 'Qué tal la noche', 'Cerrando el día']
 
 from db import get_db
 from auth import login_required
@@ -40,11 +44,11 @@ IND_HOME_PREFIJOS = [
 def _saludo_dinamico():
     ahora = datetime.now(VENEZUELA_TZ)
     if ahora.hour < 12:
-        saludo = 'Buenos días'
+        saludo = random.choice(SALUDOS_MANANA)
     elif ahora.hour < 19:
-        saludo = 'Buenas tardes'
+        saludo = random.choice(SALUDOS_TARDE)
     else:
-        saludo = 'Buenas noches'
+        saludo = random.choice(SALUDOS_NOCHE)
 
     ultimo_dia_mes = calendar.monthrange(ahora.year, ahora.month)[1]
     extra = ''
