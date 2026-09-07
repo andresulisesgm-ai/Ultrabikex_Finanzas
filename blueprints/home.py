@@ -95,6 +95,51 @@ def home_resumen():
         fila = next((i for i in indicadores if i.get('nombre', '').startswith(prefijo)), None)
         ind_home[clave] = fila.get('anio_actual') if fila else None
 
+    ESF_SECCIONES = [
+        ('activo_corriente', 'Activo corriente', 'Total Activos Corrientes', 'ACTIVOS CORRIENTES'),
+        ('activo_no_corriente', 'Activo no corriente', 'Total Activos No Corrientes', 'ACTIVOS NO CORRIENTES'),
+        ('pasivo_corriente', 'Pasivo corriente', 'Total Pasivos Corrientes', 'PASIVOS CORRIENTES'),
+        ('pasivo_no_corriente', 'Pasivo no corriente', 'Total Pasivos No Corrientes', 'PASIVOS NO CORRIENTES'),
+        ('patrimonio', 'Patrimonio', 'Total Patrimonio', 'PATRIMONIO'),
+    ]
+
+    rows_esf = estados.get('esf_real', {}).get('rows', [])
+
+    def _valor_q(partida, nivel=None):
+        for r in rows_esf:
+            if r.get('partida') != partida:
+                continue
+            if nivel is not None and r.get('level') != nivel:
+                continue
+            return round((r.get('quarters', {}) or {}).get(ultimo_q, 0) or 0, 2)
+        return 0
+
+    esf_detalle = []
+    for clave, label, total_partida, parent in ESF_SECCIONES:
+        detalle = [
+            {'partida': r['partida'], 'valor': round((r.get('quarters', {}) or {}).get(ultimo_q, 0) or 0, 2)}
+            for r in rows_esf if r.get('level') == 2 and r.get('parent_name') == parent
+        ]
+        esf_detalle.append({
+            'clave': clave, 'label': label,
+            'total': _valor_q(total_partida, nivel=1),
+            'detalle': detalle
+        })
+
+    total_activo_gral = _valor_q('TOTAL ACTIVOS', nivel=0)
+    total_pasivo_gral = _valor_q('TOTAL PASIVOS', nivel=0)
+
     saludo, extra = _saludo_dinamico()
 
-    return jsonify({'year': year, 'quarter': ultimo_q, 'saludo': saludo, 'extra_saludo': extra, 'eerr': eerr_home, 'esf': esf_home, 'indicadores': ind_home})
+    return jsonify({
+        'year': year,
+        'quarter': ultimo_q,
+        'saludo': saludo,
+        'extra_saludo': extra,
+        'eerr': eerr_home,
+        'esf': esf_home,
+        'esf_detalle': esf_detalle,
+        'total_activo_gral': total_activo_gral,
+        'total_pasivo_gral': total_pasivo_gral,
+        'indicadores': ind_home,
+    })
