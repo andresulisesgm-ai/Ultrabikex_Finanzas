@@ -2691,43 +2691,34 @@ function loadDonaSegmento() {
 }
 
 // ── HOME LOAD ─────────────────────────────────────────────────────────────
-const HOME_EERR_LABELS = {
-  ingresos:'Ingresos', costo_ventas:'Costo de ventas', utilidad_bruta:'Utilidad bruta',
-  gastos_operacionales:'Gastos operacionales', ebitda:'Ebitda', utilidad_neta:'Utilidad neta'
-};
-const HOME_ESF_LABELS = {
-  activo_corriente:'Activo corriente', activo_no_corriente:'Activo no corriente', total_activo:'Total activo',
-  pasivo_corriente:'Pasivo corriente', pasivo_no_corriente:'Pasivo no corriente', total_pasivo:'Total pasivo',
-  patrimonio:'Patrimonio'
-};
-const HOME_IND_CONFIG = {
-  roe:{label:'ROE', tipo:'pct'}, roa:{label:'ROA', tipo:'pct'},
-  razon_corriente:{label:'Razón corriente', tipo:'ratio'},
-  periodo_cobro:{label:'Período de cobro', tipo:'dias'},
-  rotacion_inventarios:{label:'Rotación inventarios', tipo:'ratio'},
-  margen_neto:{label:'Margen neto', tipo:'pct'}
-};
+const HOME_EERR_ITEMS = [
+  ['ingresos','Ingresos','big'], ['utilidad_neta','Utilidad neta','med'], ['ebitda','Ebitda','sm'],
+  ['costo_ventas','Costo de ventas','sm'], ['gastos_operacionales','Gastos operacionales','med'], ['utilidad_bruta','Utilidad bruta','sm']
+];
+const HOME_IND_ITEMS = [
+  ['roe','ROE','pct'], ['roa','ROA','pct'], ['razon_corriente','Razón corriente','ratio'],
+  ['periodo_cobro','Período de cobro','dias'], ['rotacion_inventarios','Rotación inventarios','ratio'], ['margen_neto','Margen neto','pct']
+];
 
-function _homeCardMonto(id, label, valor){
-  return `<div class="kc" id="kc-home-${id}">
-    <div class="kstripe"></div>
-    <div class="ktop"><span class="klbl">${label}</span></div>
-    <div class="kval">${fmtS(valor)}</div>
-  </div>`;
+function _homeBento(clave, label, valor, tam){
+  return `<div class="home-b ${tam}"><div class="l">${label}</div><div class="v">${fmtS(valor)}</div></div>`;
 }
-
-function _homeCardIndicador(id, label, valor, tipo){
+function _homeBentoInd(clave, label, valor, tipo){
   let txt='—';
   if(valor!=null){
     if(tipo==='pct') txt=(valor*100).toFixed(1)+'%';
     else if(tipo==='dias') txt=valor.toFixed(1)+' días';
     else txt=valor.toFixed(2)+'x';
   }
-  return `<div class="kc" id="kc-home-${id}">
-    <div class="kstripe"></div>
-    <div class="ktop"><span class="klbl">${label}</span></div>
-    <div class="kval">${txt}</div>
-  </div>`;
+  return `<div class="home-b sm"><div class="l">${label}</div><div class="v">${txt}</div></div>`;
+}
+function _homeEsfPanel(esfDetalle){
+  return esfDetalle.map(function(sec){
+    const filas = sec.detalle.map(function(d){
+      return `<div class="home-esf-row"><span class="p">${d.partida}</span><span class="v">${fmtS(d.valor)}</span></div>`;
+    }).join('');
+    return filas + `<div class="home-esf-row tot"><span class="p">${sec.label}</span><span class="v">${fmtS(sec.total)}</span></div>`;
+  }).join('');
 }
 
 async function loadHome(){
@@ -2742,12 +2733,9 @@ async function loadHome(){
     G('home-saludo').textContent = data.saludo + (data.extra_saludo||'');
     G('home-subtitulo').textContent = `${empresaLabel} · Divisa Real · Q${data.quarter} ${data.year}`;
 
-    G('home-eerr-grid').innerHTML = Object.keys(HOME_EERR_LABELS)
-      .map(k=>_homeCardMonto(k, HOME_EERR_LABELS[k], data.eerr[k])).join('');
-    G('home-esf-grid').innerHTML = Object.keys(HOME_ESF_LABELS)
-      .map(k=>_homeCardMonto(k, HOME_ESF_LABELS[k], data.esf[k])).join('');
-    G('home-ind-grid').innerHTML = Object.keys(HOME_IND_CONFIG)
-      .map(k=>_homeCardIndicador(k, HOME_IND_CONFIG[k].label, data.indicadores[k], HOME_IND_CONFIG[k].tipo)).join('');
+    G('home-eerr-bento').innerHTML = HOME_EERR_ITEMS.map(function(x){return _homeBento(x[0],x[1],data.eerr[x[0]],x[2]);}).join('');
+    G('home-ind-bento').innerHTML = HOME_IND_ITEMS.map(function(x){return _homeBentoInd(x[0],x[1],data.indicadores[x[0]],x[2]);}).join('');
+    G('home-esf-panel').innerHTML = `<div class="home-esf-head">Año ${data.year} · último período cargado (Q${data.quarter})</div>` + _homeEsfPanel(data.esf_detalle);
   }catch(e){
     G('home-subtitulo').textContent='Error cargando datos del Home';
   }
