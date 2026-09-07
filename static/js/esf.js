@@ -1,4 +1,4 @@
-﻿// ── ESF ────────────────────────────────────────────────────────────────────────
+// ── ESF ────────────────────────────────────────────────────────────────────────
 let ESF_DATA = null, esfQ = 1;
 
 let ESFDIV_YEAR = null;
@@ -625,7 +625,7 @@ function renderESF() {
                     data-level="0" 
                     data-expanded="true" 
                     data-partida="DIFERENCIA"
-                    style="grid-template-columns:${gridCols};background:var(--purple,#6c5ce7);margin-top:8px;color:var(--white,#fff)">
+                    style="grid-template-columns:${gridCols};background:var(--blue,#2563eb);margin-top:8px;color:var(--white,#fff)">
     <div style="padding-left:10px;font-weight:700;color:var(--white,#fff)">DIFERENCIA</div>
     ${numCells(difRowObj)}
   </div>`;
