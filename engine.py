@@ -1170,7 +1170,7 @@ def calcular_estados_reales(year, unit='', empresa_id=None, db=None):
                 break
 
         for row in esf_real.get('rows', []):
-            if row.get('partida') in ('Total Patrimonio', 'TOTAL PASIVOS Y PATRIMONIO'):
+            if row.get('partida') in ('PATRIMONIO', 'Total Patrimonio', 'TOTAL PASIVOS Y PATRIMONIO'):
                 for q in [1, 2, 3, 4]:
                     if q in esf_quarters_available:
                         row['quarters'][q] = round(row['quarters'].get(q, 0.0) + plug_efectivo_q[q], 2)
