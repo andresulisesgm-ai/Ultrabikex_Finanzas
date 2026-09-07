@@ -224,7 +224,8 @@ function selectCompany(el,name,color,initials,empresaId){
 
   updateUnitSelectorsForEmpresa();
 
-  showPage('dashboard', G('nav-dashboard'));
+  const navActivo = document.querySelector('.nav-item.active') || G('nav-dashboard');
+  showPage(CURRENT_PAGE, navActivo);
 }
 
 function reloadCurrentPage(){

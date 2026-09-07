@@ -2690,6 +2690,69 @@ function loadDonaSegmento() {
   }
 }
 
+// ── HOME LOAD ─────────────────────────────────────────────────────────────
+const HOME_EERR_LABELS = {
+  ingresos:'Ingresos', costo_ventas:'Costo de ventas', utilidad_bruta:'Utilidad bruta',
+  gastos_operacionales:'Gastos operacionales', ebitda:'Ebitda', utilidad_neta:'Utilidad neta'
+};
+const HOME_ESF_LABELS = {
+  activo_corriente:'Activo corriente', activo_no_corriente:'Activo no corriente', total_activo:'Total activo',
+  pasivo_corriente:'Pasivo corriente', pasivo_no_corriente:'Pasivo no corriente', total_pasivo:'Total pasivo',
+  patrimonio:'Patrimonio'
+};
+const HOME_IND_CONFIG = {
+  roe:{label:'ROE', tipo:'pct'}, roa:{label:'ROA', tipo:'pct'},
+  razon_corriente:{label:'Razón corriente', tipo:'ratio'},
+  periodo_cobro:{label:'Período de cobro', tipo:'dias'},
+  rotacion_inventarios:{label:'Rotación inventarios', tipo:'ratio'},
+  margen_neto:{label:'Margen neto', tipo:'pct'}
+};
+
+function _homeCardMonto(id, label, valor){
+  return `<div class="kc" id="kc-home-${id}">
+    <div class="kstripe"></div>
+    <div class="ktop"><span class="klbl">${label}</span></div>
+    <div class="kval">${fmtS(valor)}</div>
+  </div>`;
+}
+
+function _homeCardIndicador(id, label, valor, tipo){
+  let txt='—';
+  if(valor!=null){
+    if(tipo==='pct') txt=(valor*100).toFixed(1)+'%';
+    else if(tipo==='dias') txt=valor.toFixed(1)+' días';
+    else txt=valor.toFixed(2)+'x';
+  }
+  return `<div class="kc" id="kc-home-${id}">
+    <div class="kstripe"></div>
+    <div class="ktop"><span class="klbl">${label}</span></div>
+    <div class="kval">${txt}</div>
+  </div>`;
+}
+
+async function loadHome(){
+  try{
+    const r = await fetch(`/api/home/resumen?empresa_id=${CURRENT_EMPRESA_ID||''}`);
+    if(!r.ok){ G('home-subtitulo').textContent='Error cargando datos del Home'; return; }
+    const data = await r.json();
+    if(data.error){ G('home-subtitulo').textContent = data.error; return; }
+
+    const empresaLabelEl = document.getElementById('company-sel-label');
+    const empresaLabel = empresaLabelEl ? empresaLabelEl.textContent : 'Ultrabikex Holding';
+    G('home-saludo').textContent = data.saludo + (data.extra_saludo||'');
+    G('home-subtitulo').textContent = `${empresaLabel} · Divisa Real · Q${data.quarter} ${data.year}`;
+
+    G('home-eerr-grid').innerHTML = Object.keys(HOME_EERR_LABELS)
+      .map(k=>_homeCardMonto(k, HOME_EERR_LABELS[k], data.eerr[k])).join('');
+    G('home-esf-grid').innerHTML = Object.keys(HOME_ESF_LABELS)
+      .map(k=>_homeCardMonto(k, HOME_ESF_LABELS[k], data.esf[k])).join('');
+    G('home-ind-grid').innerHTML = Object.keys(HOME_IND_CONFIG)
+      .map(k=>_homeCardIndicador(k, HOME_IND_CONFIG[k].label, data.indicadores[k], HOME_IND_CONFIG[k].tipo)).join('');
+  }catch(e){
+    G('home-subtitulo').textContent='Error cargando datos del Home';
+  }
+}
+
 // ── DASHBOARD LOAD ────────────────────────────────────────────────────────
 let _dashSeq = 0;
 async function loadDash(){
@@ -3081,5 +3144,5 @@ async function loadDash(){
     loadDash();
   });
 
-  loadDash();
+  loadHome();
 })();
