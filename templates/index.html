@@ -31,7 +31,8 @@
     </div>
   </div>
   <div class="nav-sec">Principal</div>
-  <div class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard',this)"><span class="nav-icon"><i class="ph ph-squares-four"></i></span>Dashboard</div>
+  <div class="nav-item active" id="nav-home" onclick="showPage('home',this)"><span class="nav-icon"><i class="ph ph-house"></i></span>Home</div>
+  <div class="nav-item" id="nav-dashboard" onclick="showPage('dashboard',this)"><span class="nav-icon"><i class="ph ph-squares-four"></i></span>Dashboard</div>
   <div class="nav-item" onclick="showPage('eerr',this)"><span class="nav-icon"><i class="ph ph-file-text"></i></span>Estados de Resultados (EERR)</div>
   <div class="nav-item" onclick="showPage('err_divisa',this)"><span class="nav-icon"><i class="ph ph-currency-dollar"></i></span>EERR Divisa Real</div>
   <div class="nav-item" onclick="showPage('eerrdet',this)" style="display:none"><span class="nav-icon"><i class="ph ph-list"></i></span>ERR Detallado</div>
@@ -166,8 +167,40 @@
     </div>
   </div>
 
-  <!-- DASHBOARD -->
-  <div class="page" id="page-dashboard">
+    <!-- HOME -->
+    <div class="page active" id="page-home">
+      <div style="margin-bottom:4px"><span id="home-saludo" style="font-size:34px;font-weight:700">Cargando...</span></div>
+      <div id="home-subtitulo" style="color:var(--mu);font-size:13px;margin-bottom:20px">Cargando...</div>
+
+      <div style="font-size:13px;font-weight:700;color:var(--mu);margin-bottom:8px">Estado de resultados — Holding, Divisa Real</div>
+      <div class="kgrid" id="home-eerr-grid">
+        <p style="color:var(--mu);font-size:12px">Cargando...</p>
+      </div>
+
+      <div style="font-size:13px;font-weight:700;color:var(--mu);margin:20px 0 8px">Situación financiera corriente y no corriente — Holding, consolidado</div>
+      <div class="kgrid" id="home-esf-grid">
+        <p style="color:var(--mu);font-size:12px">Cargando...</p>
+      </div>
+
+      <div style="font-size:13px;font-weight:700;color:var(--mu);margin:20px 0 8px">Indicadores financieros — Divisa Real</div>
+      <div class="kgrid" id="home-ind-grid">
+        <p style="color:var(--mu);font-size:12px">Cargando...</p>
+      </div>
+
+      <div style="font-size:13px;font-weight:700;color:var(--mu);margin:24px 0 8px">Módulos</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <button class="tb-sel" onclick="showPage('dashboard',document.getElementById('nav-dashboard'))">Dashboard</button>
+        <button class="tb-sel" onclick="showPage('eerr',null)">EERR BCV</button>
+        <button class="tb-sel" onclick="showPage('err_divisa',null)">EERR Divisa Real</button>
+        <button class="tb-sel" onclick="showPage('esf',null)">ESF BCV</button>
+        <button class="tb-sel" onclick="showPage('esf_divisa',null)">ESF Divisa Real</button>
+        <button class="tb-sel" onclick="showPage('indicadores',null)">Indicadores</button>
+        <button class="tb-sel" onclick="showPage('export_ai',null)">Briefing IA</button>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="page" id="page-dashboard">
     <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px;align-items:center">
       <div class="toggle-divisa" onclick="toggleDivisaMode()" title="Cambiar entre modo BCV normal y modo Divisa Real">
         <span class="toggle-label">Normal</span>
