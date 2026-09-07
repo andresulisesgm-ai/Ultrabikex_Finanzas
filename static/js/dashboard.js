@@ -91,19 +91,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "widthSpan": 1,
     "dataset": "patrimonio"
   },
-  {
-    "id": "kc-rzc",
-    "type": "kpi",
-    "title": "Razón Corriente",
-    "subtitle": "Consolidado · Ref 1.5-2",
-    "tooltip": "Activo Corriente entre Pasivo Corriente. Mide la capacidad de pago a corto plazo.",
-    "icon": "⚖️",
-    "colorClass": "cp",
-    "visible": true,
-    "order": 9,
-    "widthSpan": 1,
-    "dataset": "razon_corriente"
-  },
+
   {
     "id": "sec-esf",
     "type": "section",
@@ -2696,7 +2684,7 @@ const HOME_EERR_ITEMS = [
   ['costo_ventas','Costo de ventas','sm'], ['gastos_operacionales','Gastos operacionales','med'], ['utilidad_bruta','Utilidad bruta','sm']
 ];
 const HOME_IND_ITEMS = [
-  ['roe','ROE','pct'], ['roa','ROA','pct'], ['razon_corriente','Razón corriente','ratio'],
+  ['roe','ROE','pct'], ['roa','ROA','pct'],
   ['periodo_cobro','Período de cobro','dias'], ['rotacion_inventarios','Rotación inventarios','ratio'], ['margen_neto','Margen neto','pct']
 ];
 
@@ -2730,7 +2718,7 @@ async function loadHome(){
 
     const empresaLabelEl = document.getElementById('company-sel-label');
     const empresaLabel = empresaLabelEl ? empresaLabelEl.textContent : 'Ultrabikex Holding';
-    G('home-saludo').textContent = data.saludo + (data.extra_saludo||'');
+    G('home-saludo').textContent = data.saludo + ', ' + data.username + (data.extra_saludo||'');
     G('home-subtitulo').textContent = `${empresaLabel} · Divisa Real · Q${data.quarter} ${data.year}`;
 
     G('home-eerr-bento').innerHTML = HOME_EERR_ITEMS.map(function(x){return _homeBento(x[0],x[1],data.eerr[x[0]],x[2]);}).join('');
@@ -2791,8 +2779,6 @@ async function loadDash(){
 
           const esfTot=dataInd.esf_totales||{};
           const inds=dataInd.indicadores||[];
-          const indRC=inds.find(x=>x.nombre&&x.nombre.startsWith('Ratio Corriente'));
-          const razonCorriente=indRC?indRC.anio_actual:null;
 
           DD={
             months:quartersUsar.map(q=>{
@@ -2841,7 +2827,6 @@ async function loadDash(){
               total_activos:esfTot.total_activos!=null?esfTot.total_activos:null,
               total_pasivos:esfTot.total_pasivos!=null?esfTot.total_pasivos:null,
               patrimonio:esfTot.patrimonio!=null?esfTot.patrimonio:null,
-              razon_corriente:razonCorriente,
               ingresos_segmentos:{
                 'Venta de Mercancía':totalesEerr.seg_mercancia,
                 'Servicios':totalesEerr.seg_servicios,
@@ -2915,11 +2900,9 @@ async function loadDash(){
     const ta=DD.totals?DD.totals.total_activos:null;
     const tp=DD.totals?DD.totals.total_pasivos:null;
     const pat=DD.totals?DD.totals.patrimonio:null;
-    const rzc=DD.totals?DD.totals.razon_corriente:null;
     sk('act',ta!=null?fmtS(ta):'—','Consolidado',100);
     sk('pas',tp!=null?fmtS(tp):'—','Consolidado',100);
     sk('pat',pat!=null?fmtS(pat):'—','Consolidado',100);
-    sk('rzc',rzc!=null?rzc.toFixed(2):'—',null,rzc!=null?cl(rzc*40,0,100):0);
     const peCov=DD.punto_equilibrio?.cobertura_pct??null;
     const ia=DD.indicadores_avanzados||null;
     loadEstructuraCapital();
@@ -2944,10 +2927,10 @@ async function loadDash(){
     // Renderizar Panel de Indicadores
     const pindActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-panel-indicadores' && w.visible);
     if (pindActivo && ia) {
-      const labels = ['ROE %','ROA %','Ratio Corriente','Prueba Ácida','Prueba Defensiva','Endeudamiento','Rot. Inv.','Rot. Activos','P. Cobro'];
+      const labels = ['ROE %','ROA %','Prueba Ácida','Prueba Defensiva','Endeudamiento','Rot. Inv.','Rot. Activos','P. Cobro'];
       const valores = [
         ia.roe!=null?ia.roe*100:null, ia.roa!=null?ia.roa*100:null,
-        ia.ratio_corriente, ia.prueba_acida, ia.prueba_defensiva,
+        ia.prueba_acida, ia.prueba_defensiva,
         ia.ratio_endeud, ia.rotacion_inv, ia.rotacion_activos!=null?ia.rotacion_activos*4:null, ia.periodo_cobro
       ];
       const ctsel = document.getElementById('ct-ch-pind');
@@ -3070,7 +3053,6 @@ async function loadDash(){
       };
       setI('ind-roe-val', ia.roe, '%');
       setI('ind-roa-val', ia.roa, '%');
-      setI('ind-rc-val', ia.ratio_corriente, 'x');
       setI('ind-pa-val', ia.prueba_acida, 'x');
       setI('ind-pd-val', ia.prueba_defensiva, 'x');
       setI('ind-end-val', ia.ratio_endeud, 'x');

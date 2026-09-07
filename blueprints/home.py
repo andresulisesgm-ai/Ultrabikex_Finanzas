@@ -29,7 +29,6 @@ ESF_HOME_PARTIDAS = [
 IND_HOME_PREFIJOS = [
     ('roe', 'ROE'),
     ('roa', 'ROA'),
-    ('razon_corriente', 'Ratio Corriente'),
     ('periodo_cobro', 'Período de cobro'),
     ('rotacion_inventarios', 'Rotación de Inventarios'),
     ('margen_neto', 'Margen Neto'),
@@ -60,9 +59,12 @@ def _saludo_dinamico():
 def home_resumen():
     from engine import eerr_divisa_real_trimestres, compute_indicadores_v2_divisa_real, calcular_estados_reales, _reshape_esf_rows_to_quarters
 
+    from auth import get_current_user
     year = request.args.get('year', str(datetime.now().year))
     empresa_id = request.args.get('empresa_id', type=int)
     db = get_db()
+    usuario = get_current_user()
+    username = usuario['username'] if usuario else ''
 
     if empresa_id:
         rows_q = db.execute('SELECT DISTINCT quarter FROM esf_data WHERE year=? AND empresa_id=?', (year, empresa_id)).fetchall()
@@ -135,6 +137,7 @@ def home_resumen():
         'year': year,
         'quarter': ultimo_q,
         'saludo': saludo,
+        'username': username,
         'extra_saludo': extra,
         'eerr': eerr_home,
         'esf': esf_home,

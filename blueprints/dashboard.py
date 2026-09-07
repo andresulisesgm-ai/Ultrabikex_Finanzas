@@ -515,7 +515,6 @@ def dashboard():
         'total_activos': total_activos,
         'total_pasivos': total_pasivos,
         'patrimonio': patrimonio,
-        'razon_corriente': razon_corriente,
         'otros_ingresos_no_operacionales': round(otros_ing, 2),
         'otros_gastos_no_operacionales': round(otros_gas, 2),
         'ingresos_segmentos': {
