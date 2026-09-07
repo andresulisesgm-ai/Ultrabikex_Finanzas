@@ -2700,26 +2700,25 @@ function _homeBentoInd(clave, label, valor, tipo){
   }
   return `<div class="home-b sm"><div class="l">${label}</div><div class="v">${txt}</div></div>`;
 }
-function _homeEsfRow(label, valor, cls){
-  return `<div class="home-esf-row ${cls||''}"><span class="p">${label}</span><span class="v">${fmtS(valor)}</span></div>`;
+function _homeBalRow(label, valor, cls){
+  return `<div class="home-bal-row ${cls||''}"><span>${label}</span><span class="v">${fmtS(valor)}</span></div>`;
 }
-function _homeEsfSeccion(sec){
-  return _homeEsfRow(sec.label, sec.total, 'hdr') + sec.detalle.map(function(d){return _homeEsfRow(d.partida, d.valor, '');}).join('');
+function _homeBalSeccion(sec){
+  return sec.detalle.map(function(d){return _homeBalRow(d.partida, d.valor, '');}).join('') + _homeBalRow(sec.label, sec.total, 'sub');
 }
 function _homeEsfPanel(data){
   const bySec = {};
   data.esf_detalle.forEach(function(s){ bySec[s.clave]=s; });
-  let html = '';
-  html += _homeEsfSeccion(bySec.activo_corriente);
-  html += _homeEsfSeccion(bySec.activo_no_corriente);
-  html += _homeEsfRow('TOTAL ACTIVOS', data.total_activo_gral, 'tot');
-  html += _homeEsfSeccion(bySec.pasivo_corriente);
-  html += _homeEsfSeccion(bySec.pasivo_no_corriente);
-  html += _homeEsfRow('TOTAL PASIVOS', data.total_pasivo_gral, 'tot');
-  html += _homeEsfSeccion(bySec.patrimonio);
-  html += _homeEsfRow('Total Patrimonio', bySec.patrimonio.total, 'hdr');
-  html += _homeEsfRow('TOTAL PASIVOS Y PATRIMONIO', data.total_pasivo_patrimonio_gral, 'tot');
-  return html;
+  const izq = '<div class="home-bal-col"><h4>Activos</h4>' +
+    _homeBalSeccion(bySec.activo_corriente) +
+    _homeBalSeccion(bySec.activo_no_corriente) +
+    '<div class="home-bal-tot"><span>TOTAL ACTIVOS</span><span class="v">' + fmtS(data.total_activo_gral) + '</span></div></div>';
+  const der = '<div class="home-bal-col"><h4>Pasivos + Patrimonio</h4>' +
+    _homeBalSeccion(bySec.pasivo_corriente) +
+    _homeBalSeccion(bySec.pasivo_no_corriente) +
+    _homeBalSeccion(bySec.patrimonio) +
+    '<div class="home-bal-tot"><span>TOTAL PASIVO + PATRIM.</span><span class="v">' + fmtS(data.total_pasivo_patrimonio_gral) + '</span></div></div>';
+  return '<div class="home-bal-cols">' + izq + der + '</div>';
 }
 
 async function loadHome(){
