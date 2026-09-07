@@ -1,6 +1,8 @@
 from flask import Blueprint, jsonify, request
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import calendar
+
+VENEZUELA_TZ = timezone(timedelta(hours=-4))
 
 from db import get_db
 from auth import login_required
@@ -36,7 +38,7 @@ IND_HOME_PREFIJOS = [
 
 
 def _saludo_dinamico():
-    ahora = datetime.now()
+    ahora = datetime.now(VENEZUELA_TZ)
     if ahora.hour < 12:
         saludo = 'Buenos días'
     elif ahora.hour < 19:
