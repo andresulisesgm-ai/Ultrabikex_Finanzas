@@ -2949,7 +2949,7 @@ def _neutralizar_plug_sin_datos(rows, esf_quarters_available):
     return rows
 
 
-def compute_indicadores_v2_divisa_real(db, year, empresa_id=None):
+def compute_indicadores_v2_divisa_real(db, year, empresa_id=None, quarter=None):
     """
     Punto de entrada de Indicadores Financieros en modo Divisa Real. Arma
     datos_precalculados a partir de calcular_estados_reales() (año actual y año
@@ -3011,13 +3011,19 @@ def compute_indicadores_v2_divisa_real(db, year, empresa_id=None):
 
     esf_totales = None
     if esf_quarters_available:
-        esf_last_q = max(esf_quarters_available)
-        esf_tot = result_quarters.get(esf_last_q, {}).get('totales', {})
-        esf_totales = {
-            'total_activos': round(esf_tot.get('TOTAL ACTIVOS', 0), 2),
-            'total_pasivos': round(esf_tot.get('TOTAL PASIVOS', 0), 2),
-            'patrimonio': round(esf_tot.get('TOTAL PATRIMONIO', 0), 2),
-        }
+        if quarter is not None and quarter in esf_quarters_available:
+            esf_q_usar = quarter
+        elif quarter is not None:
+            esf_q_usar = None
+        else:
+            esf_q_usar = max(esf_quarters_available)
+        if esf_q_usar is not None:
+            esf_tot = result_quarters.get(esf_q_usar, {}).get('totales', {})
+            esf_totales = {
+                'total_activos': round(esf_tot.get('TOTAL ACTIVOS', 0), 2),
+                'total_pasivos': round(esf_tot.get('TOTAL PASIVOS', 0), 2),
+                'patrimonio': round(esf_tot.get('TOTAL PATRIMONIO', 0), 2),
+            }
 
     return {'indicadores': indicadores, 'esf_totales': esf_totales}
 

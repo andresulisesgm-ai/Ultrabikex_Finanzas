@@ -37,8 +37,9 @@ def get_indicadores_divisa_real():
     year = request.args.get('year', str(datetime.now().year))
     unit = request.args.get('unit', '')
     empresa_id = request.args.get('empresa_id', type=int) or None
+    quarter = request.args.get('quarter', type=int) or None
     db   = get_db()
-    resultado = compute_indicadores_v2_divisa_real(db, year, empresa_id=empresa_id)
+    resultado = compute_indicadores_v2_divisa_real(db, year, empresa_id=empresa_id, quarter=quarter)
     if isinstance(resultado, dict) and 'error' in resultado:
         return jsonify({'error': resultado['error']}), 404
     if not resultado:

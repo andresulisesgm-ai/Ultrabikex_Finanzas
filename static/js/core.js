@@ -139,16 +139,14 @@ async function toggleDivisaMode(){
   if(toggle){
     if(modoDivisaReal){
       toggle.parentElement.classList.add('active');
-      if(msel) msel.style.display='block';
+      if(msel){
+        msel.style.display='block';
+        msel.disabled = qsel && qsel.value !== '';
+      }
       if(qsel){
-        // Regla (ago-2026, revisado): al activar Divisa Real, NO preseleccionar
-        // ningun trimestre puntual -- arranca en "Trimestres" (sin filtro = todos).
-        // Las opciones sin tasa BCV/paralela completa quedan deshabilitadas en el
-        // dropdown para que el usuario solo pueda elegir trimestres con datos.
-        qsel.value='';
-        qsel.disabled=false;
-        msel.value='';
-        msel.disabled=true;
+        // Regla (sep-2026, revisado): Normal/Divisa Real ya no resetea la
+        // seleccion de mes/trimestre -- se respeta lo que el usuario ya
+        // tenia elegido en cualquiera de los dos modos.
         await actualizarDisponibilidadTrimestres();
       }
     }else{

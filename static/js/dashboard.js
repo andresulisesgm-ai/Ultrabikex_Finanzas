@@ -931,7 +931,7 @@ function updateVisibilidadSeccionESF() {
   const mes = G('dash-month') ? G('dash-month').value : '';
   const debeOcultarse = (unit !== 'TODAS') || (mes !== '');
 
-  const idsESF = ['sec-esf', 'wc-estcap', 'wc-estcapdet', 'wc-sitfin', 'wc-periodo-cobro', 'wc-deuda-cobertura', 'wc-roe', 'wc-roa'];
+  const idsESF = ['sec-esf', 'wc-estcap', 'wc-estcapdet', 'wc-sitfin', 'wc-periodo-cobro', 'wc-deuda-cobertura', 'wc-roe', 'wc-roa', 'kc-act', 'kc-pas', 'kc-pat'];
   idsESF.forEach(id => {
     const el = G(id);
     if (el) el.style.display = debeOcultarse ? 'none' : '';
@@ -2747,8 +2747,53 @@ async function loadDash(){
               await actualizarDisponibilidadTrimestres();
               const month=G('dash-month').value;
               const qParam=G('dash-quarter')?G('dash-quarter').value:'';
+
+          if(month){
+            const rMes=await fetch(`/api/dashboard_divisa_real?year=${year}&month=${month}&unit=${unit}&empresa_id=${CURRENT_EMPRESA_ID||''}`);
+            if(!rMes.ok){
+              G('schips').innerHTML=`<span style="color:var(--red);font-size:12px">⚠️ Error cargando datos Divisa Real</span>`;
+              return;
+            }
+            const dataMes=await rMes.json();
+            if (mySeq !== _dashSeq) return;
+            const dr=dataMes.divisa_real||{};
+            DD={
+              months:[{
+                month:month,
+                ingresos:dr.ingresos||0, costos:dr.costos||0, gastos:dr.gastos||0,
+                utilidad_bruta:dr.utilidad_bruta||0, utilidad_neta:dr.utilidad_neta||0,
+                margen_bruto:dr.ingresos?dr.utilidad_bruta/dr.ingresos*100:0,
+                margen_neto:dr.ingresos?dr.utilidad_neta/dr.ingresos*100:0,
+                ratio_costo:dr.ingresos?dr.costos/dr.ingresos*100:0,
+                ratio_gasto:dr.ingresos?dr.gastos/dr.ingresos*100:0
+              }],
+              loaded:[{unit:unit==='TODAS'?'TODAS':unit,month:month}],
+              por_unidad:[],
+              top_gastos:[],
+              cat_gastos:[],
+              punto_equilibrio:null,
+              indicadores_avanzados:[],
+              totals:{
+                ingresos:dr.ingresos||0,
+                costos:dr.costos||0,
+                gastos:dr.gastos||0,
+                utilidad_bruta:dr.utilidad_bruta||0,
+                utilidad_neta:dr.utilidad_neta||0,
+                ebitda:dr.ebitda||0,
+                otros_ingresos_no_operacionales:dr.otros_ingresos_no_operacionales||0,
+                otros_gastos_no_operacionales:dr.otros_gastos_no_operacionales||0,
+                total_activos:null,
+                total_pasivos:null,
+                patrimonio:null,
+                ingresos_segmentos:dr.ingresos_segmentos||{}
+              },
+              _modo_divisa:true,
+              _tasas:dataMes.tasas||null
+            };
+            if (mySeq !== _dashSeq) return;
+          }else{
           const [rInd,rEerr]=await Promise.all([
-            fetch(`/api/indicadores/divisa_real?year=${year}&empresa_id=${CURRENT_EMPRESA_ID||''}`),
+            fetch(`/api/indicadores/divisa_real?year=${year}&empresa_id=${CURRENT_EMPRESA_ID||''}${qParam?`&quarter=${qParam}`:''}`),
             fetch(`/api/eerr/divisa_real/trimestres?year=${year}&unit=${unit==='TODAS'?'':unit}&empresa_id=${CURRENT_EMPRESA_ID||''}`)
           ]);
           if(!rInd.ok||!rEerr.ok){
@@ -2844,6 +2889,7 @@ async function loadDash(){
             _tasas:null
           };
           if (mySeq !== _dashSeq) return;
+          }
         }else{
       // Modo BCV normal: carga año completo
       const qParam = G('dash-quarter') ? G('dash-quarter').value : '';

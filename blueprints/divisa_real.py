@@ -137,6 +137,13 @@ def dashboard_divisa_real():
     gas_real = get_mes_valor('Total Gastos Operacionales y No Operacionales')
     ub_real  = get_mes_valor('Utilidad Bruta')
     un_real  = get_mes_valor('Utilidad Neta')
+    ebitda_real = get_mes_valor('Utilidad antes de intereses, impuestos, depreciación y amortización (EBITDA)')
+    otros_ing_real = get_mes_valor('Otros Ingresos no Operacionales')
+    otros_gas_real = get_mes_valor('Otros Gastos no Operacionales')
+    seg_mercancia_real = get_mes_valor('Subtotal Ingresos por Venta de Mercancia')
+    seg_servicios_real = get_mes_valor('Subtotal Ingresos por Servicios')
+    seg_eventos_real = get_mes_valor('Subtotal Ingresos por Eventos')
+    seg_taller_real = get_mes_valor('Subtotal Ingresos por Taller')
 
     return jsonify({
         'year': year,
@@ -153,6 +160,15 @@ def dashboard_divisa_real():
             'gastos': round(gas_real, 2),
             'utilidad_bruta': round(ub_real, 2),
             'utilidad_neta': round(un_real, 2),
+            'ebitda': round(ebitda_real, 2),
+            'otros_ingresos_no_operacionales': round(otros_ing_real, 2),
+            'otros_gastos_no_operacionales': round(otros_gas_real, 2),
+            'ingresos_segmentos': {
+                'Venta de Mercancía': round(seg_mercancia_real, 2),
+                'Servicios': round(seg_servicios_real, 2),
+                'Eventos': round(seg_eventos_real, 2),
+                'Taller': round(seg_taller_real, 2)
+            }
         }
     })
 
