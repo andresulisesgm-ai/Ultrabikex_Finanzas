@@ -1,5 +1,16 @@
-﻿// ── ERR DIVISA REAL ───────────────────────────────────────────────────────
+// ── ERR DIVISA REAL ───────────────────────────────────────────────────────
 var EERR_DIVISA_DATA = null;
+
+function lightenHex(hex, alpha = 0.4) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  const nr = Math.round(r * alpha + 255 * (1 - alpha));
+  const ng = Math.round(g * alpha + 255 * (1 - alpha));
+  const nb = Math.round(b * alpha + 255 * (1 - alpha));
+  return `#${nr.toString(16).padStart(2,'0')}${ng.toString(16).padStart(2,'0')}${nb.toString(16).padStart(2,'0')}`;
+}
 
 async function loadERRDivisa(){
   const year=G('err-divisa-year').value, unit=G('err-divisa-unit').value;
@@ -135,7 +146,7 @@ async function loadERRDivisa(){
     const displayStyle = isVisibleInitially ? '' : 'display:none;';
     const rStyle = displayStyle + (isHdr ? hRowStyle : (bgColorWithAlpha ? `background:${bgColorWithAlpha}` : ''));
     const boldStyle = useBold ? 'font-weight:700' : '';
-    const cellBg = bgColorWithAlpha ? `background:${bgColorWithAlpha}` : 'background:#fff';
+    const cellBg = bgColor ? `background:${lightenHex(bgColor)}` : 'background:#fff';
     
     const padLeft = (row.indent * 12 + 8) + 'px';
 
