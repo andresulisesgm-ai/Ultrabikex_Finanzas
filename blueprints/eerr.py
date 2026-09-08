@@ -264,7 +264,7 @@ def validate_eerr_v2_integrity(year, unit, adapter_output, db, empresa_id=None):
 
     discrepancies = []
 
-    from engine import EERR_STRUCTURE, build_effective_structure
+    from engine import EERR_STRUCTURE, build_effective_structure, SUBTOTAL_EXCLUSIONS
     db_overrides = db.execute('SELECT partida_name, target_subtotal FROM eerr_nodes').fetchall()
     effective = build_effective_structure(EERR_STRUCTURE, db_overrides=db_overrides)
     structure_with_levels = [(node['partida_name'], node['is_header'], node['level']) for node in effective]
@@ -280,88 +280,7 @@ def validate_eerr_v2_integrity(year, unit, adapter_output, db, empresa_id=None):
                 if c_level <= level:
                     break
                 if not c_is_header:
-                    if name == 'Subtotal Gastos de Administración' and c_name in [
-                        'Gasto por impuesto a las pensiones',
-                        'Gastos de IGTF',
-                        'Gastos de comisiones bancarias',
-                        'Gastos de intereses de mora',
-                        'Gastos de mantenimiento y reparación a la propiedad alq.',
-                        'Gastos de mantenimiento y reparación de edificaciones',
-                        'Gastos de mantenimiento y reparación de maquinaria y equipos',
-                        'Gastos de mantenimiento y reparación de mobiliario y equipo',
-                        'Gastos de mantenimiento y reparación de vehiculo',
-                        'Gastos de comida por viáticos administrativos',
-                        'Gastos de hospedaje por viáticos administrativos',
-                        'Gastos de pasajes por viáticos administrativos',
-                        'Gastos de transporte por viáticos administrativos',
-                        'Otros gastos de viáticos administrativos',
-                        'Gastos de seguro de edificaciones',
-                        'Gastos de seguro de vehiculos',
-                        'Gasto por otras tasas',
-                        'Gastos de impuesto por licencia de actividades economicas',
-                        'Gastos de impuesto por publicidad',
-                        'Gastos de patente vehicular',
-                        'Gastos de tasa sencamer',
-                        'Gastos de tasas de notaria y registro',
-                        'Gastos de amortización de software',
-                        'Gastos de depreciación de edificaciones',
-                        'Gastos de depreciación de maquinarias y equipos',
-                        'Gastos de depreciación de mobiliario y equipo',
-                        'Gastos de depreciación de vehículos',
-                        'Gastos de deterioro de edificaciones',
-                        'Gastos de deterioro de maquinarias y equipos',
-                        'Gastos de deterioro de mobiliario y equipo',
-                        'Gastos de deterioro de vehículos',
-                        'Gastos de deterioro por cuentas incobrables',
-                        'Gastos de intereses sobre préstamos bancarios',
-                        'Gastos de intereses sobre préstamos de terceros'
-                    ]:
-                        pass
-                    elif name == 'Subtotal Gastos de Recursos Humanos' and c_name in [
-                        'Gastos de uniformes y dotación al personal'
-                    ]:
-                        pass
-                    elif name == 'Subtotal Gastos de Mercadeo' and c_name in [
-                        'Gastos de impresiones de material gráfico',
-                        'Gastos de patrocinio y donación'
-                    ]:
-                        pass
-                    elif name == 'Subtotal Gastos de Comercialización y Logistica' and c_name in [
-                        'Gastos de comida por viáticos comerciales',
-                        'Gastos de hospedaje por viáticos comerciales',
-                        'Gastos de pasajes por viáticos comerciales',
-                        'Gastos de transporte por viáticos comerciales',
-                        'Otros gastos de viáticos comerciales',
-                        'Gastos de almacenaje sobre compras no incluídos en el costo',
-                        'Gastos de armado de bicicletas no incluídos en el costo',
-                        'Gastos de bolsas no incluídos en el costo',
-                        'Gastos de embalaje no incluídos en el costo',
-                        'Gastos de etiquetas no incluídos en el costo',
-                        'Gastos de importación no incluídos en el costo',
-                        'Gastos de seguro de mercancía no incluídos en el costo',
-                        'Gastos de títulos de propiedad no incluídos en el costo',
-                        'Gastos por gasoil',
-                        'Gastos por gasolina',
-                        'Gastos de alquiler Stand y/o ferias comerciales',
-                        'Gastos de otros viáticos Stand y/o ferias comerciales',
-                        'Gastos de pasajes Stand y/o ferias comerciales',
-                        'Gastos de premiaciones, donaciones Stand y/o ferias comerciales',
-                        'Gastos de publicidad Stand y/o ferias comerciales',
-                        'Gastos de viáticos comida Stand y/o ferias comerciales',
-                        'Gastos de viáticos hospedaje Stand y/o ferias comerciales',
-                        'Gastos de viáticos transporte Stand y/o ferias comerciales'
-                    ]:
-                        pass
-                    elif name == 'Gastos de TI+I' and c_name in [
-                        'Gastos de dominio de página web',
-                        'Gastos de servidores',
-                        'Gastos de software tecnológico'
-                    ]:
-                        pass
-                    elif name == 'Otros Gastos no Operacionales' and c_name in [
-                        'Deterioro de inventarios',
-                        'Faltante de inventarios'
-                    ]:
+                    if c_name in SUBTOTAL_EXCLUSIONS.get(name, []):
                         pass
                     else:
                         child_leaves.append(c_name)
