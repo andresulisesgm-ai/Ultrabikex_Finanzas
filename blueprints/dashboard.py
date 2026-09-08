@@ -113,19 +113,6 @@ DEFAULT_DASHBOARD_CONFIG = [
     "dataset": "patrimonio"
   },
   {
-    "id": "kc-rzc",
-    "type": "kpi",
-    "title": "Razón Corriente",
-    "subtitle": "Consolidado · Ref 1.5-2",
-    "tooltip": "Activo Corriente entre Pasivo Corriente. Mide la capacidad de pago a corto plazo.",
-    "icon": "⚖️",
-    "colorClass": "cp",
-    "visible": True,
-    "order": 9,
-    "widthSpan": 1,
-    "dataset": "razon_corriente"
-  },
-  {
     "id": "sec-esf",
     "type": "section",
     "title": "🏦 Situación Financiera",
@@ -490,11 +477,6 @@ def dashboard():
     # filtrados por unit -- regla de negocio: el ESF no existe por unidad de negocio.
     from engine import compute_indicadores_v2, compute_esf
     indicadores_avanzados = compute_indicadores_v2(db, year, empresa_id=empresa_id)
-
-    razon_corriente = None
-    ind_rc = next((i for i in indicadores_avanzados if i['nombre'].startswith('Ratio Corriente')), None)
-    if ind_rc:
-        razon_corriente = ind_rc['anio_actual']
 
     esf_quarters, esf_q_avail = compute_esf(db, year, '', empresa_id=empresa_id)
     total_activos = total_pasivos = patrimonio = None

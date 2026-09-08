@@ -462,12 +462,6 @@ const WIDGET_TEMPLATES = {
     <div class="esf-kpi-val" id="ind-roa-val" style="font-size:28px;font-weight:700;color:var(--blue);padding:16px 0 4px">—</div>
     <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">Utilidad Neta / Total Activos × 100</div>
   `,
-  'wc-ind-rc': `
-    <div class="ch"><div><div class="ct">⚖️ Razón Corriente</div><div class="cs">Activo Cte / Pasivo Cte</div></div>
-      <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-ind-rc">✕</button></div></div>
-    <div class="esf-kpi-val" id="ind-rc-val" style="font-size:28px;font-weight:700;color:var(--blue);padding:16px 0 4px">—</div>
-    <div class="esf-kpi-lbl" style="font-size:11px;color:var(--mu2)">Ref: &gt;1.5 saludable · &gt;2.0 óptimo</div>
-  `,
   'wc-ind-pa': `
     <div class="ch"><div><div class="ct">🧪 Prueba Ácida</div><div class="cs">Liquidez sin inventarios</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-ind-pa">✕</button></div></div>
