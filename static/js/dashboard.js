@@ -1535,9 +1535,9 @@ function buildCharts(isTodas){
 async function chartEstCapDetClick(e, els, quartersConDatos) {
   if (!els || !els.length || !DD) return;
   const el = els[0];
-  const chart = CH['ch-estcapdet'];
+  const chart = e.chart || CH['ch-estcapdet'];
   const ds = chart.data.datasets[el.datasetIndex];
-  const partida = ds.label;
+  const partida = ds._partidaReal || ds.label;
   if (!partida || partida.startsWith('Otros (')) return;
   const quarter = quartersConDatos[el.index];
   const year = G('dash-year').value, unit = G('dash-unit').value;
@@ -1552,15 +1552,15 @@ async function chartEstCapDetClick(e, els, quartersConDatos) {
   G('tp-rows').innerHTML = '<div class="tp-loading">Consultando cuentas...</div>';
   try {
     const u = unit && unit !== 'TODAS' ? unit : '';
-    const r = await fetch(`/api/esf/trazabilidad?year=${year}&quarter=${quarter}&unit=${u}&empresa_id=${CURRENT_EMPRESA_ID||''}&partida=${encodeURIComponent(partida)}`);
+    const dr = modoDivisaReal ? 1 : 0;
+    const r = await fetch(`/api/esf/trazabilidad?year=${year}&quarter=${quarter}&unit=${u}&empresa_id=${CURRENT_EMPRESA_ID||''}&partida=${encodeURIComponent(partida)}&divisa_real=${dr}`);
     const d = await r.json();
-    G('tp-title').textContent = d.partida;
+    G('tp-title').textContent = d.partida + (d.divisa_real ? ' (Divisa Real)' : '');
     G('tp-total').textContent = `Total: ${fmtS(d.total)} · Q${d.quarter} · ${d.cuentas.length} cuentas`;
     G('tp-rows').innerHTML = d.cuentas.length
       ? d.cuentas.map(c => `
         <div class="tp-row">
-          <span class="tp-code">${c.odoo_code}</span>
-          <span class="tp-name" title="${c.odoo_name}">${c.odoo_name}</span>
+          <span class="tp-name" title="${c.label}">${c.label}</span>
           <span class="tp-val ${c.total < 0 ? 'tp-neg' : ''}">${fmtS(Math.abs(c.total))}</span>
         </div>`).join('')
       : '<p style="color:var(--mu);font-size:12px;padding:8px 0">Sin cuentas con movimiento.</p>';
@@ -1803,14 +1803,15 @@ function loadEstructuraCapital() {
         data: {
           labels,
           datasets: [
-            { label: 'Activo Total', data: dsActivo, backgroundColor: dimPorTrimestre('#2563eb', quartersConDatos), stack: 'activo' },
-            { label: 'Pasivo', data: dsPasivo, backgroundColor: dimPorTrimestre('#f97316', quartersConDatos), stack: 'pasivo-pat' },
-            { label: 'Patrimonio', data: dsPatrimonio, backgroundColor: dimPorTrimestre('#0891b2', quartersConDatos), stack: 'pasivo-pat' }
+            { label: 'Activo Total', _partidaReal: 'TOTAL ACTIVOS', data: dsActivo, backgroundColor: dimPorTrimestre('#2563eb', quartersConDatos), stack: 'activo' },
+            { label: 'Pasivo', _partidaReal: 'TOTAL PASIVOS', data: dsPasivo, backgroundColor: dimPorTrimestre('#f97316', quartersConDatos), stack: 'pasivo-pat' },
+            { label: 'Patrimonio', _partidaReal: 'Total Patrimonio', data: dsPatrimonio, backgroundColor: dimPorTrimestre('#0891b2', quartersConDatos), stack: 'pasivo-pat' }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          onClick: (e, els) => chartEstCapDetClick(e, els, quartersConDatos),
           scales: {
             x: { stacked: true },
             y: { stacked: true, ticks: { callback: v => modoPct ? v+'%' : fmtS(v) } }
@@ -1885,13 +1886,14 @@ function loadDeudaCobertura() {
         data: {
           labels,
           datasets: [
-            { label: 'Deuda (Pasivo Corriente)', data: deudaData, backgroundColor: dimPorTrimestre('#f97316', quartersConDatos) },
-            { label: 'Efectivo y Equivalentes', data: efectivoData, backgroundColor: dimPorTrimestre('#2563eb', quartersConDatos) }
+            { label: 'Deuda (Pasivo Corriente)', _partidaReal: 'Total Pasivos Corrientes', data: deudaData, backgroundColor: dimPorTrimestre('#f97316', quartersConDatos) },
+            { label: 'Efectivo y Equivalentes', _partidaReal: 'Efectivo y Equivalentes', data: efectivoData, backgroundColor: dimPorTrimestre('#2563eb', quartersConDatos) }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          onClick: (e, els) => chartEstCapDetClick(e, els, quartersConDatos),
           scales: { y: { ticks: { callback: v => fmtS(v) } } },
           datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
           plugins: {
@@ -2107,15 +2109,16 @@ function loadSituacionFinanciera() {
         data: {
           labels,
           datasets: [
-            { label: 'Activo Corriente', data: dsAC, backgroundColor: dimPorTrimestre('#2563eb', quartersConDatos), stack: 'activo' },
-            { label: 'Activo No Corriente', data: dsANC, backgroundColor: dimPorTrimestre('#7dd3fc', quartersConDatos), stack: 'activo' },
-            { label: 'Pasivo Corriente', data: dsPC, backgroundColor: dimPorTrimestre('#f97316', quartersConDatos), stack: 'pasivo' },
-            { label: 'Pasivo No Corriente', data: dsPNC, backgroundColor: dimPorTrimestre('#fb923c', quartersConDatos), stack: 'pasivo' }
+            { label: 'Activo Corriente', _partidaReal: 'Total Activos Corrientes', data: dsAC, backgroundColor: dimPorTrimestre('#2563eb', quartersConDatos), stack: 'activo' },
+            { label: 'Activo No Corriente', _partidaReal: 'Total Activos No Corrientes', data: dsANC, backgroundColor: dimPorTrimestre('#7dd3fc', quartersConDatos), stack: 'activo' },
+            { label: 'Pasivo Corriente', _partidaReal: 'Total Pasivos Corrientes', data: dsPC, backgroundColor: dimPorTrimestre('#f97316', quartersConDatos), stack: 'pasivo' },
+            { label: 'Pasivo No Corriente', _partidaReal: 'Total Pasivos No Corrientes', data: dsPNC, backgroundColor: dimPorTrimestre('#fb923c', quartersConDatos), stack: 'pasivo' }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          onClick: (e, els) => chartEstCapDetClick(e, els, quartersConDatos),
           scales: {
             x: { stacked: true },
             y: { stacked: true, ticks: { callback: v => fmtS(v) } }
