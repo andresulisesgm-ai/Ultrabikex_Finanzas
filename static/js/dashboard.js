@@ -1532,6 +1532,43 @@ function buildCharts(isTodas){
 }
 
 // ── DRILL-DOWN DE GASTOS (gráficos interactivos #2) ─────────────────────────
+async function chartEstCapDetClick(e, els, quartersConDatos) {
+  if (!els || !els.length || !DD) return;
+  const el = els[0];
+  const chart = CH['ch-estcapdet'];
+  const ds = chart.data.datasets[el.datasetIndex];
+  const partida = ds.label;
+  if (!partida || partida.startsWith('Otros (')) return;
+  const quarter = quartersConDatos[el.index];
+  const year = G('dash-year').value, unit = G('dash-unit').value;
+  const panel = G('traza-panel');
+  panel.style.display = 'block';
+  const scrollY = window.scrollY || document.documentElement.scrollTop;
+  const scrollX = window.scrollX || document.documentElement.scrollLeft;
+  panel.style.top = (e.native.clientY + scrollY + 10) + 'px';
+  panel.style.left = (e.native.clientX + scrollX) + 'px';
+  G('tp-title').textContent = partida;
+  G('tp-total').textContent = 'Cargando...';
+  G('tp-rows').innerHTML = '<div class="tp-loading">Consultando cuentas...</div>';
+  try {
+    const u = unit && unit !== 'TODAS' ? unit : '';
+    const r = await fetch(`/api/esf/trazabilidad?year=${year}&quarter=${quarter}&unit=${u}&empresa_id=${CURRENT_EMPRESA_ID||''}&partida=${encodeURIComponent(partida)}`);
+    const d = await r.json();
+    G('tp-title').textContent = d.partida;
+    G('tp-total').textContent = `Total: ${fmtS(d.total)} · Q${d.quarter} · ${d.cuentas.length} cuentas`;
+    G('tp-rows').innerHTML = d.cuentas.length
+      ? d.cuentas.map(c => `
+        <div class="tp-row">
+          <span class="tp-code">${c.odoo_code}</span>
+          <span class="tp-name" title="${c.odoo_name}">${c.odoo_name}</span>
+          <span class="tp-val ${c.total < 0 ? 'tp-neg' : ''}">${fmtS(Math.abs(c.total))}</span>
+        </div>`).join('')
+      : '<p style="color:var(--mu);font-size:12px;padding:8px 0">Sin cuentas con movimiento.</p>';
+  } catch(err) {
+    G('tp-total').textContent = 'Error al cargar';
+    G('tp-rows').innerHTML = '';
+  }
+}
 function chartGastoClick(id,els){
   if(!els||!els.length||!DD)return;
   const idx=els[0].index;
@@ -1989,6 +2026,7 @@ function loadEstructuraCapitalDetallada() {
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          onClick: (e, els) => chartEstCapDetClick(e, els, quartersConDatos),
           scales: {
             x: { stacked: true },
             y: { stacked: true, ticks: { callback: v => modoPct ? v+'%' : fmtS(v) } }
