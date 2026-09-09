@@ -1700,11 +1700,20 @@ let _esfRowsCacheKey = null;
 let _esfRowsPromise = null;
 
 async function fetchESFRowsDashboard(year) {
+  const modoAlEntrar = modoDivisaReal;
   const cacheKey = `${year}|${modoDivisaReal}|${CURRENT_EMPRESA_ID}`;
-  if (_esfRowsCacheKey === cacheKey && _esfRowsCache !== null) return _esfRowsCache;
-  if (_esfRowsPromise && _esfRowsCacheKey === cacheKey) return _esfRowsPromise;
+  console.log('[FETCH-IN]', performance.now().toFixed(1), 'modo=', modoDivisaReal, 'cacheKey=', cacheKey);
+  if (_esfRowsCacheKey === cacheKey && _esfRowsCache !== null) {
+    console.log('[FETCH-OUT]', performance.now().toFixed(1), 'modoAlEntrar=', modoAlEntrar, 'modoAlSalir=', modoDivisaReal);
+    return _esfRowsCache;
+  }
+  if (_esfRowsPromise && _esfRowsCacheKey === cacheKey) {
+    console.log('[FETCH-OUT]', performance.now().toFixed(1), 'modoAlEntrar=', modoAlEntrar, 'modoAlSalir=', modoDivisaReal);
+    return _esfRowsPromise;
+  }
 
   _esfRowsCacheKey = cacheKey;
+  _esfRowsCache = null;
   _esfRowsPromise = (async () => {
     // Fix ago-2026 (condicion de carrera): captura la key con la que arranco ESTA
     // promesa. Si para cuando termina de resolver ya cambio _esfRowsCacheKey (otra
@@ -1733,6 +1742,7 @@ async function fetchESFRowsDashboard(year) {
     if (_esfRowsCacheKey === cacheKeyDeEstaLlamada) {
       _esfRowsCache = result;
     }
+    console.log('[FETCH-OUT]', performance.now().toFixed(1), 'modoAlEntrar=', modoAlEntrar, 'modoAlSalir=', modoDivisaReal);
     return result;
   })();
 
@@ -1755,6 +1765,7 @@ function loadEstructuraCapital() {
   const year = G('dash-year').value;
   // ESF es siempre consolidado -- nunca se filtra por unidad de negocio, sin importar
   // el filtro de unidad del Dashboard (regla de negocio confirmada, ver ultrax_reglas.md).
+  console.log('[loadEstructuraCapital-CALL]', performance.now().toFixed(1), 'modo=', modoDivisaReal);
   fetchESFRowsDashboard(year)
     .then(rows => {
       if (!rows) return;
@@ -1845,7 +1856,9 @@ function loadEstructuraCapital() {
             ${montos ? `<div style="font-size:10px;color:var(--mu2);margin-left:15px">${montos}</div>` : ''}
           </div>`;
         }).join('');
-        legendEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;justify-items:center;text-align:center">${filas}</div>`;
+        const valorPintado = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;justify-items:center;text-align:center">${filas}</div>`;
+        console.log('[loadEstructuraCapital-PAINT]', performance.now().toFixed(1), 'modo=', modoDivisaReal, 'valorPintado=', valorPintado);
+        legendEl.innerHTML = valorPintado;
       }
       scheduleMasonry();
     })
@@ -1858,6 +1871,7 @@ function loadDeudaCobertura() {
   const year = G('dash-year').value;
   // ESF es siempre consolidado -- nunca se filtra por unidad de negocio, sin importar
   // el filtro de unidad del Dashboard (regla de negocio confirmada, ver ultrax_reglas.md).
+  console.log('[loadDeudaCobertura-CALL]', performance.now().toFixed(1), 'modo=', modoDivisaReal);
   fetchESFRowsDashboard(year)
     .then(rows => {
       if (!rows) return;
@@ -1919,7 +1933,9 @@ function loadDeudaCobertura() {
             <div style="font-size:10px;color:var(--mu2);margin-left:15px">${montos}</div>
           </div>`;
         }).join('');
-        legendEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;justify-items:center;text-align:center">${filas}</div>`;
+        const valorPintado = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;justify-items:center;text-align:center">${filas}</div>`;
+        console.log('[loadDeudaCobertura-PAINT]', performance.now().toFixed(1), 'modo=', modoDivisaReal, 'valorPintado=', valorPintado);
+        legendEl.innerHTML = valorPintado;
       }
       scheduleMasonry();
     })
@@ -1930,6 +1946,7 @@ function loadEstructuraCapitalDetallada() {
   const wActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-estcapdet' && w.visible);
   if (!wActivo) return;
   const year = G('dash-year').value;
+  console.log('[loadEstructuraCapitalDetallada-CALL]', performance.now().toFixed(1), 'modo=', modoDivisaReal);
   fetchESFRowsDashboard(year)
     .then(rows => {
       if (!rows) return;
@@ -2062,11 +2079,13 @@ function loadEstructuraCapitalDetallada() {
 
       const legendEl = G('estcapdet-legend');
       if (legendEl) {
-        legendEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;justify-items:center;text-align:center">
+        const valorPintado = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;justify-items:center;text-align:center">
           ${renderGrupo('Activo', '#2563eb', itemsActivo, paletaAzules)}
           ${renderGrupo('Pasivo', '#f97316', itemsPasivo, paletaNaranjas)}
           ${renderGrupo('Patrimonio', '#0891b2', itemsPatrimonio, paletaTeals)}
         </div>`;
+        console.log('[loadEstructuraCapitalDetallada-PAINT]', performance.now().toFixed(1), 'modo=', modoDivisaReal, 'valorPintado=', valorPintado);
+        legendEl.innerHTML = valorPintado;
       }
       scheduleMasonry();
     })
@@ -2077,6 +2096,7 @@ function loadSituacionFinanciera() {
   const wActivo = window.DASHBOARD_CONFIG.find(w => w.id === 'wc-sitfin' && w.visible);
   if (!wActivo) return;
   const year = G('dash-year').value;
+  console.log('[loadSituacionFinanciera-CALL]', performance.now().toFixed(1), 'modo=', modoDivisaReal);
   fetchESFRowsDashboard(year)
     .then(rows => {
       if (!rows) return;
@@ -2148,7 +2168,7 @@ function loadSituacionFinanciera() {
           }).join('');
           return `<div><p style="margin:0 0 6px;font-weight:700;color:${colorTitulo};font-size:11px">${titulo}</p>${filas}</div>`;
         }
-        legendEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;justify-items:center;text-align:center">
+        const valorPintado = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;justify-items:center;text-align:center">
           ${renderGrupo('Activo', '#2563eb', [
             { nombre: 'Activo Corriente', color: '#2563eb', data: dsAC },
             { nombre: 'Activo No Corriente', color: '#7dd3fc', data: dsANC }
@@ -2158,6 +2178,8 @@ function loadSituacionFinanciera() {
             { nombre: 'Pasivo No Corriente', color: '#fb923c', data: dsPNC }
           ])}
         </div>`;
+        console.log('[loadSituacionFinanciera-PAINT]', performance.now().toFixed(1), 'modo=', modoDivisaReal, 'valorPintado=', valorPintado);
+        legendEl.innerHTML = valorPintado;
       }
       scheduleMasonry();
     })
