@@ -1588,6 +1588,7 @@ async function openGastoDetalle(q){
   }catch(e){G('det-title').textContent='Error'; G('det-parts').innerHTML=`<p style="color:var(--red);font-size:12px">${e.message}</p>`;}
 }
 function renderGastoDetalle(d){
+  const chartBox=G('ch-det')&&G('ch-det').closest('.cv'); if(chartBox)chartBox.style.display='';
   G('det-title').textContent=(d.es_categoria?'Categoría · ':'Partida · ')+d.titulo;
   G('det-sub').textContent=`${d.unit} · ${d.year} · Total ${fmt(d.total)} · ${pct(d.pct_gastos)} del total de gastos`;
   G('det-parts').innerHTML = d.partidas.length
@@ -1618,6 +1619,7 @@ async function openUniversalDetalle(id){
   }catch(e){G('det-title').textContent='Error'; G('det-parts').innerHTML=`<p style="color:var(--red);font-size:12px">${e.message}</p>`;}
 }
 function renderUniversalDetalle(d){
+  const chartBox=G('ch-det')&&G('ch-det').closest('.cv'); if(chartBox)chartBox.style.display='';
   G('det-title').textContent=d.titulo;
   G('det-sub').textContent=`${d.unit} · ${d.year}`;
   if(d.meses){
@@ -1641,6 +1643,37 @@ function renderUniversalDetalle(d){
   }
   // No hay gráfico para tablas genéricas (el modal solo muestra la tabla)
   if(CH['ch-det']){CH['ch-det'].destroy();delete CH['ch-det'];}
+}
+
+async function chartMargenClick(datasetIndex, periodo) {
+  const series = ['ingresos', 'costos', 'utilidad_bruta'];
+  const serie = series[datasetIndex];
+  if (!serie) return;
+  const year = G('dash-year').value, unit = G('dash-unit').value;
+  const divisaReal = DD && DD._modo_divisa ? 1 : 0;
+  const url = `/api/grafico/detalle?chart_id=ch-margen&year=${year}&unit=${encodeURIComponent(unit)}&empresa_id=${CURRENT_EMPRESA_ID||''}&serie=${serie}&periodo=${encodeURIComponent(periodo)}&divisa_real=${divisaReal}`;
+  G('det-title').textContent = 'Cargando…'; G('det-sub').textContent = ''; G('det-parts').innerHTML = '';
+  G('detmod').classList.add('show');
+  try {
+    const r = await fetch(url); const d = await r.json();
+    if (d.error) { G('det-title').textContent = 'Error'; G('det-parts').innerHTML = `<p style="color:var(--red);font-size:12px">${d.error}</p>`; return; }
+    renderMargenDetalle(d);
+  } catch (e) {
+    G('det-title').textContent = 'Error'; G('det-parts').innerHTML = `<p style="color:var(--red);font-size:12px">${e.message}</p>`;
+  }
+}
+
+function renderMargenDetalle(d) {
+  const chartBox = G('ch-det') && G('ch-det').closest('.cv');
+  if (chartBox) chartBox.style.display = 'none';
+  G('det-title').textContent = d.titulo;
+  G('det-sub').textContent = `${d.divisa_real ? 'Divisa Real' : 'BCV'} · Total ${fmt(d.total)}`;
+  const items = d.partidas || d.componentes || [];
+  const getLabel = (it) => it.partida || it.nombre;
+  G('det-parts').innerHTML = items.length
+    ? items.map(it => `<div class="detrow"><span>${getLabel(it)}</span><span class="detval">${fmt(it.total)}</span></div>`).join('')
+    : '<p style="color:var(--mu);font-size:12px;padding:8px 0">Sin datos para el período.</p>';
+  if (CH['ch-det']) { CH['ch-det'].destroy(); delete CH['ch-det']; }
 }
 
 function rebuildMain(){
@@ -2389,6 +2422,12 @@ function loadIngresosCostosMargen() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      onClick: (e, els) => {
+        if (!els || !els.length) return;
+        const el = els[0];
+        if (el.datasetIndex === 3) return; // linea de Margen % -- sin detalle
+        chartMargenClick(el.datasetIndex, labels[el.index]);
+      },
       datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
       scales: {
         y: { type: 'linear', position: 'left', ticks: { callback: v => fmtS(v) } },

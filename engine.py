@@ -1670,22 +1670,17 @@ def eerr_completo_v2_ui_adapter(db, year, unit, empresa_id=None):
 
 
 
-def _calcular_eerr_divisa_real(db, year, unit, empresa_id=None, plug_divisa_q=None):
+def cargar_montos_divisa_real(db, year, unit='', empresa_id=None, plug_divisa_q=None):
     """
-    Calcula el Estado de Resultados COMPLETO con ajuste de divisa real.
-    Misma estructura que /api/eerr/completo (119 partidas, tipos A/B/C/D/E)
-    pero con montos ajustados por factor diferencial según % Cash/BCV.
-    Función interna reutilizable - no es vista Flask. Usada por
-    /api/eerr/divisa_real y /api/dashboard_divisa_real.
-    Parámetros: year, unit
-    Retorna: dict con year, year_prev, unit, rows
+    Carga financials_detail para EERR, ajusta cada cuenta por su % Cash y el
+    factor diferencial del mes, y devuelve by_partida: dict {partida: {month: monto}}.
+    Compartida entre _calcular_eerr_divisa_real y los endpoints de drill-down
+    (grafico_detalle, gasto_detalle) para no duplicar la logica de ajuste.
+    Puede devolver {'error': '...'} si faltan tasas -- el llamador debe chequear
+    esa clave antes de usar el resultado como dict de partidas.
     """
-    from helpers import (
-        get_clasificacion, get_grouped_partidas_v2, calcular_muestra_pct_gastos,
-        divisor_ejec, divisor_ppto_mes, divisor_prev, aplicar_factor_divisa
-    )
+    from helpers import aplicar_factor_divisa
 
-    year_prev = str(int(year) - 1)
     if unit:
         uc = "AND unit=?"
         uc_params = [unit]
@@ -1703,11 +1698,6 @@ def _calcular_eerr_divisa_real(db, year, unit, empresa_id=None, plug_divisa_q=No
     else:
         uc = ''
         uc_params = []
-
-    MONTH_TYPES = {
-        'ENE': 'A', 'FEB': 'B', 'MAR': 'C', 'ABR': 'B', 'MAY': 'B', 'JUN': 'D',
-        'JUL': 'B', 'AGO': 'B', 'SEPT': 'C', 'OCT': 'B', 'NOV': 'B', 'DIC': 'E',
-    }
 
     # ── PASO 4: CARGAR TASAS DESDE tasas_periodo ──
     tasas_rows = db.execute(
@@ -1795,6 +1785,52 @@ def _calcular_eerr_divisa_real(db, year, unit, empresa_id=None, plug_divisa_q=No
                 partida_destino = 'Pérdida en tasa cambiaria'
             by_partida.setdefault(partida_destino, {})
             by_partida[partida_destino][month] = by_partida[partida_destino].get(month, 0) + abs(valor_incremental)
+
+    return by_partida
+
+
+def _calcular_eerr_divisa_real(db, year, unit, empresa_id=None, plug_divisa_q=None):
+    """
+    Calcula el Estado de Resultados COMPLETO con ajuste de divisa real.
+    Misma estructura que /api/eerr/completo (119 partidas, tipos A/B/C/D/E)
+    pero con montos ajustados por factor diferencial según % Cash/BCV.
+    Función interna reutilizable - no es vista Flask. Usada por
+    /api/eerr/divisa_real y /api/dashboard_divisa_real.
+    Parámetros: year, unit
+    Retorna: dict con year, year_prev, unit, rows
+    """
+    from helpers import (
+        get_clasificacion, get_grouped_partidas_v2, calcular_muestra_pct_gastos,
+        divisor_ejec, divisor_ppto_mes, divisor_prev, aplicar_factor_divisa
+    )
+
+    year_prev = str(int(year) - 1)
+    if unit:
+        uc = "AND unit=?"
+        uc_params = [unit]
+    elif empresa_id is not None:
+        unidades_empresa = [r['nombre'] for r in db.execute(
+            'SELECT nombre FROM unidades WHERE empresa_id=?', (empresa_id,)
+        ).fetchall()]
+        if unidades_empresa:
+            placeholders = ','.join('?' * len(unidades_empresa))
+            uc = f"AND unit IN ({placeholders})"
+            uc_params = unidades_empresa
+        else:
+            uc = "AND 1=0"
+            uc_params = []
+    else:
+        uc = ''
+        uc_params = []
+
+    MONTH_TYPES = {
+        'ENE': 'A', 'FEB': 'B', 'MAR': 'C', 'ABR': 'B', 'MAY': 'B', 'JUN': 'D',
+        'JUL': 'B', 'AGO': 'B', 'SEPT': 'C', 'OCT': 'B', 'NOV': 'B', 'DIC': 'E',
+    }
+
+    by_partida = cargar_montos_divisa_real(db, year, unit, empresa_id, plug_divisa_q)
+    if isinstance(by_partida, dict) and 'error' in by_partida:
+        return by_partida
 
     # Año anterior (sin ajuste - usar literal)
     rows_prev = db.execute(

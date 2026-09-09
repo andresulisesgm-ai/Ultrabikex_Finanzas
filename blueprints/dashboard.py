@@ -768,7 +768,8 @@ def grafico_detalle():
 
         if divisa_real:
             from engine import cargar_montos_divisa_real
-            by_partida = cargar_montos_divisa_real(db, year, unit, empresa_id=empresa_id)
+            unit_real = '' if (not unit or unit == 'TODAS') else unit
+            by_partida = cargar_montos_divisa_real(db, year, unit_real, empresa_id=empresa_id)
             if isinstance(by_partida, dict) and 'error' in by_partida:
                 return jsonify(by_partida), 400
 
