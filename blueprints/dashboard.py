@@ -18,6 +18,13 @@ GASTO_CATS = {
     'No Operacionales': ['Faltante','Pérdida','Multas','deterioro de inventarios'],
 }
 
+OTROS_INGRESOS_NO_OP = {
+    'Ingresos por alquileres', 'Ingresos por intereses', 'Ingresos por comisiones',
+    'Ingresos por servicios administrativos', 'Sobrante en ventas',
+    'Sobrante de inventarios', 'Ganancia en venta de activos',
+    'Ganancia por tasa cambiaria', 'Ganancia por diferencias en pagos'
+}
+
 # ── Dashboard Builder Config ──────────────────────────────────────────────────
 
 DEFAULT_DASHBOARD_CONFIG = [
@@ -615,11 +622,12 @@ def grafico_detalle():
     Drill-down universal: dado el id del gráfico, devuelve su desglose.
     Parámetros: chart_id, year, unit (opcional), month (opcional para filtros específicos).
     """
-    chart_id = request.args.get('chart_id', '')
-    year     = request.args.get('year', str(datetime.now().year))
-    unit     = request.args.get('unit', '')
-    month    = request.args.get('month', '')
-    db       = get_db()
+    chart_id    = request.args.get('chart_id', '')
+    year        = request.args.get('year', str(datetime.now().year))
+    unit        = request.args.get('unit', '')
+    month       = request.args.get('month', '')
+    divisa_real = request.args.get('divisa_real', '0') == '1'
+    db          = get_db()
 
     empresa_id = request.args.get('empresa_id', type=int) or None
     unidades_empresa = []
@@ -740,6 +748,108 @@ def grafico_detalle():
                 meses.append({'month': m, 'ingresos': round(i, 2), 'utilidad_neta': round(un, 2)})
             return jsonify({'titulo': f'Ingresos vs Util. Neta — {unit}', 'chart_id': chart_id,
                             'unit': unit, 'year': year, 'meses': meses})
+
+    elif chart_id == 'ch-margen':
+        serie   = request.args.get('serie', '')
+        periodo = request.args.get('periodo', '')
+
+        QUARTER_MONTHS = {
+            'Q1': ['ENE', 'FEB', 'MAR'],
+            'Q2': ['ABR', 'MAY', 'JUN'],
+            'Q3': ['JUL', 'AGO', 'SEPT'],
+            'Q4': ['OCT', 'NOV', 'DIC']
+        }
+        if periodo.startswith('Q') and periodo in QUARTER_MONTHS:
+            periodo_meses = QUARTER_MONTHS[periodo]
+        elif periodo:
+            periodo_meses = [periodo]
+        else:
+            periodo_meses = MONTHS
+
+        if divisa_real:
+            from engine import cargar_montos_divisa_real
+            by_partida = cargar_montos_divisa_real(db, year, unit, empresa_id=empresa_id)
+            if isinstance(by_partida, dict) and 'error' in by_partida:
+                return jsonify(by_partida), 400
+
+        if serie in ('ingresos', 'costos'):
+            targets = ([p for p in ing_p if p not in OTROS_INGRESOS_NO_OP]) if serie == 'ingresos' else cos_p
+            titulo_serie = 'Ingresos' if serie == 'ingresos' else 'Costos'
+
+            if divisa_real:
+                partidas_list = []
+                for p in sorted(targets):
+                    t_p = sum(by_partida.get(p, {}).get(m, 0) for m in periodo_meses)
+                    if round(t_p, 2) != 0:
+                        partidas_list.append({'partida': p, 'total': round(t_p, 2)})
+                partidas_list.sort(key=lambda x: x['total'], reverse=True)
+                total = round(sum(p['total'] for p in partidas_list), 2)
+            else:
+                if not targets or not periodo_meses:
+                    partidas_list = []
+                    total = 0.0
+                else:
+                    ph_p = ','.join('?' * len(targets))
+                    ph_m = ','.join('?' * len(periodo_meses))
+                    prows = db.execute(
+                        f'''SELECT partida, SUM(amount) t FROM financials
+                            WHERE year=? AND partida IN ({ph_p}) AND month IN ({ph_m}) {uc}
+                            GROUP BY partida ORDER BY t DESC''',
+                        [year] + list(targets) + list(periodo_meses) + uc_params
+                    ).fetchall()
+                    partidas_list = [{'partida': r['partida'], 'total': round(r['t'] or 0, 2)} for r in prows if (r['t'] or 0)]
+                    total = round(sum(p['total'] for p in partidas_list), 2)
+
+            return jsonify({
+                'titulo': f'{titulo_serie} — {periodo}',
+                'chart_id': chart_id,
+                'periodo': periodo,
+                'divisa_real': divisa_real,
+                'partidas': partidas_list,
+                'total': total
+            })
+
+        elif serie == 'utilidad_bruta':
+            op_ing_p = [p for p in ing_p if p not in OTROS_INGRESOS_NO_OP]
+            otros_ing_p = [p for p in ing_p if p in OTROS_INGRESOS_NO_OP]
+
+            if divisa_real:
+                ing_op = sum(by_partida.get(p, {}).get(m, 0) for p in op_ing_p for m in periodo_meses)
+                otros_ing = sum(by_partida.get(p, {}).get(m, 0) for p in otros_ing_p for m in periodo_meses)
+                costos = sum(by_partida.get(p, {}).get(m, 0) for p in cos_p for m in periodo_meses)
+            else:
+                ph_m = ','.join('?' * len(periodo_meses))
+                def sum_partidas(ps):
+                    if not ps or not periodo_meses: return 0.0
+                    ph = ','.join('?' * len(ps))
+                    return db.execute(
+                        f'''SELECT SUM(amount) FROM financials
+                            WHERE year=? AND partida IN ({ph}) AND month IN ({ph_m}) {uc}''',
+                        [year] + list(ps) + list(periodo_meses) + uc_params
+                    ).fetchone()[0] or 0.0
+
+                ing_op = sum_partidas(op_ing_p)
+                otros_ing = sum_partidas(otros_ing_p)
+                costos = sum_partidas(list(cos_p))
+
+            componentes = [
+                {'nombre': 'Ingresos Operativos', 'total': round(ing_op, 2)},
+                {'nombre': 'Otros Ingresos no Operacionales', 'total': round(otros_ing, 2)},
+                {'nombre': 'Costo de Ventas', 'total': round(costos, 2)}
+            ]
+            total_ub = round(ing_op + otros_ing - costos, 2)
+
+            return jsonify({
+                'titulo': f'Utilidad Bruta — {periodo}',
+                'chart_id': chart_id,
+                'periodo': periodo,
+                'divisa_real': divisa_real,
+                'componentes': componentes,
+                'total': total_ub
+            })
+
+        else:
+            return jsonify({'error': 'serie invalida'}), 400
 
     else:
         return jsonify({'error': 'chart_id no reconocido'}), 400
