@@ -25,6 +25,62 @@ OTROS_INGRESOS_NO_OP = {
     'Ganancia por tasa cambiaria', 'Ganancia por diferencias en pagos'
 }
 
+GASTOS_NO_OP = {
+    'Faltante en Ventas', 'Pérdida en venta de activos', 'Pérdida en siniestro de activos',
+    'Pérdida en tasa cambiaria', 'Pérdida por diferencia en pagos', 'Multas',
+    'Faltante y deterioro de inventarios', 'Deterioro de inventarios', 'Faltante de inventarios'
+}
+
+SEGMENTO_PARTIDAS = {
+    'Venta de Mercancía': ['Ingresos por venta de mercancias', 'Devoluciones sobre ventas', 'Descuentos sobre ventas'],
+    'Servicios': ['Ingresos por servicios del café', 'Ingresos por zona FIT', 'Ingresos por fletes', 'Ingresos por otros servicios'],
+    'Eventos': ['Ingresos por eventos'],
+    'Taller': ['Ingresos por taller'],
+}
+
+def _plug_divisa_para_unit(year, unit_real, empresa_id, db):
+    """
+    Obtiene el ajuste real de Ganancia/Perdida en tasa cambiaria (plug_efectivo_q)
+    para pasar a cargar_montos_divisa_real, respetando la regla de negocio de que
+    solo el consolidado y la unidad 'Rodeo' reciben el ajuste (ver
+    calcular_estados_reales en engine.py). Devuelve None si la unidad no lo recibe
+    o si el calculo fallo.
+    """
+    from engine import calcular_estados_reales
+    estados = calcular_estados_reales(year, unit_real, empresa_id=empresa_id, db=db)
+    if isinstance(estados, dict) and 'error' in estados:
+        return None
+    plug_efectivo_q = estados.get('plug_efectivo_q', {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0})
+    unit_recibe_plug = unit_real in ('', 'Rodeo')
+    return plug_efectivo_q if unit_recibe_plug else None
+
+def _leer_total_header(year, unit_real, empresa_id, db, divisa_real, periodo_meses):
+    """
+    Devuelve (funcion_total_de, error). funcion_total_de(nombre_partida) lee el
+    total real ya calculado por el motor para esa partida/header, sumando solo
+    los meses en periodo_meses. NUNCA suma partidas sueltas -- lee directo de
+    las filas ('rows') que ya arma el motor real.
+    """
+    if divisa_real:
+        from engine import calcular_estados_reales
+        estados = calcular_estados_reales(year, unit_real, empresa_id=empresa_id, db=db)
+        if isinstance(estados, dict) and 'error' in estados:
+            return None, estados
+        rows = estados['eerr_real']['rows']
+    else:
+        from engine import eerr_completo_v2_ui_adapter
+        d = eerr_completo_v2_ui_adapter(db, year, unit_real, empresa_id=empresa_id)
+        rows = d['rows']
+    def total_de(nombre):
+        r = next((row for row in rows if row['partida'] == nombre), None)
+        if not r:
+            return 0.0
+        return round(sum(m['ejecutado']['valor'] for m in r['meses'] if m['month'] in periodo_meses), 2)
+    return total_de, None
+
+
+
+
 # ── Dashboard Builder Config ──────────────────────────────────────────────────
 
 DEFAULT_DASHBOARD_CONFIG = [
@@ -752,13 +808,8 @@ def grafico_detalle():
     elif chart_id == 'ch-margen':
         serie   = request.args.get('serie', '')
         periodo = request.args.get('periodo', '')
-
-        QUARTER_MONTHS = {
-            'Q1': ['ENE', 'FEB', 'MAR'],
-            'Q2': ['ABR', 'MAY', 'JUN'],
-            'Q3': ['JUL', 'AGO', 'SEPT'],
-            'Q4': ['OCT', 'NOV', 'DIC']
-        }
+        unit_real = '' if (not unit or unit == 'TODAS') else unit
+        QUARTER_MONTHS = {'Q1': ['ENE','FEB','MAR'], 'Q2': ['ABR','MAY','JUN'], 'Q3': ['JUL','AGO','SEPT'], 'Q4': ['OCT','NOV','DIC']}
         if periodo.startswith('Q') and periodo in QUARTER_MONTHS:
             periodo_meses = QUARTER_MONTHS[periodo]
         elif periodo:
@@ -766,91 +817,157 @@ def grafico_detalle():
         else:
             periodo_meses = MONTHS
 
-        if divisa_real:
-            from engine import cargar_montos_divisa_real
-            unit_real = '' if (not unit or unit == 'TODAS') else unit
-            by_partida = cargar_montos_divisa_real(db, year, unit_real, empresa_id=empresa_id)
-            if isinstance(by_partida, dict) and 'error' in by_partida:
-                return jsonify(by_partida), 400
+        total_de, err = _leer_total_header(year, unit_real, empresa_id, db, divisa_real, periodo_meses)
+        if err:
+            return jsonify(err), 400
 
-        if serie in ('ingresos', 'costos'):
-            targets = ([p for p in ing_p if p not in OTROS_INGRESOS_NO_OP]) if serie == 'ingresos' else cos_p
-            titulo_serie = 'Ingresos' if serie == 'ingresos' else 'Costos'
-
+        def listar_partidas(ps):
+            if not ps: return []
             if divisa_real:
-                partidas_list = []
-                for p in sorted(targets):
+                from engine import cargar_montos_divisa_real
+                plug = _plug_divisa_para_unit(year, unit_real, empresa_id, db)
+                by_partida = cargar_montos_divisa_real(db, year, unit_real, empresa_id=empresa_id, plug_divisa_q=plug)
+                if isinstance(by_partida, dict) and 'error' in by_partida:
+                    return []
+                items = []
+                for p in sorted(ps):
                     t_p = sum(by_partida.get(p, {}).get(m, 0) for m in periodo_meses)
                     if round(t_p, 2) != 0:
-                        partidas_list.append({'partida': p, 'total': round(t_p, 2)})
-                partidas_list.sort(key=lambda x: x['total'], reverse=True)
-                total = round(sum(p['total'] for p in partidas_list), 2)
+                        items.append({'partida': p, 'total': round(t_p, 2)})
+                items.sort(key=lambda x: x['total'], reverse=True)
+                return items
             else:
-                if not targets or not periodo_meses:
-                    partidas_list = []
-                    total = 0.0
-                else:
-                    ph_p = ','.join('?' * len(targets))
-                    ph_m = ','.join('?' * len(periodo_meses))
-                    prows = db.execute(
-                        f'''SELECT partida, SUM(amount) t FROM financials
-                            WHERE year=? AND partida IN ({ph_p}) AND month IN ({ph_m}) {uc}
-                            GROUP BY partida ORDER BY t DESC''',
-                        [year] + list(targets) + list(periodo_meses) + uc_params
-                    ).fetchall()
-                    partidas_list = [{'partida': r['partida'], 'total': round(r['t'] or 0, 2)} for r in prows if (r['t'] or 0)]
-                    total = round(sum(p['total'] for p in partidas_list), 2)
-
-            return jsonify({
-                'titulo': f'{titulo_serie} — {periodo}',
-                'chart_id': chart_id,
-                'periodo': periodo,
-                'divisa_real': divisa_real,
-                'partidas': partidas_list,
-                'total': total
-            })
-
-        elif serie == 'utilidad_bruta':
-            op_ing_p = [p for p in ing_p if p not in OTROS_INGRESOS_NO_OP]
-            otros_ing_p = [p for p in ing_p if p in OTROS_INGRESOS_NO_OP]
-
-            if divisa_real:
-                ing_op = sum(by_partida.get(p, {}).get(m, 0) for p in op_ing_p for m in periodo_meses)
-                otros_ing = sum(by_partida.get(p, {}).get(m, 0) for p in otros_ing_p for m in periodo_meses)
-                costos = sum(by_partida.get(p, {}).get(m, 0) for p in cos_p for m in periodo_meses)
-            else:
+                ph_p = ','.join('?' * len(ps))
                 ph_m = ','.join('?' * len(periodo_meses))
-                def sum_partidas(ps):
-                    if not ps or not periodo_meses: return 0.0
-                    ph = ','.join('?' * len(ps))
-                    return db.execute(
-                        f'''SELECT SUM(amount) FROM financials
-                            WHERE year=? AND partida IN ({ph}) AND month IN ({ph_m}) {uc}''',
-                        [year] + list(ps) + list(periodo_meses) + uc_params
-                    ).fetchone()[0] or 0.0
+                prows = db.execute(
+                    f'''SELECT partida, SUM(amount) t FROM financials
+                        WHERE year=? AND partida IN ({ph_p}) AND month IN ({ph_m}) {uc}
+                        GROUP BY partida ORDER BY t DESC''',
+                    [year] + list(ps) + list(periodo_meses) + uc_params
+                ).fetchall()
+                return [{'partida': r['partida'], 'total': round(r['t'] or 0, 2)} for r in prows if (r['t'] or 0)]
 
-                ing_op = sum_partidas(op_ing_p)
-                otros_ing = sum_partidas(otros_ing_p)
-                costos = sum_partidas(list(cos_p))
-
+        if serie == 'ingresos':
+            items = listar_partidas([p for p in ing_p if p not in OTROS_INGRESOS_NO_OP])
+            return jsonify({'titulo': f'Ingresos — {periodo or "Año"}', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total_de('Total Ingresos')})
+        elif serie == 'costos':
+            items = listar_partidas(list(cos_p))
+            return jsonify({'titulo': f'Costos — {periodo or "Año"}', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total_de('Total Costo de Ventas')})
+        elif serie == 'utilidad_bruta':
             componentes = [
-                {'nombre': 'Ingresos Operativos', 'total': round(ing_op, 2)},
-                {'nombre': 'Otros Ingresos no Operacionales', 'total': round(otros_ing, 2)},
-                {'nombre': 'Costo de Ventas', 'total': round(costos, 2)}
+                {'nombre': 'Total Ingresos', 'total': total_de('Total Ingresos')},
+                {'nombre': 'Costo de Ventas', 'total': total_de('Total Costo de Ventas')}
             ]
-            total_ub = round(ing_op + otros_ing - costos, 2)
-
-            return jsonify({
-                'titulo': f'Utilidad Bruta — {periodo}',
-                'chart_id': chart_id,
-                'periodo': periodo,
-                'divisa_real': divisa_real,
-                'componentes': componentes,
-                'total': total_ub
-            })
-
+            return jsonify({'titulo': f'Utilidad Bruta — {periodo or "Año"}', 'chart_id': chart_id, 'divisa_real': divisa_real, 'componentes': componentes, 'total': total_de('Utilidad Bruta')})
         else:
             return jsonify({'error': 'serie invalida'}), 400
+
+    elif chart_id == 'ch-cascada':
+        step = request.args.get('step', '')
+        periodo_meses = MONTHS
+        unit_real = '' if (not unit or unit == 'TODAS') else unit
+
+        total_de, err = _leer_total_header(year, unit_real, empresa_id, db, divisa_real, periodo_meses)
+        if err:
+            return jsonify(err), 400
+
+        def listar_partidas(ps):
+            if not ps: return []
+            if divisa_real:
+                from engine import cargar_montos_divisa_real
+                plug = _plug_divisa_para_unit(year, unit_real, empresa_id, db)
+                by_partida = cargar_montos_divisa_real(db, year, unit_real, empresa_id=empresa_id, plug_divisa_q=plug)
+                if isinstance(by_partida, dict) and 'error' in by_partida:
+                    return []
+                items = []
+                for p in sorted(ps):
+                    t_p = sum(by_partida.get(p, {}).get(m, 0) for m in periodo_meses)
+                    if round(t_p, 2) != 0:
+                        items.append({'partida': p, 'total': round(t_p, 2)})
+                items.sort(key=lambda x: x['total'], reverse=True)
+                return items
+            else:
+                ph_p = ','.join('?' * len(ps))
+                ph_m = ','.join('?' * len(periodo_meses))
+                prows = db.execute(
+                    f'''SELECT partida, SUM(amount) t FROM financials
+                        WHERE year=? AND partida IN ({ph_p}) AND month IN ({ph_m}) {uc}
+                        GROUP BY partida ORDER BY t DESC''',
+                    [year] + list(ps) + list(periodo_meses) + uc_params
+                ).fetchall()
+                return [{'partida': r['partida'], 'total': round(r['t'] or 0, 2)} for r in prows if (r['t'] or 0)]
+
+        if step == 'ingresos':
+            items = listar_partidas([p for p in ing_p if p not in OTROS_INGRESOS_NO_OP])
+            return jsonify({'titulo': 'Ingresos — Año', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total_de('Total Ingresos')})
+        elif step == 'costo_ventas':
+            items = listar_partidas(list(cos_p))
+            return jsonify({'titulo': 'Costo de Ventas — Año', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total_de('Total Costo de Ventas')})
+        elif step == 'utilidad_bruta':
+            componentes = [
+                {'nombre': 'Total Ingresos', 'total': total_de('Total Ingresos')},
+                {'nombre': 'Costo de Ventas', 'total': total_de('Total Costo de Ventas')}
+            ]
+            return jsonify({'titulo': 'Utilidad Bruta — Año', 'chart_id': chart_id, 'divisa_real': divisa_real, 'componentes': componentes, 'total': total_de('Utilidad Bruta')})
+        elif step == 'gastos':
+            items = listar_partidas([p for p in gas_p if p not in GASTOS_NO_OP])
+            total = round(total_de('Total Gastos Operacionales y No Operacionales') - total_de('Otros Gastos no Operacionales'), 2)
+            return jsonify({'titulo': 'Gastos Operacionales — Año', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total})
+        elif step == 'otros_ingresos':
+            items = listar_partidas([p for p in ing_p if p in OTROS_INGRESOS_NO_OP])
+            return jsonify({'titulo': 'Otros Ingresos No Operativos — Año', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total_de('Otros Ingresos no Operacionales')})
+        elif step == 'otros_gastos':
+            items = listar_partidas([p for p in gas_p if p in GASTOS_NO_OP])
+            return jsonify({'titulo': 'Otros Gastos No Operativos — Año', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total_de('Otros Gastos no Operacionales')})
+        elif step == 'utilidad_neta':
+            componentes = [
+                {'nombre': 'Total Ingresos', 'total': total_de('Total Ingresos')},
+                {'nombre': 'Costo de Ventas', 'total': total_de('Total Costo de Ventas')},
+                {'nombre': 'Gastos Operacionales', 'total': round(total_de('Total Gastos Operacionales y No Operacionales') - total_de('Otros Gastos no Operacionales'), 2)},
+                {'nombre': 'Otros Ingresos No Operativos', 'total': total_de('Otros Ingresos no Operacionales')},
+                {'nombre': 'Otros Gastos No Operativos', 'total': total_de('Otros Gastos no Operacionales')}
+            ]
+            return jsonify({'titulo': 'Utilidad Neta — Año', 'chart_id': chart_id, 'divisa_real': divisa_real, 'componentes': componentes, 'total': total_de('Utilidad Neta')})
+        else:
+            return jsonify({'error': 'step invalido'}), 400
+
+    elif chart_id == 'ch-dona-segmento':
+        segmento = request.args.get('segmento', '')
+        unit_real = '' if (not unit or unit == 'TODAS') else unit
+        SEGMENTO_HEADER = {
+            'Venta de Mercancía': 'Subtotal Ingresos por Venta de Mercancia',
+            'Servicios': 'Subtotal Ingresos por Servicios',
+            'Eventos': 'Subtotal Ingresos por Eventos',
+            'Taller': 'Subtotal Ingresos por Taller',
+        }
+        if segmento not in SEGMENTO_HEADER:
+            return jsonify({'error': 'segmento invalido'}), 400
+        periodo_meses = MONTHS
+        total_de, err = _leer_total_header(year, unit_real, empresa_id, db, divisa_real, periodo_meses)
+        if err:
+            return jsonify(err), 400
+        ps = SEGMENTO_PARTIDAS[segmento]
+        if divisa_real:
+            from engine import cargar_montos_divisa_real
+            plug = _plug_divisa_para_unit(year, unit_real, empresa_id, db)
+            by_partida = cargar_montos_divisa_real(db, year, unit_real, empresa_id=empresa_id, plug_divisa_q=plug)
+            items = []
+            for p in ps:
+                t_p = sum(by_partida.get(p, {}).get(m, 0) for m in periodo_meses)
+                if round(t_p, 2) != 0:
+                    items.append({'partida': p, 'total': round(t_p, 2)})
+            items.sort(key=lambda x: x['total'], reverse=True)
+        else:
+            ph_p = ','.join('?' * len(ps))
+            ph_m = ','.join('?' * len(periodo_meses))
+            prows = db.execute(
+                f'''SELECT partida, SUM(amount) t FROM financials
+                    WHERE year=? AND partida IN ({ph_p}) AND month IN ({ph_m}) {uc}
+                    GROUP BY partida ORDER BY t DESC''',
+                [year] + list(ps) + list(periodo_meses) + uc_params
+            ).fetchall()
+            items = [{'partida': r['partida'], 'total': round(r['t'] or 0, 2)} for r in prows if (r['t'] or 0)]
+        return jsonify({'titulo': f'Ingresos por {segmento} — Año', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total_de(SEGMENTO_HEADER[segmento])})
 
     else:
         return jsonify({'error': 'chart_id no reconocido'}), 400

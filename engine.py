@@ -1190,6 +1190,7 @@ def calcular_estados_reales(year, unit='', empresa_id=None, db=None):
         return {
             'eerr_real': eerr_real,
             'esf_real': esf_real,
+            'plug_efectivo_q': plug_efectivo_q,
         }
     finally:
         if _conn_propia:

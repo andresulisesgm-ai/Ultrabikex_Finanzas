@@ -1645,22 +1645,46 @@ function renderUniversalDetalle(d){
   if(CH['ch-det']){CH['ch-det'].destroy();delete CH['ch-det'];}
 }
 
-async function chartMargenClick(datasetIndex, periodo) {
+function _posicionarTraza(e) {
+  const panel = G('traza-panel');
+  panel.style.display = 'block';
+  const scrollY = window.scrollY || document.documentElement.scrollTop;
+  const scrollX = window.scrollX || document.documentElement.scrollLeft;
+  panel.style.top = (e.native.clientY + scrollY + 10) + 'px';
+  panel.style.left = (e.native.clientX + scrollX) + 'px';
+}
+
+function _renderTrazaItems(titulo, total, items, divisaReal) {
+  G('tp-title').textContent = titulo;
+  G('tp-total').textContent = `Total: ${fmtS(total)} · ${items.length} partidas${divisaReal ? ' · Divisa Real' : ''}`;
+  G('tp-rows').innerHTML = items.length
+    ? items.map(it => `<div class="tp-row"><span class="tp-name" title="${it.label}">${it.label}</span><span class="tp-val ${it.total<0?'tp-neg':''}">${fmtS(Math.abs(it.total))}</span></div>`).join('')
+    : '<p style="color:var(--mu);font-size:12px;padding:8px 0">Sin cuentas con movimiento.</p>';
+}
+
+async function _fetchYMostrarTraza(e, url) {
+  _posicionarTraza(e);
+  G('tp-title').textContent = 'Cargando…';
+  G('tp-total').textContent = '';
+  G('tp-rows').innerHTML = '<div class="tp-loading">Consultando cuentas...</div>';
+  try {
+    const r = await fetch(url); const d = await r.json();
+    if (d.error) { G('tp-title').textContent = 'Error'; G('tp-total').textContent = d.error; return; }
+    const items = (d.partidas || d.componentes || []).map(it => ({ label: it.partida || it.nombre, total: it.total }));
+    _renderTrazaItems(d.titulo, d.total, items, d.divisa_real);
+  } catch (err) {
+    G('tp-title').textContent = 'Error al cargar'; G('tp-total').textContent = ''; G('tp-rows').innerHTML = '';
+  }
+}
+
+async function chartMargenClick(e, datasetIndex, periodo) {
   const series = ['ingresos', 'costos', 'utilidad_bruta'];
   const serie = series[datasetIndex];
   if (!serie) return;
   const year = G('dash-year').value, unit = G('dash-unit').value;
   const divisaReal = DD && DD._modo_divisa ? 1 : 0;
   const url = `/api/grafico/detalle?chart_id=ch-margen&year=${year}&unit=${encodeURIComponent(unit)}&empresa_id=${CURRENT_EMPRESA_ID||''}&serie=${serie}&periodo=${encodeURIComponent(periodo)}&divisa_real=${divisaReal}`;
-  G('det-title').textContent = 'Cargando…'; G('det-sub').textContent = ''; G('det-parts').innerHTML = '';
-  G('detmod').classList.add('show');
-  try {
-    const r = await fetch(url); const d = await r.json();
-    if (d.error) { G('det-title').textContent = 'Error'; G('det-parts').innerHTML = `<p style="color:var(--red);font-size:12px">${d.error}</p>`; return; }
-    renderMargenDetalle(d);
-  } catch (e) {
-    G('det-title').textContent = 'Error'; G('det-parts').innerHTML = `<p style="color:var(--red);font-size:12px">${e.message}</p>`;
-  }
+  _fetchYMostrarTraza(e, url);
 }
 
 function renderMargenDetalle(d) {
@@ -1674,6 +1698,32 @@ function renderMargenDetalle(d) {
     ? items.map(it => `<div class="detrow"><span>${getLabel(it)}</span><span class="detval">${fmt(it.total)}</span></div>`).join('')
     : '<p style="color:var(--mu);font-size:12px;padding:8px 0">Sin datos para el período.</p>';
   if (CH['ch-det']) { CH['ch-det'].destroy(); delete CH['ch-det']; }
+}
+
+async function chartCascadaClick(e, step) {
+  const year = G('dash-year').value, unit = G('dash-unit').value;
+  const divisaReal = DD && DD._modo_divisa ? 1 : 0;
+  const url = `/api/grafico/detalle?chart_id=ch-cascada&year=${year}&unit=${encodeURIComponent(unit)}&empresa_id=${CURRENT_EMPRESA_ID||''}&step=${step}&divisa_real=${divisaReal}`;
+  _fetchYMostrarTraza(e, url);
+}
+
+async function chartDonaSegmentoClick(e, segmento) {
+  const year = G('dash-year').value, unit = G('dash-unit').value;
+  const divisaReal = DD && DD._modo_divisa ? 1 : 0;
+  const url = `/api/grafico/detalle?chart_id=ch-dona-segmento&year=${year}&unit=${encodeURIComponent(unit)}&empresa_id=${CURRENT_EMPRESA_ID||''}&segmento=${encodeURIComponent(segmento)}&divisa_real=${divisaReal}`;
+  _fetchYMostrarTraza(e, url);
+}
+
+function chartUnidadClick(e, nombre) {
+  const usaUnidad = DD && DD.por_unidad && DD.por_unidad.length;
+  const fuente = usaUnidad ? DD.por_unidad : ((DD && DD.por_empresa) || []);
+  const key = usaUnidad ? 'unit' : 'empresa';
+  const item = fuente.find(x => x[key] === nombre);
+  if (!item) return;
+  const campos = [['ingresos','Ingresos'], ['costos','Costos'], ['gastos','Gastos'], ['utilidad_bruta','Utilidad Bruta'], ['utilidad_neta','Utilidad Neta']];
+  const items = campos.filter(([k]) => item[k] !== undefined).map(([k,label]) => ({ label, total: item[k] }));
+  _posicionarTraza(e);
+  _renderTrazaItems(`${nombre} — Año`, item.utilidad_neta, items, DD && DD._modo_divisa);
 }
 
 function rebuildMain(){
@@ -2426,7 +2476,7 @@ function loadIngresosCostosMargen() {
         if (!els || !els.length) return;
         const el = els[0];
         if (el.datasetIndex === 3) return; // linea de Margen % -- sin detalle
-        chartMargenClick(el.datasetIndex, labels[el.index]);
+        chartMargenClick(e, el.datasetIndex, labels[el.index]);
       },
       datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
       scales: {
@@ -2479,13 +2529,13 @@ function loadCascadaPL() {
   // como un marcador fino flotando en su nivel real (no es un delta real, el
   // acumulado no cambia en ese paso, por eso no puede ser tipo 'delta' comun).
   const pasos = [
-    { label: 'Ingresos', labelEje: 'Ingresos', valor: t.ingresos, tipo: 'total' },
-    { label: 'Costo de Ventas', labelEje: ['Costo de', 'Ventas'], valor: -t.costos, tipo: 'delta' },
-    { label: 'Utilidad Bruta', labelEje: ['Utilidad', 'Bruta'], valor: t.utilidad_bruta, tipo: 'marcador' },
-    { label: 'Gastos', labelEje: 'Gastos', valor: -gastosOperativosPuros, tipo: 'delta' },
-    { label: 'Otros Ingresos No Operativos', labelEje: ['Otros Ingresos', 'No Operativos'], valor: t.otros_ingresos_no_operacionales || 0, tipo: 'delta' },
-    { label: 'Otros Gastos No Operativos', labelEje: ['Otros Gastos', 'No Operativos'], valor: -(t.otros_gastos_no_operacionales || 0), tipo: 'delta' },
-    { label: 'Utilidad Neta', labelEje: ['Utilidad', 'Neta'], valor: t.utilidad_neta, tipo: 'total' }
+    { label: 'Ingresos', labelEje: 'Ingresos', valor: t.ingresos, tipo: 'total', key: 'ingresos' },
+    { label: 'Costo de Ventas', labelEje: ['Costo de', 'Ventas'], valor: -t.costos, tipo: 'delta', key: 'costo_ventas' },
+    { label: 'Utilidad Bruta', labelEje: ['Utilidad', 'Bruta'], valor: t.utilidad_bruta, tipo: 'marcador', key: 'utilidad_bruta' },
+    { label: 'Gastos', labelEje: 'Gastos', valor: -gastosOperativosPuros, tipo: 'delta', key: 'gastos' },
+    { label: 'Otros Ingresos No Operativos', labelEje: ['Otros Ingresos', 'No Operativos'], valor: t.otros_ingresos_no_operacionales || 0, tipo: 'delta', key: 'otros_ingresos' },
+    { label: 'Otros Gastos No Operativos', labelEje: ['Otros Gastos', 'No Operativos'], valor: -(t.otros_gastos_no_operacionales || 0), tipo: 'delta', key: 'otros_gastos' },
+    { label: 'Utilidad Neta', labelEje: ['Utilidad', 'Neta'], valor: t.utilidad_neta, tipo: 'total', key: 'utilidad_neta' }
   ];
 
   let acumulado = 0;
@@ -2537,6 +2587,12 @@ function loadCascadaPL() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      onClick: (e, els) => {
+        if (!els || !els.length) return;
+        const p = pasos[els[0].index];
+        if (!p || !p.key) return;
+        chartCascadaClick(e, p.key);
+      },
       datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
       scales: {
         x: { stacked: true, ticks: { font: { size: 9 } } },
@@ -2616,6 +2672,12 @@ function loadHeatmapUtilidadUnidad() {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        onClick: (e, els) => {
+          if (!els || !els.length) return;
+          const nombre = labels[els[0].index];
+          if (!nombre) return;
+          chartUnidadClick(e, nombre);
+        },
         datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
         scales: {
           x: { grid: { display: false } },
@@ -2698,14 +2760,21 @@ function loadDonaUnidad() {
   if (emptyMsg) emptyMsg.style.display = 'none';
   if (CH['ch-dona-unidad']) CH['ch-dona-unidad'].destroy();
   const paleta = ['#2563eb','#059669','#d97706','#dc2626','#7c3aed','#0891b2'];
+  const labels = items.map(function(x) { return x.nombre; });
   CH['ch-dona-unidad'] = new Chart(canvas, {
     type: 'doughnut',
     data: {
-      labels: items.map(function(x) { return x.nombre; }),
+      labels: labels,
       datasets: [{ data: items.map(function(x) { return x.valor; }), backgroundColor: paleta }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      onClick: (e, els) => {
+        if (!els || !els.length) return;
+        const nombre = labels[els[0].index];
+        if (!nombre) return;
+        chartUnidadClick(e, nombre);
+      },
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { label: function(ctx) {
@@ -2752,6 +2821,12 @@ function loadDonaSegmento() {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      onClick: (e, els) => {
+        if (!els || !els.length) return;
+        const segmento = labels[els[0].index];
+        if (!segmento) return;
+        chartDonaSegmentoClick(e, segmento);
+      },
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { label: function(ctx) {
