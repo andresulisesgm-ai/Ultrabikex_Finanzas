@@ -13,6 +13,20 @@
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 </head>
 <body data-role="{{ user.role if user else 'visitor' }}">
+  <div id="app-loading-overlay" style="position:fixed;inset:0;background:#f8fafc;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
+    <div class="app-loading-spinner"></div>
+    <div id="app-loading-text" style="font-size:14px;color:#64748b;font-family:'DM Sans',sans-serif">Cargando<span id="app-loading-dots"></span></div>
+  </div>
+  <script>
+  (function(){
+    var dotsEl = document.getElementById('app-loading-dots');
+    var n = 0;
+    setInterval(function(){
+      n = (n + 1) % 4;
+      if (dotsEl) dotsEl.textContent = ' ' + '. '.repeat(n).trim();
+    }, 400);
+  })();
+  </script>
 <div class="al al-er" id="global-error" style="top:20px;right:20px"></div>
 
 

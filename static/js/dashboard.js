@@ -2909,6 +2909,9 @@ async function loadHome(){
     G('home-esf-panel').innerHTML = `<div class="home-esf-head">Año ${data.year} · último período cargado (Q${data.quarter})</div>` + _homeEsfPanel(data);
   }catch(e){
     G('home-subtitulo').textContent='Error cargando datos del Home';
+  }finally{
+    const overlay = document.getElementById('app-loading-overlay');
+    if (overlay) overlay.style.display = 'none';
   }
 }
 
