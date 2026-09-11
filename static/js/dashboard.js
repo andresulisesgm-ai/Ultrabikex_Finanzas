@@ -2844,6 +2844,7 @@ function loadDonaSegmento() {
   const seg = DD.totals.ingresos_segmentos;
   const labels = Object.keys(seg).filter(function(k) { return seg[k] !== 0; });
   if (!labels.length) { limpiarSiExiste(); return; }
+  labels.sort((a, b) => seg[b] - seg[a]);
   if (CH['ch-dona-segmento']) CH['ch-dona-segmento'].destroy();
   const paletaSegmentos = { 'Venta de Mercancía': '#2563eb', 'Servicios': '#f97316', 'Taller': '#7c3aed', 'Eventos': '#059669' };
   const paleta = labels.map(function(k) { return paletaSegmentos[k] || '#94a3b8'; });
@@ -2851,10 +2852,11 @@ function loadDonaSegmento() {
     type: 'doughnut',
     data: {
       labels: labels,
-      datasets: [{ data: labels.map(function(k) { return seg[k]; }), backgroundColor: paleta }]
+      datasets: [{ data: labels.map(function(k) { return seg[k]; }), backgroundColor: paleta, borderWidth: 0 }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      rotation: -180,
       onClick: (e, els) => {
         if (!els || !els.length) return;
         const segmento = labels[els[0].index];
