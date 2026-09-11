@@ -97,7 +97,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "type": "section",
     "title": "🏦 Situación Financiera",
     "visible": true,
-    "order": 9.5
+    "order": 14.5
   },
   {
     "id": "wc-estcap",
@@ -105,7 +105,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "title": "Estructura de Capital",
     "subtitle": "Activo vs Pasivo + Patrimonio",
     "visible": true,
-    "order": 10,
+    "order": 15,
     "size": "m",
     "widthSpan": 2,
     "chartType": "bar",
@@ -117,7 +117,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "title": "Estructura de Capital Detallada",
     "subtitle": "Activo y Pasivo por partida",
     "visible": true,
-    "order": 11,
+    "order": 16,
     "size": "m",
     "chartType": "bar",
     "dataset": "estructura_capital_detallada"
@@ -128,7 +128,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "title": "Situación Financiera Corriente y No Corriente",
     "subtitle": "Activo vs Pasivo, corriente y no corriente",
     "visible": true,
-    "order": 12.2,
+    "order": 17.2,
     "size": "m",
     "chartType": "bar",
     "dataset": "situacion_financiera"
@@ -139,7 +139,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "title": "Período de Cobro en días",
     "subtitle": "Clientes Externo vs Empresas del Grupo, por trimestre",
     "visible": true,
-    "order": 12.25,
+    "order": 17.25,
     "size": "m",
     "chartType": "bar",
     "dataset": "periodo_cobro"
@@ -150,7 +150,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "title": "Deuda y Cobertura",
     "subtitle": "Total Pasivo vs Efectivo y Equivalentes",
     "visible": true,
-    "order": 12,
+    "order": 17,
     "size": "m",
     "chartType": "bar",
     "dataset": "deuda_cobertura"
@@ -161,7 +161,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "title": "ROE Acumulado",
     "subtitle": "Utilidad Neta acumulada / Patrimonio promedio",
     "visible": true,
-    "order": 12.3,
+    "order": 17.3,
     "size": "s",
     "chartType": "gauge",
     "dataset": "roe"
@@ -172,7 +172,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "title": "ROA Acumulado",
     "subtitle": "Ingresos acumulados / Activos promedio",
     "visible": true,
-    "order": 12.4,
+    "order": 17.4,
     "size": "s",
     "chartType": "gauge",
     "dataset": "roa"
@@ -182,7 +182,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "type": "section",
     "title": "📊 Estado de Resultados",
     "visible": true,
-    "order": 12.5
+    "order": 9.5
   },
   {
     "id": "wc-margen",
@@ -190,7 +190,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "title": "Resultados y margen bruto",
     "subtitle": "Por trimestre · Respeta el filtro de unidad de negocio",
     "visible": true,
-    "order": 13,
+    "order": 10,
     "size": "m",
     "chartType": "bar",
     "dataset": "ingresos_costos_margen"
@@ -201,7 +201,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "title": "Ingresos y utilidad",
     "subtitle": "De Ingresos a Utilidad Neta, paso a paso · Respeta el filtro de unidad de negocio",
     "visible": true,
-    "order": 14,
+    "order": 11,
     "size": "m",
     "chartType": "bar",
     "dataset": "cascada_pl"
@@ -212,7 +212,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "title": "Utilidad Neta por Unidad de Negocio",
     "subtitle": "Mapa de calor · Solo disponible al seleccionar una empresa con unidades propias",
     "visible": true,
-    "order": 15,
+    "order": 12,
     "size": "m",
     "chartType": "bar",
     "dataset": "heatmap_utilidad_unidad"
@@ -223,7 +223,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "title": "Ingresos por Unidad de Negocio",
     "subtitle": "% de participación · Solo disponible al seleccionar una empresa con unidades propias",
     "visible": true,
-    "order": 16,
+    "order": 13,
     "size": "s",
     "chartType": "doughnut",
     "dataset": "ingresos_por_unidad"
@@ -234,7 +234,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "title": "Ingresos por línea de negocio",
     "subtitle": "Venta de Mercancía · Servicios · Eventos · Taller",
     "visible": true,
-    "order": 17,
+    "order": 14,
     "size": "s",
     "chartType": "doughnut",
     "dataset": "ingresos_segmentos"
