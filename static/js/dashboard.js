@@ -248,7 +248,7 @@ const WIDGET_TEMPLATES = {
     <div id="pe-card"></div>
   `,
   'wc-estcap': `
-    <div class="ch"><div><div class="ct">Estructura de Capital</div><div class="cs">Activo vs Pasivo + Patrimonio <span id="estcap-badge" style="display:none;color:var(--red);font-weight:700">⚠ Descuadre</span></div></div>
+    <div class="ch"><div><div class="ct">Estructura de Capital<span class="dp-icon" onclick="event.stopPropagation();abrirDefinicionPanel('wc-estcap','Estructura de Capital')">?</span></div><div class="cs">Activo vs Pasivo + Patrimonio <span id="estcap-badge" style="display:none;color:var(--red);font-weight:700">⚠ Descuadre</span></div></div>
       <div class="cact"><span class="dh">⠿</span>
         <select class="csel vsel" id="ct-ch-estcap" onchange="loadEstructuraCapital()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
         <button class="bcl" data-w="wc-estcap">✕</button></div></div>
@@ -256,7 +256,7 @@ const WIDGET_TEMPLATES = {
     <div id="estcap-legend" style="padding:8px 4px 0"></div>
   `,
   'wc-estcapdet': `
-    <div class="ch"><div><div class="ct">Estructura de Capital Detallada</div><div class="cs">Activo vs Pasivo + Patrimonio, por partida</div></div>
+    <div class="ch"><div><div class="ct">Estructura de Capital Detallada<span class="dp-icon" onclick="event.stopPropagation();abrirDefinicionPanel('wc-estcapdet','Estructura de Capital Detallada')">?</span></div><div class="cs">Activo vs Pasivo + Patrimonio, por partida</div></div>
       <div class="cact"><span class="dh">⠿</span>
         <select class="csel vsel" id="ct-ch-estcapdet" onchange="loadEstructuraCapitalDetallada()" title="Vista"><option value="monto">Monto</option><option value="pct">100% Apilado</option></select>
         <button class="bcl" data-w="wc-estcapdet">✕</button></div></div>
@@ -264,25 +264,25 @@ const WIDGET_TEMPLATES = {
     <div id="estcapdet-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-sitfin': `
-    <div class="ch"><div><div class="ct">Situación Financiera Corriente</div><div class="cs">Activo vs Pasivo, corriente y no corriente</div></div>
+    <div class="ch"><div><div class="ct">Situación Financiera Corriente<span class="dp-icon" onclick="event.stopPropagation();abrirDefinicionPanel('wc-sitfin','Situación Financiera Corriente')">?</span></div><div class="cs">Activo vs Pasivo, corriente y no corriente</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-sitfin">✕</button></div></div>
     <div class="cv" style="height:230px"><canvas id="ch-sitfin"></canvas></div>
     <div id="sitfin-legend" style="padding:8px 4px 0"></div>
   `,
   'wc-periodo-cobro': `
-    <div class="ch"><div><div class="ct">Período de Cobro en días</div><div class="cs">Clientes Externo vs Empresas del Grupo</div></div>
+    <div class="ch"><div><div class="ct">Período de Cobro en días<span class="dp-icon" onclick="event.stopPropagation();abrirDefinicionPanel('wc-periodo-cobro','Período de Cobro en días')">?</span></div><div class="cs">Clientes Externo vs Empresas del Grupo</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-periodo-cobro">✕</button></div></div>
     <div class="cv" style="height:230px"><canvas id="ch-periodo-cobro"></canvas></div>
     <div id="periodo-cobro-legend" style="padding:8px 4px 0"></div>
   `,
   'wc-deuda-cobertura': `
-    <div class="ch"><div><div class="ct">Deuda y Cobertura</div><div class="cs">Total Pasivo vs Efectivo y Equivalentes</div></div>
+    <div class="ch"><div><div class="ct">Deuda y Cobertura<span class="dp-icon" onclick="event.stopPropagation();abrirDefinicionPanel('wc-deuda-cobertura','Deuda y Cobertura')">?</span></div><div class="cs">Total Pasivo vs Efectivo y Equivalentes</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-deuda-cobertura">✕</button></div></div>
     <div class="cv" style="height:230px"><canvas id="ch-deuda-cobertura"></canvas></div>
     <div id="deuda-cobertura-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-roe': `
-    <div class="ch"><div><div class="ct">ROE Acumulado</div><div class="cs">Utilidad Neta acumulada / Patrimonio promedio</div></div>
+    <div class="ch"><div><div class="ct">ROE Acumulado<span class="dp-icon" onclick="event.stopPropagation();abrirDefinicionPanel('wc-roe','ROE Acumulado')">?</span></div><div class="cs">Utilidad Neta acumulada / Patrimonio promedio</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-roe">✕</button></div></div>
     <div style="position:relative;height:110px"><canvas id="ch-roe-gauge"></canvas>
       <div style="position:absolute;top:55%;left:50%;transform:translate(-50%,-50%);text-align:center">
@@ -294,7 +294,7 @@ const WIDGET_TEMPLATES = {
     <div id="roe-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-roa': `
-    <div class="ch"><div><div class="ct">ROA Acumulado</div><div class="cs">Utilidad Neta acumulada / Activos promedio</div></div>
+    <div class="ch"><div><div class="ct">ROA Acumulado<span class="dp-icon" onclick="event.stopPropagation();abrirDefinicionPanel('wc-roa','ROA Acumulado')">?</span></div><div class="cs">Utilidad Neta acumulada / Activos promedio</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-roa">✕</button></div></div>
     <div style="position:relative;height:110px"><canvas id="ch-roa-gauge"></canvas>
       <div style="position:absolute;top:55%;left:50%;transform:translate(-50%,-50%);text-align:center">
@@ -306,26 +306,26 @@ const WIDGET_TEMPLATES = {
     <div id="roa-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-margen': `
-    <div class="ch"><div><div class="ct">Resultados y margen bruto</div><div class="cs">Respeta el filtro de unidad de negocio</div></div>
+    <div class="ch"><div><div class="ct">Resultados y margen bruto<span class="dp-icon" onclick="event.stopPropagation();abrirDefinicionPanel('wc-margen','Resultados y margen bruto')">?</span></div><div class="cs">Respeta el filtro de unidad de negocio</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-margen">✕</button></div></div>
     <div class="cv" style="height:230px"><canvas id="ch-margen"></canvas></div>
     <div id="margen-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-cascada': `
-    <div class="ch"><div><div class="ct">Ingresos y utilidad</div><div class="cs">De Ingresos a Utilidad Neta, paso a paso · Respeta el filtro de unidad de negocio</div></div>
+    <div class="ch"><div><div class="ct">Ingresos y utilidad<span class="dp-icon" onclick="event.stopPropagation();abrirDefinicionPanel('wc-cascada','Ingresos y utilidad')">?</span></div><div class="cs">De Ingresos a Utilidad Neta, paso a paso · Respeta el filtro de unidad de negocio</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-cascada">✕</button></div></div>
     <div class="cv" style="height:230px"><canvas id="ch-cascada"></canvas></div>
     <div id="cascada-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-heatmap-un': `
-    <div class="ch"><div><div class="ct" id="heatmap-un-titulo">Utilidad Neta por Unidad de Negocio</div><div class="cs">Por unidad si hay una empresa seleccionada, por empresa en vista Holding</div></div>
+    <div class="ch"><div><div style="display:flex;align-items:center;gap:4px"><div class="ct" id="heatmap-un-titulo">Utilidad Neta por Unidad de Negocio</div><span class="dp-icon" onclick="event.stopPropagation();abrirDefinicionPanel('wc-heatmap-un','Utilidad Neta por Unidad de Negocio')">?</span></div><div class="cs">Por unidad si hay una empresa seleccionada, por empresa en vista Holding</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-heatmap-un">✕</button></div></div>
     <div class="cv" style="height:230px"><canvas id="ch-heatmap-un"></canvas></div>
     <div id="heatmap-un-empty" style="display:none;text-align:center;color:var(--mu);font-size:12px;padding:24px 8px"></div>
     <div id="heatmap-un-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-dona-unidad': `
-    <div class="ch"><div><div class="ct">Ingresos por Unidad de Negocio</div><div class="cs">% de participación · Solo disponible al seleccionar una empresa con unidades propias</div></div>
+    <div class="ch"><div><div class="ct">Ingresos por Unidad de Negocio<span class="dp-icon" onclick="event.stopPropagation();abrirDefinicionPanel('wc-dona-unidad','Ingresos por Unidad de Negocio')">?</span></div><div class="cs">% de participación · Solo disponible al seleccionar una empresa con unidades propias</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-dona-unidad">✕</button></div></div>
     <div class="cv" style="height:230px;position:relative">
       <canvas id="ch-dona-unidad"></canvas>
@@ -334,7 +334,7 @@ const WIDGET_TEMPLATES = {
     <div id="dona-unidad-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-dona-segmento': `
-    <div class="ch"><div><div class="ct">Ingresos por línea de negocio</div><div class="cs">Venta de Mercancía · Servicios · Eventos · Taller</div></div>
+    <div class="ch"><div><div class="ct">Ingresos por línea de negocio<span class="dp-icon" onclick="event.stopPropagation();abrirDefinicionPanel('wc-dona-segmento','Ingresos por línea de negocio')">?</span></div><div class="cs">Venta de Mercancía · Servicios · Eventos · Taller</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-dona-segmento">✕</button></div></div>
     <div class="cv" style="height:230px"><canvas id="ch-dona-segmento"></canvas></div>
     <div id="dona-segmento-legend" style="padding:8px 16px 0"></div>
@@ -975,6 +975,7 @@ function renderKPIs() {
       <div class="kstripe"></div>
       <div class="ktop">
         <span class="klbl">${w.title}</span>
+        <span class="dp-icon" onclick="event.stopPropagation();abrirDefinicionPanel('${w.id}','${w.title}')">?</span>
         <span class="kico">${w.icon}</span>
       </div>
       <div class="kval" id="kv-${w.id.replace('kc-', '')}">—</div>

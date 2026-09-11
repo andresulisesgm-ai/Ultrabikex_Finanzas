@@ -936,6 +936,7 @@
 <script>window.currentUser = {{ user|tojson|safe }}; window.units = {{ units|tojson }};</script>
 <script src="/static/js/core.js"></script>
 <script src="/static/js/charts_helpers.js"></script>
+<script src="/static/js/dashboard-definiciones.js"></script>
 <script src="/static/js/dashboard.js"></script>
 <script src="/static/js/upload.js"></script>
 <script src="/static/js/tasas.js"></script>
@@ -962,6 +963,16 @@
   </div>
   <div class="tp-total" id="tp-total"></div>
   <div id="tp-rows"></div>
+</div>
+<div id="definicion-panel">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+    <div class="dp-title" id="dp-title"></div>
+    <button onclick="cerrarDefinicionPanel()" style="background:none;border:none;color:#888;cursor:pointer;font-size:12px;padding:0 2px">✕</button>
+  </div>
+  <div class="dp-section-label">Definición</div>
+  <div class="dp-body" id="dp-definicion"></div>
+  <div class="dp-section-label">Rango de referencia</div>
+  <div class="dp-body" id="dp-rango"></div>
 </div>
 </body>
 </html>
