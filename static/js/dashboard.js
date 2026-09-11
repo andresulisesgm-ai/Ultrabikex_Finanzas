@@ -2656,15 +2656,23 @@ function loadHeatmapUtilidadUnidad() {
   const emptyMsg = G('heatmap-un-empty');
   if (!canvas) return;
 
+  // Mezcla matematica hacia blanco -- misma tecnica que generarDegradado() en
+  // Estructura de Capital Detallada y colorEscaladoNegativo() en la cascada.
+  function mezclarHaciaBlanco(hex, factor) {
+    const r = parseInt(hex.substring(0,2),16);
+    const g = parseInt(hex.substring(2,4),16);
+    const b = parseInt(hex.substring(4,6),16);
+    const mezcla = (c) => Math.round(c + (255 - c) * factor);
+    return '#' + mezcla(r).toString(16).padStart(2,'0') + mezcla(g).toString(16).padStart(2,'0') + mezcla(b).toString(16).padStart(2,'0');
+  }
+
   function colorPara(v, maxPos, maxNegAbs) {
     if (v >= 0) {
       const t = maxPos ? Math.min(v / maxPos, 1) : 0;
-      const l = 55 - t * 25;
-      return 'hsl(158, 60%, ' + l + '%)';
+      return mezclarHaciaBlanco('16a34a', (1 - t) * 0.85);
     } else {
       const t = maxNegAbs ? Math.min(Math.abs(v) / maxNegAbs, 1) : 0;
-      const l = 55 - t * 25;
-      return 'hsl(0, 65%, ' + l + '%)';
+      return mezclarHaciaBlanco('dc2626', (1 - t) * 0.85);
     }
   }
 
