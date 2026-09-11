@@ -2486,10 +2486,10 @@ function loadIngresosCostosMargen() {
     data: {
       labels,
       datasets: [
-        { type: 'bar', label: 'Ingresos', data: dsIngresos, backgroundColor: '#2563eb', yAxisID: 'y', order: 2 },
-        { type: 'bar', label: 'Costos', data: dsCostos, backgroundColor: '#d97706', yAxisID: 'y', order: 2 },
-        { type: 'bar', label: 'Utilidad Bruta', data: dsUtilidad, backgroundColor: '#059669', yAxisID: 'y', order: 2 },
-        { type: 'line', label: 'Margen Bruto %', data: dsMargen, borderColor: '#7c3aed', backgroundColor: '#7c3aed', yAxisID: 'y1', order: 1, tension: 0.3 }
+        { type: 'bar', label: 'Ingresos', data: dsIngresos, backgroundColor: '#059669', yAxisID: 'y', order: 2 },
+        { type: 'bar', label: 'Costos', data: dsCostos, backgroundColor: '#dc2626', yAxisID: 'y', order: 2 },
+        { type: 'bar', label: 'Utilidad Bruta', data: dsUtilidad, backgroundColor: '#2563eb', yAxisID: 'y', order: 2 },
+        { type: 'line', label: 'Margen Bruto %', data: dsMargen, borderColor: '#f97316', backgroundColor: '#f97316', yAxisID: 'y1', order: 1, tension: 0.3 }
       ]
     },
     options: {
@@ -2524,10 +2524,10 @@ function loadIngresosCostosMargen() {
   const legendEl = G('margen-legend');
   if (legendEl) {
     const series = [
-      { nombre: 'Ingresos', color: '#2563eb', data: dsIngresos, esPct: false },
-      { nombre: 'Costos', color: '#d97706', data: dsCostos, esPct: false },
-      { nombre: 'Utilidad Bruta', color: '#059669', data: dsUtilidad, esPct: false },
-      { nombre: 'Margen Bruto %', color: '#7c3aed', data: dsMargen, esPct: true }
+      { nombre: 'Ingresos', color: '#059669', data: dsIngresos, esPct: false },
+      { nombre: 'Costos', color: '#dc2626', data: dsCostos, esPct: false },
+      { nombre: 'Utilidad Bruta', color: '#2563eb', data: dsUtilidad, esPct: false },
+      { nombre: 'Margen Bruto %', color: '#f97316', data: dsMargen, esPct: true }
     ];
     const filas = series.map(s => {
       const montos = labels.map((lbl, i) => `<strong style="color:var(--tx)">${lbl}</strong> ${s.esPct ? s.data[i].toFixed(1)+'%' : fmtS(s.data[i])}`).join(' &middot; ');
