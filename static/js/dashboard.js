@@ -1943,10 +1943,10 @@ function loadEstructuraCapital() {
           { nombre: 'Patrimonio', color: '#0891b2', data: dsPatrimonio }
         ];
         const filas = series.map(s => {
-          const montos = modoPct ? '' : labels.map((lbl, i) => `<strong style="color:var(--tx)">${lbl}</strong> ${fmtS(s.data[i])}`).join(' &middot; ');
+          const montos = labels.map((lbl, i) => `<strong style="color:var(--tx)">${lbl}</strong> ${modoPct ? s.data[i].toFixed(1)+'%' : fmtS(s.data[i])}`).join(' &middot; ');
           return `<div style="margin-bottom:6px">
             <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:9px;height:9px;background:${s.color};border-radius:2px;display:inline-block;flex-shrink:0"></span>${s.nombre}</div>
-            ${montos ? `<div style="font-size:10px;color:var(--mu2);margin-left:15px">${montos}</div>` : ''}
+            <div style="font-size:10px;color:var(--mu2);margin-left:15px">${montos}</div>
           </div>`;
         }).join('');
         const valorPintado = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;justify-items:center;text-align:center">${filas}</div>`;
@@ -2158,13 +2158,16 @@ function loadEstructuraCapitalDetallada() {
       // Leyenda propia, agrupada por categoria (Activo/Pasivo/Patrimonio), con monto
       // por cada trimestre visible -- Chart.js no arma esto solo. Regla decidida esta
       // sesion: ninguna leyenda del Dashboard muestra "solo el ultimo trimestre".
-      function renderGrupo(titulo, colorTitulo, items, paleta) {
+      function renderGrupo(titulo, colorTitulo, items, paleta, totales) {
         const filas = items.map((x, idx) => {
           const color = paleta[idx % paleta.length];
-          const montos = modoPct ? '' : quartersConDatos.map((q,i) => `<strong style="color:var(--tx)">${labels[i]}</strong> ${fmtS(x.vals[i])}`).join(' &middot; ');
+          const montos = quartersConDatos.map((q,i) => {
+            const val = modoPct ? (totales[i] ? (x.vals[i]/totales[i]*100).toFixed(1)+'%' : '0.0%') : fmtS(x.vals[i]);
+            return `<strong style="color:var(--tx)">${labels[i]}</strong> ${val}`;
+          }).join(' &middot; ');
           return `<div style="margin-bottom:6px">
             <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:9px;height:9px;background:${color};border-radius:2px;display:inline-block;flex-shrink:0"></span>${x.r.partida}</div>
-            ${montos ? `<div style="font-size:10px;color:var(--mu2);margin-left:15px">${montos}</div>` : ''}
+            <div style="font-size:10px;color:var(--mu2);margin-left:15px">${montos}</div>
           </div>`;
         }).join('');
         return `<div><p style="margin:0 0 6px;font-weight:700;color:${colorTitulo};font-size:11px">${titulo}</p>${filas}</div>`;
@@ -2173,9 +2176,9 @@ function loadEstructuraCapitalDetallada() {
       const legendEl = G('estcapdet-legend');
       if (legendEl) {
         const valorPintado = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;justify-items:center;text-align:center">
-          ${renderGrupo('Activo', '#2563eb', itemsActivo, paletaAzules)}
-          ${renderGrupo('Pasivo', '#f97316', itemsPasivo, paletaNaranjas)}
-          ${renderGrupo('Patrimonio', '#0891b2', itemsPatrimonio, paletaTeals)}
+          ${renderGrupo('Activo', '#2563eb', itemsActivo, paletaAzules, totalActivoQ)}
+          ${renderGrupo('Pasivo', '#f97316', itemsPasivo, paletaNaranjas, totalPasPatQ)}
+          ${renderGrupo('Patrimonio', '#0891b2', itemsPatrimonio, paletaTeals, totalPasPatQ)}
         </div>`;
         console.log('[loadEstructuraCapitalDetallada-PAINT]', performance.now().toFixed(1), 'modo=', modoDivisaReal, 'valorPintado=', valorPintado);
         legendEl.innerHTML = valorPintado;
