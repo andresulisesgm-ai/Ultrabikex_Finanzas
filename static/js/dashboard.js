@@ -125,7 +125,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
   {
     "id": "wc-sitfin",
     "type": "chart",
-    "title": "Situación Financiera Corriente",
+    "title": "Situación Financiera Corriente y No Corriente",
     "subtitle": "Activo vs Pasivo, corriente y no corriente",
     "visible": true,
     "order": 12.2,
@@ -264,7 +264,7 @@ const WIDGET_TEMPLATES = {
     <div id="estcapdet-legend" style="padding:8px 16px 0"></div>
   `,
   'wc-sitfin': `
-    <div class="ch"><div><div class="ct">Situación Financiera Corriente<span class="dp-icon" onclick="event.stopPropagation();abrirDefinicionPanel('wc-sitfin','Situación Financiera Corriente')">?</span></div><div class="cs">Activo vs Pasivo, corriente y no corriente</div></div>
+    <div class="ch"><div><div class="ct">Situación Financiera Corriente y No Corriente<span class="dp-icon" onclick="event.stopPropagation();abrirDefinicionPanel('wc-sitfin','Situación Financiera Corriente y No Corriente')">?</span></div><div class="cs">Activo vs Pasivo, corriente y no corriente</div></div>
       <div class="cact"><span class="dh">⠿</span><button class="bcl" data-w="wc-sitfin">✕</button></div></div>
     <div class="cv" style="height:230px"><canvas id="ch-sitfin"></canvas></div>
     <div id="sitfin-legend" style="padding:8px 4px 0"></div>

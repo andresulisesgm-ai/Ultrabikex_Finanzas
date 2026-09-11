@@ -208,7 +208,7 @@ DEFAULT_DASHBOARD_CONFIG = [
   {
     "id": "wc-sitfin",
     "type": "chart",
-    "title": "Situación Financiera Corriente",
+    "title": "Situación Financiera Corriente y No Corriente",
     "subtitle": "Activo vs Pasivo, corriente y no corriente, por trimestre",
     "visible": True,
     "order": 12.2,
