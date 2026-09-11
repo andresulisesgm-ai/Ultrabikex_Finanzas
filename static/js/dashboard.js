@@ -2781,6 +2781,8 @@ function loadDonaUnidad() {
   const tituloEl = canvas.closest('.wcard').querySelector('.ct');
   if (tituloEl) tituloEl.textContent = 'Ingresos por ' + tituloSufijo;
 
+  items = items.slice().sort((a, b) => b.valor - a.valor);
+
   if (!items.length) {
     canvas.style.display = 'none';
     if (emptyMsg) emptyMsg.style.display = 'block';
@@ -2796,10 +2798,11 @@ function loadDonaUnidad() {
     type: 'doughnut',
     data: {
       labels: labels,
-      datasets: [{ data: items.map(function(x) { return x.valor; }), backgroundColor: paleta }]
+      datasets: [{ data: items.map(function(x) { return x.valor; }), backgroundColor: paleta, borderWidth: 0 }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      rotation: -180,
       onClick: (e, els) => {
         if (!els || !els.length) return;
         const nombre = labels[els[0].index];
