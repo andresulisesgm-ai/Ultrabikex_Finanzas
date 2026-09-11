@@ -1662,6 +1662,15 @@ function _renderTrazaItems(titulo, total, items, divisaReal) {
     : '<p style="color:var(--mu);font-size:12px;padding:8px 0">Sin cuentas con movimiento.</p>';
 }
 
+function _renderTrazaRatio(titulo, valorPct, numerador, denominador, labelNum, labelDen, divisaReal) {
+  G('tp-title').textContent = titulo;
+  G('tp-total').textContent = `${valorPct.toFixed(1)}%${divisaReal ? ' · Divisa Real' : ''}`;
+  G('tp-rows').innerHTML = `
+    <div class="tp-row"><span class="tp-name">${labelNum}</span><span class="tp-val">${fmtS(numerador)}</span></div>
+    <div class="tp-row"><span class="tp-name">${labelDen}</span><span class="tp-val">${fmtS(denominador)}</span></div>
+  `;
+}
+
 async function _fetchYMostrarTraza(e, url) {
   _posicionarTraza(e);
   G('tp-title').textContent = 'Cargando…';
@@ -2397,6 +2406,16 @@ function loadROEROA() {
           options: {
             responsive: true,
             maintainAspectRatio: false,
+            onClick: (e, els) => {
+              if (!els || !els.length) return;
+              const idx = idxConDatos[els[0].index];
+              const t = trimestres[idx];
+              if (!t || t.numerador === undefined || t.numerador === null) return;
+              const labelNum = 'Resultados del Ejercicio (acumulado)';
+              const labelDen = id === 'roe' ? 'Patrimonio promedio' : 'Activos promedio';
+              _posicionarTraza(e);
+              _renderTrazaRatio(`${id.toUpperCase()} — Q${idx+1}`, valores[els[0].index], t.numerador, t.denominador, labelNum, labelDen, modoDivisaReal);
+            },
             scales: { y: { ticks: { callback: v => v.toFixed(0) + '%' } } },
             datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
             plugins: {

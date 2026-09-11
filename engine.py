@@ -2814,15 +2814,23 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
     cos_aa  = acum_eerr['costos']
     esf_last = quarters_data[max(q for q in [1,2,3,4] if quarters_data[q]['esf']['tot_activos'] != 0) if any(quarters_data[q]['esf']['tot_activos'] for q in [1,2,3,4]) else 4]['esf']
 
-    def build_ind(nombre, referencia, val_prev, vals_q, val_aa, es_pct=False, es_ratio=False):
+    def build_ind(nombre, referencia, val_prev, vals_q, val_aa, es_pct=False, es_ratio=False, num_q=None, den_q=None, num_aa=None, den_aa=None):
         resultado = {'nombre': nombre, 'referencia': referencia, 'es_pct': es_pct, 'es_ratio': es_ratio}
         resultado['year_prev'] = val_prev
         resultado['anio_actual'] = val_aa
+        if num_aa is not None or den_aa is not None:
+            resultado['numerador_aa'] = num_aa
+            resultado['denominador_aa'] = den_aa
         trimestres = []
         vp = val_prev
         for q in [1,2,3,4]:
             v = vals_q[q]
-            trimestres.append({'q': q, 'valor': v, 'vari_rel': vari_rel(vp, v)})
+            t = {'q': q, 'valor': v, 'vari_rel': vari_rel(vp, v)}
+            if num_q is not None:
+                t['numerador'] = num_q.get(q)
+            if den_q is not None:
+                t['denominador'] = den_q.get(q)
+            trimestres.append(t)
             if v is not None:
                 vp = v
         resultado['trimestres'] = trimestres
@@ -2895,7 +2903,11 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
         build_ind('ROE (10% y 20%)', '10%-20%',
             None,
             {q: safe_div(inc_esf(q,'res_ejercicio'), prom_esf(q,'patrimonio')) for q in [1,2,3,4]},
-            safe_div(esf_last['res_ejercicio'], prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'patrimonio')) if hay_esf_prev else None, es_pct=True),
+            safe_div(esf_last['res_ejercicio'], prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'patrimonio')) if hay_esf_prev else None, es_pct=True,
+            num_q={q: inc_esf(q,'res_ejercicio') for q in [1,2,3,4]},
+            den_q={q: prom_esf(q,'patrimonio') for q in [1,2,3,4]},
+            num_aa=esf_last['res_ejercicio'] if hay_esf_prev else None,
+            den_aa=prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'patrimonio') if hay_esf_prev else None),
         build_ind('Rotación de Inventarios (2 y 3 meses)', '2-3 meses',
             None,
             {q: safe_div(prom_esf(q,'inventarios')*3, qv(q,'costo_merc')) if prom_esf(q,'inventarios') is not None else None for q in [1,2,3,4]},
@@ -2903,7 +2915,11 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
         build_ind('ROA (5% a 15%)', '5%-15%',
             None,
             {q: safe_div(inc_esf(q,'res_ejercicio'), prom_esf(q,'tot_activos')) for q in [1,2,3,4]},
-            safe_div(esf_last['res_ejercicio'], prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'tot_activos')) if hay_esf_prev else None, es_pct=True),
+            safe_div(esf_last['res_ejercicio'], prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'tot_activos')) if hay_esf_prev else None, es_pct=True,
+            num_q={q: inc_esf(q,'res_ejercicio') for q in [1,2,3,4]},
+            den_q={q: prom_esf(q,'tot_activos') for q in [1,2,3,4]},
+            num_aa=esf_last['res_ejercicio'] if hay_esf_prev else None,
+            den_aa=prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'tot_activos') if hay_esf_prev else None),
         ind_pc,
         build_ind('Ratio Corriente (entre 1,5 y 2)', '1.5-2',
             None,
