@@ -255,9 +255,9 @@ class ExcelExporter:
     def generate(self, wb=None, save=True, return_meta=False, consolidado_name=None):
         from db import get_db
         db_conn = get_db()
+        from helpers import _nombre_empresa_display
+        nombre_emp = _nombre_empresa_display(db_conn, self.empresa_id)
         if consolidado_name is None:
-            from helpers import _nombre_empresa_display
-            nombre_emp = _nombre_empresa_display(db_conn, self.empresa_id)
             consolidado_name = f'EERR {nombre_emp}'[:31]
         import openpyxl
         from openpyxl.styles import PatternFill, Font, Alignment, Border, Side, NamedStyle
@@ -440,8 +440,14 @@ class ExcelExporter:
             if unit == NOMBRE_CONSOLIDADO:
                 muestra_pct_gastos_cons_capture = {item['partida']: item.get('muestra_pct_gastos', False) for item in rows}
 
-            if unit != NOMBRE_CONSOLIDADO and not self.divisa_real:
-                notes_name, partida_month_rows, notes_header_rows = self._build_notes_sheet(wb, unit, engine_unit, db_conn)
+            if True:
+                # sep-2026: se genera hoja de Notas también para el Consolidado
+                # (antes solo unidades) -- mismo mecanismo, misma fuente 'data' ya
+                # calculada arriba con engine_unit=''. Nombre de hoja usa nombre_emp
+                # (no 'unit', que para el Consolidado es el título de la hoja
+                # resumen tipo "EERR Ultrax", no el nombre de empresa).
+                notes_label = nombre_emp if unit == NOMBRE_CONSOLIDADO else unit
+                notes_name, partida_month_rows, notes_header_rows = self._build_notes_sheet(wb, notes_label, data)
                 notes_name_by_unit[unit] = notes_name
                 partida_month_rows_by_unit[unit] = partida_month_rows
                 notes_header_rows_by_unit[unit] = notes_header_rows
@@ -592,7 +598,14 @@ class ExcelExporter:
 
             _apply_row_grouping(ws, rows, partida_rows)
 
-        if NOMBRE_CONSOLIDADO in partida_rows_by_unit:
+        if False:
+            # RETIRADO sep-2026: reemplazado por hoja de Notas propia del
+            # Consolidado (Reemplazo 2, mismo mecanismo que las unidades).
+            # El Consolidado ahora se calcula directo del motor (engine_unit=''),
+            # no como suma de hojas de unidad -- replica la arquitectura real de
+            # Yocelin (su 'EERR ULTRAX' referencia 'N EERR ULTRAX', no suma sus
+            # 6 hojas de unidad). Bloque conservado inerte, no borrado, hasta
+            # verificación completa. Ver ultrax_logs.md, sesión 12-sep-2026.
             ws = wb[NOMBRE_CONSOLIDADO]
             partida_rows_cons = partida_rows_by_unit[NOMBRE_CONSOLIDADO]
             months_list = list(self.months)
@@ -744,6 +757,15 @@ class ExcelExporter:
             primera_hoja_de_esta_llamada = wb.sheetnames.index(hojas_creadas[0]) if hojas_creadas[0] in wb.sheetnames else idx_actual
             wb.move_sheet(NOMBRE_CONSOLIDADO, offset=-(idx_actual - primera_hoja_de_esta_llamada))
 
+            # sep-2026: reubicar la hoja de Notas del Consolidado justo después de
+            # su resumen -- replica el orden real de Yocelin (EERR ULTRAX seguido
+            # inmediato de N EERR ULTRAX, confirmado contra su archivo real).
+            notes_name_cons = notes_name_by_unit.get(NOMBRE_CONSOLIDADO)
+            if notes_name_cons and notes_name_cons in wb.sheetnames:
+                idx_cons = wb.sheetnames.index(NOMBRE_CONSOLIDADO)
+                idx_notes = wb.sheetnames.index(notes_name_cons)
+                wb.move_sheet(notes_name_cons, offset=-(idx_notes - (idx_cons + 1)))
+
         path = os.path.join(tempfile.gettempdir(), f'EEFF_{nombre_emp_path}_{self.year}.xlsx')
         if save:
             wb.save(path)
@@ -758,12 +780,11 @@ class ExcelExporter:
             }
         return path
 
-    def _build_notes_sheet(self, wb, unit, engine_unit, db_conn):
+    def _build_notes_sheet(self, wb, unit, data):
         import os
         from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
         from collections import defaultdict
-        from engine import eerr_completo_v2_ui_adapter
         from engine import EERR_STRUCTURE
 
         HDR_FILL  = PatternFill('solid', start_color='1F3864')
@@ -776,12 +797,11 @@ class ExcelExporter:
         thin      = Side(style='thin', color='D9D9D9')
         border    = Border(left=thin, right=thin, top=thin, bottom=thin)
 
-        notes_sheet_name = f'N EERR {unit}'
+        notes_sheet_name = (f'N EERR {unit}' + (' DR' if self.divisa_real else ''))[:31]
         ws = wb.create_sheet(notes_sheet_name)
         ws.sheet_view.showGridLines = False
 
-        data_adapter = eerr_completo_v2_ui_adapter(db_conn, self.year, engine_unit)
-        rows_by_partida = {r['partida']: r for r in data_adapter.get('rows', [])}
+        rows_by_partida = {r['partida']: r for r in data.get('rows', [])}
 
         N = len(self.months)
         total_cols = 2 + N + 1  # partida, year_prev, meses..., total
@@ -802,7 +822,7 @@ class ExcelExporter:
         t.alignment = Alignment(horizontal='center', vertical='center')
         ws.row_dimensions[1].height = 24
 
-        headers = ['PARTIDAS', str(data_adapter.get('year_prev', int(self.year) - 1))] + list(self.months) + ['TOTAL']
+        headers = ['PARTIDAS', str(data.get('year_prev', int(self.year) - 1))] + list(self.months) + ['TOTAL']
         for ci, h in enumerate(headers, 1):
             cell = ws.cell(row=2, column=ci, value=h)
             cell.font = WHITE_FONT
@@ -1008,9 +1028,13 @@ class ExcelExporter:
                     cell.border = border
                     cell.alignment = ALIGN_RIGHT
 
-            # Utilidad Neta = Utilidad Bruta - Total Gastos
+            # Utilidad Neta = Utilidad Bruta - Total Gastos + Otros Ingresos no Operacionales
+            # (bug preexistente corregido sep-2026: la fórmula anterior omitía sumar Otros
+            # Ingresos no Operacionales, subvaluando Utilidad Neta en ese monto exacto)
             if 'Utilidad Neta' in header_rows and 'Utilidad Bruta' in header_rows and 'Total Gastos' in header_rows:
                 formula = f"={col_letter}{header_rows['Utilidad Bruta']}-{col_letter}{header_rows['Total Gastos']}"
+                if 'Otros Ingresos no Operacionales' in header_rows:
+                    formula += f"+{col_letter}{header_rows['Otros Ingresos no Operacionales']}"
                 cell = ws.cell(row=header_rows['Utilidad Neta'], column=col, value=formula)
                 cell.number_format = NUM_FMT
                 cell.font = DARK_FONT
