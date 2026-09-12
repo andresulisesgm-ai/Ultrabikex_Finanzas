@@ -262,7 +262,7 @@ class ExcelExporter:
         import openpyxl
         from openpyxl.styles import PatternFill, Font, Alignment, Border, Side, NamedStyle
         from openpyxl.utils import get_column_letter
-        from engine import eerr_completo_v2_ui_adapter, _calcular_eerr_divisa_real
+        from engine import eerr_completo_v2_ui_adapter, calcular_estados_reales
         from constants import PARTIDAS_DIVISOR_SEGMENTADO, SUBTOTAL_INGRESO_KEYS_POR_SEGMENTO
         import os, tempfile
 
@@ -349,7 +349,8 @@ class ExcelExporter:
         for unit in sheets_to_build:
             engine_unit = unit if unit != NOMBRE_CONSOLIDADO else ''
             if self.divisa_real:
-                data = _calcular_eerr_divisa_real(db_conn, self.year, engine_unit, empresa_id=self.empresa_id)
+                estados = calcular_estados_reales(self.year, engine_unit, empresa_id=self.empresa_id, db=db_conn)
+                data = estados.get('eerr_real')
                 if not isinstance(data, dict) or 'rows' not in data:
                     raise ValueError(
                         f"No se pudo generar el EERR en Divisa Real para {self.year}: "
