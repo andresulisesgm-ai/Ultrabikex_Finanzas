@@ -988,7 +988,15 @@ class ExcelExporter:
         LEAVES_INGRESO_OPERATIVO = ['Ingresos por venta de mercancias', 'Devoluciones sobre ventas', 'Descuentos sobre ventas',
                                      'Ingresos por servicios del café', 'Ingresos por zona FIT', 'Ingresos por fletes', 'Ingresos por otros servicios',
                                      'Ingresos por eventos', 'Ingresos por taller']
-        SUBTOTALES_COSTO = ['Subtotal Costo de Ventas por Mercancia', 'Subtotal Costo de Ventas por Servicios', 'Subtotal Costo de Ventas por Eventos']
+        # sep-2026: se usan las 3 cuentas leaf directo, no los nombres de subtotal --
+        # 'Subtotal Costo de Ventas por Servicios' y '...por Eventos' están en
+        # PARTIDAS_OCULTAS_NOTAS (nunca tienen fila en Notas), así que _refs() los
+        # ignoraba silenciosamente y la resta solo tomaba Mercancia. Confirmado bug
+        # real en el Consolidado (offset de $621.71 = Costo de venta por servicio del
+        # café de otra unidad, invisible en Rodeo porque ahí esa cuenta da $0).
+        # Yocelin nunca pasa por subtotal para este cálculo -- su 'Total Costo de
+        # Ventas' es SUM(C30:C33), suma directa de las 3 cuentas leaf. Replicado igual.
+        LEAVES_COSTO_VENTA = ['Costos de venta por mercancia', 'Costo de venta por servicio del café', 'Costo de ventas por eventos']
         SUBTOTALES_GASTO_OPERACIONAL = ['Subtotal Gastos de Administración', 'Subtotal Gastos de Recursos Humanos',
                                          'Subtotal Gastos de Comercialización y Logistica', 'Subtotal Gastos de Mercadeo', 'Gastos de TI+I']
 
@@ -1008,7 +1016,7 @@ class ExcelExporter:
             # Utilidad Bruta = leaves ingreso operativo + Otros Ingresos no Operacionales - subtotales costo
             if 'Utilidad Bruta' in header_rows:
                 pos = _refs(LEAVES_INGRESO_OPERATIVO) + (_refs(['Otros Ingresos no Operacionales']))
-                neg = _refs(SUBTOTALES_COSTO)
+                neg = _refs(LEAVES_COSTO_VENTA)
                 if pos or neg:
                     formula = '=' + '+'.join(pos) + (('-' + '-'.join(neg)) if neg else '')
                     cell = ws.cell(row=header_rows['Utilidad Bruta'], column=col, value=formula)
@@ -1028,13 +1036,17 @@ class ExcelExporter:
                     cell.border = border
                     cell.alignment = ALIGN_RIGHT
 
-            # Utilidad Neta = Utilidad Bruta - Total Gastos + Otros Ingresos no Operacionales
-            # (bug preexistente corregido sep-2026: la fórmula anterior omitía sumar Otros
-            # Ingresos no Operacionales, subvaluando Utilidad Neta en ese monto exacto)
+            # Utilidad Neta = Utilidad Bruta - Total Gastos
+            # (sep-2026: se intentó agregar "+ Otros Ingresos no Operacionales" pensando
+            # que faltaba sumarlo, pero se confirmó contra la fórmula real de Yocelin
+            # ('N EERR RODEO', fila 204: =+C34-C36) que esta fórmula original ya es
+            # correcta -- su 'Utilidad Bruta' (fila 34) ya incluye Ingresos No Operativos
+            # via 'Total Ingresos' (fila 4 = Total Ingresos Operativos + Total Ingresos
+            # No Operativos), así que sumar OI de nuevo aquí sería doble conteo. Revertido.
+            # REGLA: todo cambio de cálculo se confronta contra el archivo real de
+            # Yocelin antes de aplicarse, no solo contra el motor interno.
             if 'Utilidad Neta' in header_rows and 'Utilidad Bruta' in header_rows and 'Total Gastos' in header_rows:
                 formula = f"={col_letter}{header_rows['Utilidad Bruta']}-{col_letter}{header_rows['Total Gastos']}"
-                if 'Otros Ingresos no Operacionales' in header_rows:
-                    formula += f"+{col_letter}{header_rows['Otros Ingresos no Operacionales']}"
                 cell = ws.cell(row=header_rows['Utilidad Neta'], column=col, value=formula)
                 cell.number_format = NUM_FMT
                 cell.font = DARK_FONT
