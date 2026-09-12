@@ -186,7 +186,7 @@ PARTIDAS_OCULTAS_NOTAS = {
     'Gastos de salud y seguridad laboral fiestas y agasajos',
     'Otros gastos de personal',
     'Gastos de viáticos comerciales',
-    'Gastos de fletes y envios no asociados al costo',
+    'Gastos de envíos/fletes en ventas y compras no incluidas en el costo',
     'Otros gastos no asociados al costo',
     'Gastos por combustible',
     'Gastos de Stand y/o ferias comerciales',
