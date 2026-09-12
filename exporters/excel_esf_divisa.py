@@ -82,6 +82,104 @@ class ESFDivisaRealExporter:
         self.empresa_id = empresa_id
         self.months = list(MONTHS)
 
+    def _build_notes_sheet_esf(self, wb, data_curr, nombre_emp):
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        from openpyxl.utils import get_column_letter
+        from collections import defaultdict
+
+        HDR_FILL = PatternFill('solid', start_color='1F3864')
+        WHITE_FONT = Font(name='Arial', bold=True, color='FFFFFF', size=10)
+        DARK_FONT = Font(name='Arial', bold=True, color='000000', size=10)
+        NORM_FONT = Font(name='Arial', size=9)
+        thin = Side(style='thin', color='D9D9D9')
+        border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+        notes_sheet_name = f'N ESF {nombre_emp} DR'[:31]
+        ws = wb.create_sheet(notes_sheet_name)
+        ws.sheet_view.showGridLines = False
+
+        ws.merge_cells('A1:F1')
+        t = ws['A1']
+        t.value = f'NOTAS - ESF DIVISA REAL - {nombre_emp.upper()} - {self.year}'
+        t.font = Font(name='Arial', bold=True, color='FFFFFF', size=12)
+        t.fill = HDR_FILL
+        t.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[1].height = 24
+
+        headers = ['CUENTA', 'PARTIDA PADRE', 'Q1', 'Q2', 'Q3', 'Q4']
+        for ci, h in enumerate(headers, 1):
+            c = ws.cell(row=2, column=ci, value=h)
+            c.font = WHITE_FONT
+            c.fill = HDR_FILL
+            c.alignment = Alignment(horizontal='center', vertical='center')
+            c.border = border
+
+        ws.column_dimensions['A'].width = 50
+        ws.column_dimensions['B'].width = 30
+        for col in ('C', 'D', 'E', 'F'):
+            ws.column_dimensions[col].width = 14
+
+        from engine import PARTIDAS_ESF_DIVISA_REAL, QUARTER_MONTH_CIERRE
+        from db import get_db as _get_db_notas
+
+        db_notas = _get_db_notas()
+        tasas_por_quarter_notas = {}
+        for q_num, month_cierre in QUARTER_MONTH_CIERRE.items():
+            row_tasa = db_notas.execute(
+                'SELECT tasa_bcv_fin, tasa_paralela_fin FROM tasas_periodo WHERE year=? AND month=?',
+                (self.year, month_cierre)
+            ).fetchone()
+            if row_tasa and row_tasa['tasa_bcv_fin'] and row_tasa['tasa_paralela_fin']:
+                tasas_por_quarter_notas[q_num] = (row_tasa['tasa_bcv_fin'], row_tasa['tasa_paralela_fin'])
+
+        rows_by_parent = defaultdict(list)
+        for r in data_curr.get('rows', []):
+            if r.get('level') == 4:
+                parent = r['parent_name']
+                if parent in PARTIDAS_ESF_DIVISA_REAL:
+                    # Aplicar el mismo ratio BCV/Paralela que el motor aplica al header,
+                    # cuenta por cuenta, para que el detalle de notas quede consistente
+                    # con el total ya ajustado (engine.py, esf_engine, líneas 787-802).
+                    r_ajustada = dict(r)
+                    q_orig = r.get('quarters', {})
+                    q_ajustado = {}
+                    for q_num in (1, 2, 3, 4):
+                        valor_real = q_orig.get(q_num, 0.0)
+                        ratio = tasas_por_quarter_notas.get(q_num)
+                        if ratio:
+                            q_ajustado[q_num] = valor_real * (ratio[0] / ratio[1])
+                        else:
+                            q_ajustado[q_num] = valor_real
+                    r_ajustada['quarters'] = q_ajustado
+                    rows_by_parent[parent].append(r_ajustada)
+                else:
+                    rows_by_parent[parent].append(r)
+
+        row_num = 3
+        parent_row_ranges = {}
+        NUM_FMT = '#,##0.00;-#,##0.00;"-"'
+        for parent_name, cuentas in rows_by_parent.items():
+            fila_inicio = row_num
+            for cuenta in cuentas:
+                a = ws.cell(row=row_num, column=1, value=cuenta.get('partida', ''))
+                a.font = NORM_FONT
+                a.border = border
+                b = ws.cell(row=row_num, column=2, value=parent_name)
+                b.font = NORM_FONT
+                b.border = border
+                q = cuenta.get('quarters', {})
+                for qi, col in zip((1, 2, 3, 4), (3, 4, 5, 6)):
+                    c = ws.cell(row=row_num, column=col, value=q.get(qi, 0.0))
+                    c.number_format = NUM_FMT
+                    c.font = NORM_FONT
+                    c.border = border
+                row_num += 1
+            parent_row_ranges[parent_name] = (fila_inicio, row_num - 1)
+
+        ws.freeze_panes = 'A3'
+        return notes_sheet_name, parent_row_ranges
+
     def generate(self):
         import openpyxl, os, tempfile
         from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
@@ -148,6 +246,8 @@ class ESFDivisaRealExporter:
         estados_reales = calcular_estados_reales(self.year, '', empresa_id=self.empresa_id)
         data_curr = estados_reales['esf_real']
         data_prev = esf_engine(year_prev, '', empresa_id=self.empresa_id)
+
+        notes_sheet_name, notes_ranges = self._build_notes_sheet_esf(wb, data_curr, nombre_emp)
 
         expected_levels = {item[0]: item[5] for item in ESF_STRUCTURE_V2}
         qdata_curr = {}
@@ -245,8 +345,25 @@ class ESFDivisaRealExporter:
             qc = qdata_curr.get(f['name'], {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0})
             qp = qdata_prev.get(f['name'], {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0})
 
-            valores = [qp.get(4, 0.0), qc.get(1, 0.0), None, qc.get(2, 0.0), None,
-                       qc.get(3, 0.0), None, qc.get(4, 0.0), None, None]
+            es_hoja_con_notas = (
+                f.get('level') == 3 and not f['is_header']
+                and f['name'] not in NOMBRES_ESPECIALES
+                and f['name'] in notes_ranges
+            )
+
+            if es_hoja_con_notas:
+                r_ini, r_fin = notes_ranges[f['name']]
+                valores_q = {
+                    1: f"=SUM('{notes_sheet_name}'!C{r_ini}:C{r_fin})",
+                    2: f"=SUM('{notes_sheet_name}'!D{r_ini}:D{r_fin})",
+                    3: f"=SUM('{notes_sheet_name}'!E{r_ini}:E{r_fin})",
+                    4: f"=SUM('{notes_sheet_name}'!F{r_ini}:F{r_fin})",
+                }
+            else:
+                valores_q = {1: qc.get(1, 0.0), 2: qc.get(2, 0.0), 3: qc.get(3, 0.0), 4: qc.get(4, 0.0)}
+
+            valores = [qp.get(4, 0.0), valores_q[1], None, valores_q[2], None,
+                       valores_q[3], None, valores_q[4], None, None]
             for i, val in enumerate(valores):
                 if val is None:
                     continue
