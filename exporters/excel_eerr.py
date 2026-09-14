@@ -445,7 +445,13 @@ class ExcelExporter:
                 # calculada arriba con engine_unit=''. Nombre de hoja usa nombre_emp
                 # (no 'unit', que para el Consolidado es el título de la hoja
                 # resumen tipo "EERR Ultrax", no el nombre de empresa).
-                notes_label = nombre_emp if unit == NOMBRE_CONSOLIDADO else unit
+                # sep-2026: el año va en el nombre de la hoja de Notas del Consolidado.
+                # excel_esf.py llama a este exportador dos veces sobre el MISMO workbook
+                # (año actual y año anterior) y ambas generaban 'N EERR {empresa}';
+                # openpyxl renombraba la segunda a '...1' por su cuenta, pero el código
+                # seguía construyendo las fórmulas con el nombre limpio, dejando la hoja
+                # del año anterior apuntando a las Notas del año actual.
+                notes_label = f'{nombre_emp} {self.year}' if unit == NOMBRE_CONSOLIDADO else unit
                 notes_name, partida_month_rows, notes_header_rows = self._build_notes_sheet(wb, notes_label, data)
                 notes_name_by_unit[unit] = notes_name
                 partida_month_rows_by_unit[unit] = partida_month_rows
