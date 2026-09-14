@@ -502,6 +502,36 @@ class ExcelExporter:
                         c_yp.value = f'={refs_yp}'
                         c_yp.number_format = NUM_FMT
 
+                # sep-2026: 'Total Ingresos' y 'Utilidad Bruta' del RESUMEN se calculan
+                # localmente dentro de la hoja, replicando la fórmula real de Yocelin
+                # ('EERR RODEO' fila 4: =+E5+E10+E15+E18 ; fila 36: =+E4-E22). Su resumen
+                # define Total Ingresos como SOLO los 4 subtotales operativos -- los
+                # Ingresos No Operacionales entran más abajo (su fila 125), nunca arriba.
+                # Distinto de su hoja de Notas, donde 'Total Ingresos' SÍ los incluye
+                # (=+C5+C18): son dos líneas homónimas con definición distinta según la
+                # hoja, por diseño suyo. Antes apuntábamos a la definición de Notas en
+                # ambas, lo que inflaba el resumen por el monto de los no operativos.
+                SUBTOTALES_INGRESO_OPERATIVO_RESUMEN = [
+                    'Subtotal Ingresos por Venta de Mercancia', 'Subtotal Ingresos por Servicios',
+                    'Subtotal Ingresos por Eventos', 'Subtotal Ingresos por Taller',
+                ]
+                _r_ti = partida_rows.get('Total Ingresos')
+                _r_tcv = partida_rows.get('Total Costo de Ventas')
+                _r_ub = partida_rows.get('Utilidad Bruta')
+                _cols_monto = [2] + [month_start_cols[m] for m in self.months]
+                for _c in _cols_monto:
+                    _letra = get_column_letter(_c)
+                    if _r_ti is not None:
+                        _refs_ti = [f'{_letra}{partida_rows[s]}' for s in SUBTOTALES_INGRESO_OPERATIVO_RESUMEN if s in partida_rows]
+                        if _refs_ti:
+                            _c_ti = ws.cell(row=_r_ti, column=_c)
+                            _c_ti.value = '=' + '+'.join(_refs_ti)
+                            _c_ti.number_format = NUM_FMT
+                    if _r_ub is not None and _r_ti is not None and _r_tcv is not None:
+                        _c_ub = ws.cell(row=_r_ub, column=_c)
+                        _c_ub.value = f'={_letra}{_r_ti}-{_letra}{_r_tcv}'
+                        _c_ub.number_format = NUM_FMT
+
                 months_list = list(self.months)
                 muestra_pct_gastos_by_partida = {item['partida']: item.get('muestra_pct_gastos', False) for item in rows}
                 gastos_totales_row = partida_rows.get('Total Gastos Operacionales y No Operacionales')
