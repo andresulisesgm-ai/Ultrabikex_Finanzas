@@ -1026,7 +1026,7 @@ SUBTOTAL_EXCLUSIONS = {
         'Gastos de intereses sobre préstamos bancarios', 'Gastos de intereses sobre préstamos de terceros'
     ],
     'Subtotal Gastos de Recursos Humanos': ['Gastos de uniformes y dotación al personal'],
-    'Subtotal Gastos de Mercadeo': ['Gastos de impresiones de material gráfico', 'Gastos de patrocinio y donación', 'Gastos de decoración'],
+    'Subtotal Gastos de Mercadeo': ['Gastos de impresiones de material gráfico', 'Gastos de patrocinio y donación', 'Gastos de decoración', 'Gastos de muestras y material POP', 'Gastos de campañas y lanzamientos'],
     'Subtotal Gastos de Comercialización y Logistica': [
         'Gastos de comida por viáticos comerciales', 'Gastos de hospedaje por viáticos comerciales',
         'Gastos de pasajes por viáticos comerciales', 'Gastos de transporte por viáticos comerciales',

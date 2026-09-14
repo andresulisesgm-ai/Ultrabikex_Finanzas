@@ -186,7 +186,6 @@ PARTIDAS_OCULTAS_NOTAS = {
     'Gastos de salud y seguridad laboral fiestas y agasajos',
     'Otros gastos de personal',
     'Gastos de viáticos comerciales',
-    'Gastos de envíos/fletes en ventas y compras no incluidas en el costo',
     'Otros gastos no asociados al costo',
     'Gastos por combustible',
     'Gastos de Stand y/o ferias comerciales',
@@ -1000,6 +999,66 @@ class ExcelExporter:
         SUBTOTALES_GASTO_OPERACIONAL = ['Subtotal Gastos de Administración', 'Subtotal Gastos de Recursos Humanos',
                                          'Subtotal Gastos de Comercialización y Logistica', 'Subtotal Gastos de Mercadeo', 'Gastos de TI+I']
 
+        from engine import SUBTOTAL_EXCLUSIONS
+        from helpers import get_grouped_partidas_v2
+        from db import get_db as _get_db_subtotales
+        db_notas_subtotales = _get_db_subtotales()
+        groups_v2_notas, _ = get_grouped_partidas_v2(db_notas_subtotales, 'eerr')
+
+        def _leaves_expandidos(name_objetivo):
+            # sep-2026: replica exacto el algoritmo real de agregación de engine.py
+            # (mismo criterio que usa el motor para sumar subtotales), expandiendo
+            # además cualquier leaf que sea en realidad un grupo de mapping_groups_v2
+            # (ej. 'Gastos Bancarios') en sus cuentas granulares reales -- porque esas
+            # son las que tienen fila propia en Notas, no el grupo agregado, que está
+            # oculto (PARTIDAS_OCULTAS_NOTAS) igual que en el archivo de Yocelin.
+            idx = next((i for i, item in enumerate(EERR_STRUCTURE) if item[0] == name_objetivo), None)
+            if idx is None:
+                return []
+            level = EERR_STRUCTURE[idx][5]
+            leaves = []
+            j = idx + 1
+            while j < len(EERR_STRUCTURE):
+                c_item = EERR_STRUCTURE[j]
+                c_name, c_is_header, c_level = c_item[0], c_item[1], c_item[5]
+                if c_level <= level:
+                    break
+                if not c_is_header:
+                    if c_name not in SUBTOTAL_EXCLUSIONS.get(name_objetivo, []):
+                        leaves.append(c_name)
+                j += 1
+            if name_objetivo == 'Subtotal Gastos de Comercialización y Logistica':
+                for extra in ['Gastos de comisiones empleados', 'Gastos de comisiones por venta de personal externo']:
+                    if extra not in leaves:
+                        leaves.append(extra)
+            # sep-2026: expandir un grupo SOLO si el grupo mismo no tiene fila propia
+            # en Notas. Si la tiene (ej. 'Gastos de comisiones empleados del taller',
+            # grupo cuyo único miembro real es 'Gastos de comisiones por ventas taller'),
+            # se usa esa fila directo -- expandirlo apuntaría a un nombre sin celda y
+            # perdería el monto en silencio.
+            expandida = []
+            for leaf in leaves:
+                if leaf in groups_v2_notas and leaf not in header_rows and leaf not in partida_month_rows:
+                    expandida.extend(groups_v2_notas[leaf])
+                else:
+                    expandida.append(leaf)
+            return expandida
+
+        SUBTOTALES_FORMULA_LEAVES = {
+            nombre: _leaves_expandidos(nombre) for nombre in [
+                'Total Costo de Ventas',
+                'Subtotal Gastos de Administración', 'Subtotal Gastos de Recursos Humanos',
+                'Subtotal Gastos de Comercialización y Logistica', 'Subtotal Gastos de Mercadeo',
+                'Gastos de TI+I', 'Otros Gastos no Operacionales',
+            ]
+        }
+        # sep-2026: 'Total Gastos Operacionales' NO se arma con sus 194 leaves --
+        # abarca a los otros 5 subtotales como descendientes, y recorrer ese árbol
+        # de 2 niveles como lista plana produce solapes y omisiones a la vez
+        # (verificado: fallaba por exceso en unas unidades y por defecto en otras).
+        # Se suma como los 5 subtotales, igual que Yocelin (=C38+C95+C139+C172+C188).
+        SUBTOTALES_FORMULA_LEAVES['Total Gastos Operacionales'] = SUBTOTALES_GASTO_OPERACIONAL
+
         for m_idx, month in enumerate(self.months):
             col = 3 + m_idx
             col_letter = get_column_letter(col)
@@ -1061,6 +1120,22 @@ class ExcelExporter:
                 cell.font = DARK_FONT
                 cell.border = border
                 cell.alignment = ALIGN_RIGHT
+
+            # sep-2026: trazabilidad real de los 8 subtotales que hasta ahora quedaban
+            # en valor fijo -- suman por fórmula sus cuentas hijas reales (leaves
+            # granulares, con grupos de mapping_groups_v2 ya expandidos), mismo
+            # mecanismo que Yocelin (SUM de sus propias filas), verificado sin
+            # duplicados dentro ni entre subtotales antes de aplicar este fix.
+            for nombre_subtotal, leaves_lista in SUBTOTALES_FORMULA_LEAVES.items():
+                if nombre_subtotal in header_rows:
+                    refs_subtotal = _refs(leaves_lista)
+                    if refs_subtotal:
+                        formula_subtotal = '=' + '+'.join(refs_subtotal)
+                        cell_subtotal = ws.cell(row=header_rows[nombre_subtotal], column=col, value=formula_subtotal)
+                        cell_subtotal.number_format = NUM_FMT
+                        cell_subtotal.font = DARK_FONT
+                        cell_subtotal.border = border
+                        cell_subtotal.alignment = ALIGN_RIGHT
 
         ws.freeze_panes = 'A3'
         return notes_sheet_name, partida_month_rows, header_rows
