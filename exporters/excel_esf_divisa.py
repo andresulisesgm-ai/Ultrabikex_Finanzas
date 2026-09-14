@@ -630,9 +630,26 @@ class ESFDivisaRealExporter:
                 c.value = panel_q.get('saldo_total_usd', 0.0)
         current_row += 1
 
+        # sep-2026: 'Divisa Real - Detalle' se retira del exportable -- no existe en el
+        # archivo fuente de Yocelin y el objetivo del entregable es replicarlo. El bloque
+        # que la construye (arriba) se deja intacto a propósito: si se decide recuperarla,
+        # basta con quitar este remove. Ninguna fórmula la referencia (verificado sep-2026).
+        if 'Divisa Real - Detalle' in wb.sheetnames:
+            del wb['Divisa Real - Detalle']
+
+        # Orden replicando el archivo de Yocelin: ESF -> EERR consolidado -> N EERR
+        # consolidado -> N ESF -> (unidades con sus notas) -> año anterior al final.
         wb.move_sheet(nombre_hoja_esf_dr, offset=-(wb.sheetnames.index(nombre_hoja_esf_dr)))
-        wb.move_sheet('Divisa Real - Detalle', offset=-(wb.sheetnames.index('Divisa Real - Detalle') - 1))
-        wb.move_sheet(eerr_meta['sheet_name_consolidado'], offset=-(wb.sheetnames.index(eerr_meta['sheet_name_consolidado']) - 2))
+        wb.move_sheet(eerr_meta['sheet_name_consolidado'], offset=-(wb.sheetnames.index(eerr_meta['sheet_name_consolidado']) - 1))
+        _notes_cons = notes_name_by_unit_dr = None
+        for _s in wb.sheetnames:
+            if _s.startswith('N EERR') and str(self.year) in _s:
+                _notes_cons = _s
+                break
+        if _notes_cons:
+            wb.move_sheet(_notes_cons, offset=-(wb.sheetnames.index(_notes_cons) - 2))
+        if notes_sheet_name in wb.sheetnames:
+            wb.move_sheet(notes_sheet_name, offset=-(wb.sheetnames.index(notes_sheet_name) - 3))
 
         path = os.path.join(tempfile.gettempdir(), f'ESF_DIVISA_REAL_{nombre_emp}_{self.year}.xlsx')
         wb.save(path)
