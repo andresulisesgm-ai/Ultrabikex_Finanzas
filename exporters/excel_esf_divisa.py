@@ -223,7 +223,11 @@ class ESFDivisaRealExporter:
                 self.panel_por_quarter[q] = panel_q
 
         # 1. EERR ULTRAX (año actual): unidades reales + notas, reusando el exportador existente.
-        eerr_meta = ExcelExporter(self.year, units_export, self.months, empresa_id=self.empresa_id).generate(
+        # sep-2026: divisa_real=True -- este exportable es el ESF Divisa Real, pero las hojas
+        # de EERR embebidas se venían generando en BCV (bug preexistente, invisible hasta que
+        # el EERR soportó Divisa Real). El año anterior se deja en BCV a propósito: solo se usa
+        # como referencia histórica para la columna Año Anterior de 'Resultados del ejercicio'.
+        eerr_meta = ExcelExporter(self.year, units_export, self.months, divisa_real=True, empresa_id=self.empresa_id).generate(
             wb=wb, save=False, return_meta=True
         )
         # 2. EERR ULTRAX (Año Anterior): solo consolidado, sin unidades ni notas.
