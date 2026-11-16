@@ -565,6 +565,18 @@ input[type=file]{display:none;}
 .home-bal-row.sub .v{color:var(--blue);}
 .home-bal-tot{display:flex;justify-content:space-between;padding:11px 10px;margin-top:8px;background:var(--blue);border-radius:8px;font-weight:700;font-size:12.5px;color:#fff;}
 .home-bal-tot .v{font-family:'DM Mono',monospace;color:#fff;}
+/* Home — diseño elegido por Andrés (mockup nov-2026). Solo afecta #page-home. */
+#page-home{--home-primary:#11285a;--home-tint:#e3e7ed;background:#ffffff;}
+#page-home .home-bento{gap:6px;}
+#page-home #home-eerr-bento{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:minmax(90px,auto);}
+#page-home #home-eerr-bento .home-b{grid-column:auto;grid-row:auto;}
+#page-home .home-b{background:var(--home-tint);color:var(--home-primary);border-radius:9px;padding:10px 12px;border-color:rgba(17,40,90,.2);}
+#page-home .home-b .v,#page-home .home-b.big .v{font-size:29px;}
+#page-home .home-esf-panel{border-radius:9px;}
+#page-home .home-bal-col h4{color:var(--home-primary);border-bottom-color:var(--home-primary);}
+#page-home .home-bal-row.sub{background:var(--home-tint);color:var(--home-primary);border-radius:5px;}
+#page-home .home-bal-row.sub .v{color:var(--home-primary);}
+#page-home .home-bal-tot{background:var(--home-primary);border-radius:5px;}
 
 .app-loading-spinner {
   width: 40px;
