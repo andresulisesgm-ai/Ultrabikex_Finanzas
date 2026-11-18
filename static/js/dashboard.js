@@ -2887,8 +2887,8 @@ function loadDonaSegmento() {
 
 // ── HOME LOAD ─────────────────────────────────────────────────────────────
 const HOME_EERR_ITEMS = [
-  ['ingresos','Ingresos','big'], ['utilidad_neta','Utilidad neta','med'], ['ebitda','Ebitda','sm'],
-  ['costo_ventas','Costo de ventas','sm'], ['gastos_operacionales','Gastos operacionales','med'], ['utilidad_bruta','Utilidad bruta','sm']
+  ['ingresos','Ingresos','big'], ['costo_ventas','Costo de ventas','sm'], ['utilidad_bruta','Utilidad bruta','sm'],
+  ['gastos_operacionales','Gastos operacionales','med'], ['ebitda','Ebitda','sm'], ['utilidad_neta','Utilidad neta','med']
 ];
 const HOME_IND_ITEMS = [
   ['roe','ROE','pct'], ['roa','ROA','pct'],
