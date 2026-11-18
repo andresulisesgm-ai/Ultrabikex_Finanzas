@@ -2681,6 +2681,7 @@ function loadHeatmapUtilidadUnidad() {
       canvas.style.display = 'none';
       if (emptyMsg) { emptyMsg.style.display = 'block'; emptyMsg.textContent = etiquetaVacia; }
       if (CH['ch-heatmap-un']) { CH['ch-heatmap-un'].destroy(); CH['ch-heatmap-un'] = null; }
+      const legVacia = G('heatmap-un-legend'); if (legVacia) legVacia.innerHTML = '';
       return;
     }
     canvas.style.display = 'block';
@@ -2984,7 +2985,8 @@ async function loadDash(){
                 ratio_gasto:dr.ingresos?dr.gastos/dr.ingresos*100:0
               }],
               loaded:[{unit:unit==='TODAS'?'TODAS':unit,month:month}],
-              por_unidad:[],
+              por_unidad:dataMes.por_unidad||[],
+              por_empresa:dataMes.por_empresa||[],
               top_gastos:[],
               cat_gastos:[],
               punto_equilibrio:null,

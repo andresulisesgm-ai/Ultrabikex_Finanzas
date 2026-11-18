@@ -145,6 +145,56 @@ def dashboard_divisa_real():
     seg_eventos_real = get_mes_valor('Subtotal Ingresos por Eventos')
     seg_taller_real = get_mes_valor('Subtotal Ingresos por Taller')
 
+    # Desglose por unidad / por empresa (Divisa Real, mes puntual) -- mismo patron que
+    # BCV (blueprints/dashboard.py, por_unidad/por_empresa) y que
+    # /api/eerr/divisa_real/trimestres. Reutiliza calcular_estados_reales por unidad
+    # o por empresa -- sin calculo paralelo.
+    def _mes_valor_de(eerr, partida_name):
+        row = next((r for r in eerr['rows'] if r['partida'] == partida_name), None)
+        if not row:
+            return 0.0
+        mes_data = next((m for m in row['meses'] if m['month'] == month), None)
+        return mes_data['ejecutado']['valor'] if mes_data else 0.0
+
+    por_unidad = []
+    if empresa_id is not None:
+        unidades_empresa = [r['nombre'] for r in db.execute(
+            'SELECT nombre FROM unidades WHERE empresa_id=?', (empresa_id,)
+        ).fetchall()]
+        for u in unidades_empresa:
+            res_u = calcular_estados_reales(year, u, empresa_id=empresa_id, db=db)
+            if 'error' in res_u:
+                continue
+            eerr_u = res_u['eerr_real']
+            i_u = _mes_valor_de(eerr_u, 'Total Ingresos')
+            c_u = _mes_valor_de(eerr_u, 'Total Costo de Ventas')
+            g_u = _mes_valor_de(eerr_u, 'Total Gastos Operacionales y No Operacionales')
+            ub_u = _mes_valor_de(eerr_u, 'Utilidad Bruta')
+            un_u = _mes_valor_de(eerr_u, 'Utilidad Neta')
+            if i_u or c_u or g_u:
+                por_unidad.append({
+                    'unit': u, 'ingresos': round(i_u, 2), 'costos': round(c_u, 2),
+                    'gastos': round(g_u, 2), 'utilidad_bruta': round(ub_u, 2),
+                    'utilidad_neta': round(un_u, 2)
+                })
+
+    por_empresa = []
+    if empresa_id is None:
+        empresas_reales = db.execute(
+            "SELECT id, nombre_corto FROM empresas WHERE id != 1"
+        ).fetchall()
+        for emp in empresas_reales:
+            res_e = calcular_estados_reales(year, '', empresa_id=emp['id'], db=db)
+            if 'error' in res_e:
+                continue
+            eerr_e = res_e['eerr_real']
+            un_e = _mes_valor_de(eerr_e, 'Utilidad Neta')
+            ing_e = _mes_valor_de(eerr_e, 'Total Ingresos')
+            if un_e or ing_e:
+                por_empresa.append({'empresa': emp['nombre_corto'],
+                                    'utilidad_neta': round(un_e, 2),
+                                    'ingresos': round(ing_e, 2)})
+
     return jsonify({
         'year': year,
         'month': month,
@@ -169,7 +219,9 @@ def dashboard_divisa_real():
                 'Eventos': round(seg_eventos_real, 2),
                 'Taller': round(seg_taller_real, 2)
             }
-        }
+        },
+        'por_unidad': por_unidad,
+        'por_empresa': por_empresa
     })
 
 
