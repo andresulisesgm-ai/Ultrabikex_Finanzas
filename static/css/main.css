@@ -89,6 +89,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);overf
 .topbar{background:var(--sf);border-bottom:1px solid var(--bd);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--sh);}
 .topbar h2{font-size:14px;font-weight:700;}
 .topbar p{font-size:11px;color:var(--mu);margin-top:1px;}
+/* Topbar con degradado azul (nov-2026) — aplica a todas las pantallas */
+.topbar{background:linear-gradient(90deg,#0f1a33 0%,#1e3a8a 60%,#0e7490 100%);border-bottom:none;}
+.topbar h2{color:#ffffff;}
+.topbar p{color:rgba(255,255,255,.78);}
+.topbar .tr button,.topbar .tr a{background:rgba(255,255,255,.08);color:#ffffff;border:1px solid rgba(255,255,255,.35);}
+@media print{.topbar{background:none!important;}.topbar h2{color:#0f172a!important;}.topbar p{color:#64748b!important;}}
 .dash-filterbar{position:sticky;top:52px;z-index:40;background:var(--bg);padding-top:4px;padding-bottom:8px;}
 .tr{display:flex;gap:6px;align-items:center;}
 .tb-sel{background:var(--sf2);border:1px solid var(--bd);color:var(--tx2);padding:6px 9px;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;font-weight:500;}
