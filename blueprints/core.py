@@ -12,7 +12,11 @@ def get_empresas():
     dinámicamente el selector de empresa en el sidebar.
     """
     db = get_db()
-    rows = db.execute('SELECT id, nombre_corto, nombre_legal, color FROM empresas ORDER BY id').fetchall()
+    incluir_inactivos = request.args.get('incluir_inactivos') == '1'
+    where = '' if incluir_inactivos else 'WHERE activo = 1 '
+    rows = db.execute(
+        f'SELECT id, nombre_corto, nombre_legal, color, activo FROM empresas {where}ORDER BY id'
+    ).fetchall()
     return jsonify([dict(r) for r in rows])
 
 
@@ -23,7 +27,11 @@ def get_unidades():
     Usado para poblar dinamicamente el selector de Alcance en Exportar Briefing IA.
     """
     db = get_db()
-    rows = db.execute('SELECT nombre, empresa_id FROM unidades ORDER BY empresa_id, nombre').fetchall()
+    incluir_inactivos = request.args.get('incluir_inactivos') == '1'
+    where = '' if incluir_inactivos else 'WHERE activo = 1 '
+    rows = db.execute(
+        f'SELECT nombre, empresa_id, activo, es_pseudo, excluir_comparativas, recibe_plug_divisa FROM unidades {where}ORDER BY empresa_id, nombre'
+    ).fetchall()
     return jsonify([dict(r) for r in rows])
 
 

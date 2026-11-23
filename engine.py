@@ -1182,7 +1182,13 @@ def calcular_estados_reales(year, unit='', empresa_id=None, db=None):
         # -- las demas unidades (PiedeMonte, Terracota, Ucafe, Barinas, Naranjos) no lo llevan.
         # Confirmado con datos literales de "N EERR RODEO" vs "N EERR ULTRAX" (valores identicos)
         # vs "N EERR PIEDEM"/"N EERR TERRA"/"N EERR UCAFE"/"N EERR BARINAS"/"N EERR LOS NA" (vacios).
-        unit_recibe_plug = unit in ('', 'Rodeo')
+        if not unit:
+            unit_recibe_plug = True
+        else:
+            _row_plug = conn_estados.execute(
+                'SELECT recibe_plug_divisa FROM unidades WHERE nombre = ?', (unit,)
+            ).fetchone()
+            unit_recibe_plug = bool(_row_plug and _row_plug[0])
         plug_a_inyectar = plug_efectivo_q if unit_recibe_plug else None
         eerr_real = _calcular_eerr_divisa_real(conn_estados, year, unit, empresa_id=empresa_id, plug_divisa_q=plug_a_inyectar)
         if 'error' in eerr_real:

@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from db import get_db
 from auth import login_required
-from constants import MONTHS, UNITS
+from constants import MONTHS
 from helpers import get_clasificacion
 
 dashboard_bp = Blueprint('dashboard', __name__)
@@ -51,7 +51,13 @@ def _plug_divisa_para_unit(year, unit_real, empresa_id, db):
     if isinstance(estados, dict) and 'error' in estados:
         return None
     plug_efectivo_q = estados.get('plug_efectivo_q', {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0})
-    unit_recibe_plug = unit_real in ('', 'Rodeo')
+    if not unit_real:
+        unit_recibe_plug = True
+    else:
+        _row_plug = db.execute(
+            'SELECT recibe_plug_divisa FROM unidades WHERE nombre = ?', (unit_real,)
+        ).fetchone()
+        unit_recibe_plug = bool(_row_plug and _row_plug[0])
     return plug_efectivo_q if unit_recibe_plug else None
 
 def _leer_total_header(year, unit_real, empresa_id, db, divisa_real, periodo_meses):
@@ -770,7 +776,10 @@ def grafico_detalle():
         if not unit or unit == 'TODAS':
             # Vista consolidada: desglose por unidad (igual que top gastos pero para ingresos)
             unidades = []
-            for u in (unidades_empresa if empresa_id is not None else UNITS):
+            unidades_iter = unidades_empresa if empresa_id is not None else [
+                r[0] for r in db.execute('SELECT nombre FROM unidades WHERE activo = 1 ORDER BY empresa_id, id').fetchall()
+            ]
+            for u in unidades_iter:
                 uc_u = f"AND unit='{u}'"
                 def usum(ps):
                     if not ps: return 0

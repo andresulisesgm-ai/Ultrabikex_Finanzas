@@ -64,6 +64,7 @@
   <div class="nav-sec">Sistema</div>
   <div class="nav-item" onclick="showPage('export_ai',this)"><span class="nav-icon"><i class="ph ph-sparkle"></i></span>Exportar Briefing IA</div>
   <div class="nav-item" onclick="showPage('backup',this)"><span class="nav-icon"><i class="ph ph-archive"></i></span>Backup / Restaurar</div>
+  <div class="nav-item" id="nav-sistema-empresas" onclick="showPage('sistema_empresas',this)" style="display:none"><span class="nav-icon"><i class="ph ph-buildings"></i></span>Empresas y Unidades</div>
   <div class="nav-item" id="nav-reset-pwd" onclick="showPage('reset_pwd',this)" style="display:none"><span class="nav-icon"><i class="ph ph-key"></i></span>Restablecer Clave</div>
 
   <div class="sidebar-footer">
@@ -323,12 +324,7 @@
           <div id="ai-unit-wrapper">
             <select id="ai-unit" onchange="updateAiBriefingPreview()" style="width:100%;font-size:12px;padding:6px 10px;border:0.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);height:34px">
               <option value="">Consolidado grupo</option>
-              <option value="Rodeo">Rodeo</option>
-              <option value="Barinas">Barinas</option>
-              <option value="Naranjos">Naranjos</option>
-              <option value="PiedeMonte">PiedeMonte</option>
-              <option value="Terracota">Terracota</option>
-              <option value="Ucafe">Ucafe</option>
+              {% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
             </select>
           </div>
           <div id="ai-units-comparativa-wrapper" style="display:none">
@@ -708,12 +704,7 @@
                 <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--tx);padding:4px 0;cursor:pointer;border-bottom:0.5px solid var(--bd);margin-bottom:4px">
                   <input type="checkbox" id="cop-unit-all" onchange="toggleCopiarTodas(this)"> Todas las unidades
                 </label>
-                <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--tx);padding:4px 0;cursor:pointer"><input type="checkbox" class="cop-unit" value="Rodeo" onchange="actualizarBtnCopiar()"> Rodeo</label>
-                <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--tx);padding:4px 0;cursor:pointer"><input type="checkbox" class="cop-unit" value="Barinas" onchange="actualizarBtnCopiar()"> Barinas</label>
-                <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--tx);padding:4px 0;cursor:pointer"><input type="checkbox" class="cop-unit" value="Naranjos" onchange="actualizarBtnCopiar()"> Naranjos</label>
-                <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--tx);padding:4px 0;cursor:pointer"><input type="checkbox" class="cop-unit" value="PiedeMonte" onchange="actualizarBtnCopiar()"> PiedeMonte</label>
-                <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--tx);padding:4px 0;cursor:pointer"><input type="checkbox" class="cop-unit" value="Terracota" onchange="actualizarBtnCopiar()"> Terracota</label>
-                <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--tx);padding:4px 0;cursor:pointer"><input type="checkbox" class="cop-unit" value="Ucafe" onchange="actualizarBtnCopiar()"> Ucafe</label>
+                {% for u in units %}<label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--tx);padding:4px 0;cursor:pointer"><input type="checkbox" class="cop-unit" value="{{ u }}" onchange="actualizarBtnCopiar()"> {{ u }}</label>{% endfor %}
                 <button class="btnm" id="copiar-confirmar-btn" onclick="ejecutarCopiarMetodos()" disabled style="width:100%;margin-top:10px;font-size:11px;opacity:0.4;cursor:not-allowed">Confirmar copia</button>
               </div>
             </div>
@@ -820,6 +811,18 @@
         <button class="bkdl" onclick="doResetPassword()">🔑 Restablecer Clave</button>
       </div>
     </div>
+  </div>
+
+  <!-- EMPRESAS Y UNIDADES -->
+  <div class="page" id="page-sistema_empresas">
+    <div class="al al-ok" id="se-ok"></div>
+    <div class="al al-er" id="se-er"></div>
+    <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:14px">
+      <input type="text" id="se-search" placeholder="Buscar empresa o unidad..." oninput="renderSistemaEmpresas()" style="max-width:320px;padding:7px 11px;border:1px solid var(--border,#cbd5e1);border-radius:7px;font-size:13px">
+      <button class="bkdl" style="width:auto;padding:8px 14px" onclick="abrirFormNuevaEmpresa()">+ Nueva Empresa</button>
+    </div>
+    <div id="se-form-empresa" style="display:none;background:#fff;border:1px solid var(--border,#e2e8f0);border-radius:10px;padding:14px;margin-bottom:14px"></div>
+    <div id="se-lista"></div>
   </div>
 
 </div>
@@ -956,6 +959,7 @@
 <script src="/static/js/presupuesto.js"></script>
 <script src="/static/js/print.js"></script>
 <script src="/static/js/trazabilidad.js"></script>
+<script src="/static/js/sistema_empresas.js"></script>
 <div id="traza-panel">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
     <div class="tp-title" id="tp-title"></div>

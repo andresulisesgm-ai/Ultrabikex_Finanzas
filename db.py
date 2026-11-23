@@ -947,6 +947,23 @@ def migrate_db():
 
 
 
+    cols_emp = {r[1] for r in conn.execute("PRAGMA table_info(empresas)").fetchall()}
+    if 'activo' not in cols_emp:
+        conn.execute("ALTER TABLE empresas ADD COLUMN activo INTEGER NOT NULL DEFAULT 1")
+
+    cols_uni = {r[1] for r in conn.execute("PRAGMA table_info(unidades)").fetchall()}
+    if 'activo' not in cols_uni:
+        conn.execute("ALTER TABLE unidades ADD COLUMN activo INTEGER NOT NULL DEFAULT 1")
+    if 'es_pseudo' not in cols_uni:
+        conn.execute("ALTER TABLE unidades ADD COLUMN es_pseudo INTEGER NOT NULL DEFAULT 0")
+        conn.execute("UPDATE unidades SET es_pseudo = 1 WHERE nombre IN ('UX Barinas', 'Ultra2000')")
+    if 'excluir_comparativas' not in cols_uni:
+        conn.execute("ALTER TABLE unidades ADD COLUMN excluir_comparativas INTEGER NOT NULL DEFAULT 0")
+        conn.execute("UPDATE unidades SET excluir_comparativas = 1 WHERE nombre = 'Ucafe'")
+    if 'recibe_plug_divisa' not in cols_uni:
+        conn.execute("ALTER TABLE unidades ADD COLUMN recibe_plug_divisa INTEGER NOT NULL DEFAULT 0")
+        conn.execute("UPDATE unidades SET recibe_plug_divisa = 1 WHERE nombre = 'Rodeo'")
+
     # Actualizar income_type en registros existentes del mapping inicial
     if INITIAL_MAPPING:
         conn.executemany(

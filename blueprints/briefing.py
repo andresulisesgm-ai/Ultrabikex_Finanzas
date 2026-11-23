@@ -327,10 +327,10 @@ def export_ai():
         empresa_id_comp = request.args.get('empresa_id', type=int) if request.method == 'GET' else data.get('empresa_id')
         # Ucafe excluida: es venta de café, negocio distinto al resto (retail) — no es comparable, decisión de negocio.
         if empresa_id_comp is not None:
-            rows_unidades = db.execute('SELECT nombre FROM unidades WHERE empresa_id=? AND nombre != ?', [empresa_id_comp, 'Ucafe']).fetchall()
+            rows_unidades = db.execute('SELECT nombre FROM unidades WHERE empresa_id=? AND excluir_comparativas = 0 AND activo = 1', [empresa_id_comp]).fetchall()
             UNIDADES_COMPARABLES = {r[0] for r in rows_unidades}
         else:
-            UNIDADES_COMPARABLES = {r[0] for r in db.execute('SELECT nombre FROM unidades WHERE nombre != ?', ['Ucafe']).fetchall()}
+            UNIDADES_COMPARABLES = {r[0] for r in db.execute('SELECT nombre FROM unidades WHERE excluir_comparativas = 0 AND activo = 1').fetchall()}
 
         if request.method == 'POST':
             units = data.get('units') or []

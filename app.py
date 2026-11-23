@@ -6,7 +6,7 @@ from flask_limiter.util import get_remote_address
 
 load_dotenv()
 
-from db import init_db, migrate_db, close_db
+from db import init_db, migrate_db, close_db, get_db
 from auth import login_required, admin_required, verify_password, get_current_user, admin_reset_password, list_users
 from blueprints.backup import backup_bp
 from blueprints.tasas import tasas_bp
@@ -26,7 +26,8 @@ from blueprints.exportables import exportables_bp
 from blueprints.briefing import briefing_bp
 from blueprints.mapeo import mapeo_bp
 from blueprints.upload import upload_bp
-from constants import MONTHS, UNITS
+from blueprints.sistema_empresas import sistema_empresas_bp
+from constants import MONTHS
 
 app = Flask(__name__)
 app.register_blueprint(backup_bp)
@@ -47,6 +48,7 @@ app.register_blueprint(exportables_bp)
 app.register_blueprint(briefing_bp)
 app.register_blueprint(mapeo_bp)
 app.register_blueprint(upload_bp)
+app.register_blueprint(sistema_empresas_bp)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 FLASK_SECRET_KEY = os.environ.get('FLASK_SECRET_KEY')
 if not FLASK_SECRET_KEY:
@@ -167,7 +169,11 @@ def admin_reset_password_route():
 @login_required
 def index():
     user = get_current_user()
-    return render_template('index.html', units=UNITS, months=MONTHS, user=user)
+    db = get_db()
+    units_activas = [r[0] for r in db.execute(
+        'SELECT nombre FROM unidades WHERE activo = 1 ORDER BY empresa_id, id'
+    ).fetchall()]
+    return render_template('index.html', units=units_activas, months=MONTHS, user=user)
 
 
 # ── Shutdown ──────────────────────────────────────────────────────────────────

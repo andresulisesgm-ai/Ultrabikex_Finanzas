@@ -58,6 +58,10 @@ function updateUserInfo() {
     const roleName = currentUser.role === 'admin' ? 'Administrador' : 'Visor';
     info.innerHTML = `<span class="user-badge ${roleClass}">${currentUser.username} - ${roleName}</span>`;
   }
+  const sysEmpNav = document.getElementById('nav-sistema-empresas');
+  if (sysEmpNav) {
+    sysEmpNav.style.display = (currentUser && currentUser.role === 'admin') ? '' : 'none';
+  }
   const resetPwdNav = document.getElementById('nav-reset-pwd');
   if (resetPwdNav) {
     resetPwdNav.style.display = (currentUser && currentUser.username === 'AdminSys') ? '' : 'none';
@@ -260,8 +264,8 @@ function showPage(name,el){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   G('page-'+name).classList.add('active');
   if(el) el.classList.add('active');
-  const T={home:'Home',dashboard:'Dashboard Financiero',carga:'Cargar Reportes',historial:'Historial de Cargas',mapping:'Mapeo de Cuentas',datos:'Ver Datos',backup:'Backup y Restaurar',comparativa:'Comparativas',eerr:'Estados de Resultados (EERR)',eerrdet:'ERR Detallado',esf:'Estado de Situación Financiera (ESF)',presupuesto:'Presupuesto vs Real',config_tasas:'Configuración de Tasas',err_divisa:'Estados de Resultados Divisa Real (EERR)',esf_divisa:'ESF Divisa Real',export_ai:'Exportar Briefing IA'};
-  const S={home:'Resumen del holding — Divisa Real',dashboard:'Estado de resultados consolidado',carga:'Importar XLS de Odoo',historial:'Auditoría y reversión',mapping:'Configuración de cuentas contables',datos:'Explorador de datos',backup:'Gestión de copias de seguridad',comparativa:'Mismo período vs año anterior',eerr:'P&L estructurado por partida',eerrdet:'Desglose por tipo de ingreso + ACUM EJEC',esf:'Balance trimestral Q1–Q4',presupuesto:'Real vs valores presupuestados',config_tasas:'Tasas BCV/Paralela y métodos de pago por cuenta',esf_divisa:'Revalorización trimestral de efectivo en Bs',export_ai:'Generar prompt y datos para análisis con IA'};
+  const T={home:'Home',dashboard:'Dashboard Financiero',carga:'Cargar Reportes',historial:'Historial de Cargas',mapping:'Mapeo de Cuentas',datos:'Ver Datos',backup:'Backup y Restaurar',comparativa:'Comparativas',eerr:'Estados de Resultados (EERR)',eerrdet:'ERR Detallado',esf:'Estado de Situación Financiera (ESF)',presupuesto:'Presupuesto vs Real',config_tasas:'Configuración de Tasas',err_divisa:'Estados de Resultados Divisa Real (EERR)',esf_divisa:'ESF Divisa Real',export_ai:'Exportar Briefing IA',sistema_empresas:'Empresas y Unidades'};
+  const S={home:'Resumen del holding — Divisa Real',dashboard:'Estado de resultados consolidado',carga:'Importar XLS de Odoo',historial:'Auditoría y reversión',mapping:'Configuración de cuentas contables',datos:'Explorador de datos',backup:'Gestión de copias de seguridad',comparativa:'Mismo período vs año anterior',eerr:'P&L estructurado por partida',eerrdet:'Desglose por tipo de ingreso + ACUM EJEC',esf:'Balance trimestral Q1–Q4',presupuesto:'Real vs valores presupuestados',config_tasas:'Tasas BCV/Paralela y métodos de pago por cuenta',esf_divisa:'Revalorización trimestral de efectivo en Bs',export_ai:'Generar prompt y datos para análisis con IA',sistema_empresas:'Administración de empresas legales y unidades de negocio'};
   G('ptitle').textContent=T[name]||''; G('psub').textContent=S[name]||'';
   if(name==='home')       loadHome();
   if(name==='dashboard'){ initDivisaToggle(); loadDash(); }
@@ -278,6 +282,7 @@ function showPage(name,el){
   if(name==='presupuesto') loadBgt();
   if(name==='esf_divisa') loadESFDivisaReal();
   if(name==='export_ai') cargarPromptConfigurado();
+  if(name==='sistema_empresas' && typeof loadSistemaEmpresas==='function') loadSistemaEmpresas();
 
   const PAGES_WITH_EXCEL = ['eerr','err_divisa','esf','esf_divisa','presupuesto','comparativa','indicadores'];
   const btnExcel = document.getElementById('btn-export-excel');
