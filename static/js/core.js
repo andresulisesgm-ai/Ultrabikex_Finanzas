@@ -305,6 +305,7 @@ function showPage(name,el){
   if(name==='export_ai') cargarPromptConfigurado();
   if(name==='sistema_empresas' && typeof loadSistemaEmpresas==='function') loadSistemaEmpresas();
   if(name==='reset_pwd' && typeof loadSistemaUsuarios==='function') loadSistemaUsuarios();
+  if(name==='backup' && typeof loadAutoBackups==='function') loadAutoBackups();
 
   const PAGES_WITH_EXCEL = ['eerr','err_divisa','esf','esf_divisa','presupuesto','comparativa','indicadores'];
   const btnExcel = document.getElementById('btn-export-excel');

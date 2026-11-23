@@ -793,6 +793,16 @@
       </div>
     </div>
     <div style="margin-top:11px;padding:9px 13px;background:var(--amber-l);border:1px solid rgba(217,119,6,.2);border-radius:8px;font-size:11px;color:var(--amber);max-width:600px">⚠️ La restauración reemplaza <strong>todos</strong> los datos actuales.</div>
+    <div id="bk-auto-card" style="margin-top:18px;background:#fff;border:1px solid var(--border,#e2e8f0);border-radius:10px;padding:16px;max-width:860px;display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+        <div>
+          <h3 style="margin:0;font-size:14px">Respaldos automáticos diarios (últimos 14 días)</h3>
+          <div style="font-size:11px;color:var(--mu)">Generados automáticamente a las 3:00 AM en <code>data/backups/</code>.</div>
+        </div>
+        <button class="btns" onclick="loadAutoBackups()">↻ Actualizar</button>
+      </div>
+      <div id="bk-auto-wrap"></div>
+    </div>
   </div>
 
   <!-- USUARIOS Y CLAVES -->
