@@ -23,17 +23,10 @@ async function refrescarSelectoresGlobales() {
       const data = await r.json();
       if (Array.isArray(data)) {
         window.units = data.map(u => u.nombre);
-        const selErr = document.getElementById('up-unit-err');
-        if (selErr) {
-          const prev = selErr.value;
-          selErr.innerHTML = window.units
-            .map(u => `<option value="${_seEsc(u)}">${_seEsc(u)}</option>`)
-            .join('');
-          if (window.units.includes(prev)) selErr.value = prev;
-        }
       }
     }
   } catch (e) {}
+  if (typeof updateUnitSelectorsForEmpresa === 'function') updateUnitSelectorsForEmpresa();
 }
 
 async function loadSistemaEmpresas() {

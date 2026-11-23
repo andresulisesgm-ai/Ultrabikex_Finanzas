@@ -1143,7 +1143,7 @@ function updateAiComparativaCheckboxes(){
   if(!cont) return;
   // Ucafe excluida: es venta de café, negocio distinto al resto (retail) — no es comparable, decisión de negocio.
   const unidadesEmpresa = (empresaId && !isNaN(empresaId))
-    ? UNIDADES_CACHE.filter(function(u){ return u.empresa_id === empresaId && u.nombre !== 'Ucafe'; })
+    ? UNIDADES_CACHE.filter(function(u){ return u.empresa_id === empresaId && !u.excluir_comparativas; })
     : [];
   cont.innerHTML = unidadesEmpresa.map(function(u){
     return `<label style="display:flex;align-items:center;gap:8px;font-size:12px"><input type="checkbox" class="ai-unit-check" value="${u.nombre}" onchange="updateAiBriefingPreview()"> ${u.nombre}</label>`;
@@ -1194,7 +1194,7 @@ function updateUnitSelectorsForEmpresa(){
   const cmpUnit = G('cmp-unit');
   if(cmpUnit){
     cmpUnit.innerHTML = '<option value="">Todas</option>';
-    unidadesEmpresa.filter(function(u){ return u.nombre !== 'Ucafe'; }).forEach(function(u){
+    unidadesEmpresa.filter(function(u){ return !u.excluir_comparativas; }).forEach(function(u){
       const opt = document.createElement('option');
       opt.value = u.nombre;
       opt.textContent = u.nombre;
@@ -1215,6 +1215,27 @@ function updateUnitSelectorsForEmpresa(){
     });
     exUnit.disabled = !tieneUnidadesPropias;
     if(!tieneUnidadesPropias) exUnit.value = '';
+  }
+
+  const upUnitErr = G('up-unit-err');
+  if(upUnitErr){
+    const prevUp = upUnitErr.value;
+    upUnitErr.innerHTML = '';
+    if(unidadesEmpresa.length){
+      unidadesEmpresa.forEach(function(u){
+        const opt = document.createElement('option');
+        opt.value = u.nombre;
+        opt.textContent = u.nombre;
+        upUnitErr.appendChild(opt);
+      });
+      upUnitErr.disabled = false;
+      if(unidadesEmpresa.some(function(u){ return u.nombre === prevUp; })){
+        upUnitErr.value = prevUp;
+      }
+    } else {
+      upUnitErr.innerHTML = '<option value="">Sin unidades activas</option>';
+      upUnitErr.disabled = true;
+    }
   }
 }
 
