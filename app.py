@@ -63,6 +63,9 @@ if not FLASK_SECRET_KEY:
     )
 app.secret_key = FLASK_SECRET_KEY
 
+init_db()
+migrate_db()  # idempotente: asegura migraciones tambien bajo Gunicorn en produccion
+
 from backup_scheduler import start_scheduler
 start_scheduler()
 
@@ -186,7 +189,5 @@ def index():
 
 
 if __name__ == '__main__':
-    init_db()
-    migrate_db()  # seguro de llamar siempre: es idempotente
     debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
     app.run(debug=debug_mode, host='0.0.0.0', port=5000)
