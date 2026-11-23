@@ -3,8 +3,9 @@ import sqlite3
 import hashlib
 import secrets
 import bcrypt
+from datetime import datetime, timedelta
 from functools import wraps
-from flask import session, redirect, url_for, jsonify
+from flask import session, redirect, url_for, jsonify, request
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'data', 'ultrax.db')
 
@@ -12,13 +13,22 @@ def get_user(username):
     """Obtiene un usuario desde la tabla users."""
     conn = sqlite3.connect(DB_PATH)
     row = conn.execute(
-        'SELECT username, password_hash, role FROM users WHERE username = ?',
+        'SELECT username, password_hash, role, activo, es_superadmin, intentos_fallidos, bloqueado_hasta '
+        'FROM users WHERE username = ?',
         (username,)
     ).fetchone()
     conn.close()
     if not row:
         return None
-    return {'username': row[0], 'password_hash': row[1], 'role': row[2]}
+    return {
+        'username': row[0],
+        'password_hash': row[1],
+        'role': row[2],
+        'activo': row[3],
+        'es_superadmin': row[4],
+        'intentos_fallidos': row[5],
+        'bloqueado_hasta': row[6],
+    }
 
 def verify_password(username, password):
     """Verifica credenciales y retorna el rol si son correctas."""
@@ -28,6 +38,53 @@ def verify_password(username, password):
     if bcrypt.checkpw(password.encode(), user['password_hash'].encode()):
         return user['role']
     return None
+
+
+def authenticate_user(username, password):
+    """Autentica usuario validando activo, bloqueo temporal y contador de intentos."""
+    user = get_user(username)
+    if not user:
+        return False, 'Credenciales inválidas', 401
+    if user['activo'] == 0:
+        return False, 'Usuario desactivado', 403
+
+    ahora = datetime.now()
+    ahora_str = ahora.strftime('%Y-%m-%d %H:%M:%S')
+    if user['bloqueado_hasta'] and user['bloqueado_hasta'] > ahora_str:
+        return False, 'Usuario bloqueado temporalmente. Contacte al administrador.', 423
+
+    if not bcrypt.checkpw(password.encode(), user['password_hash'].encode()):
+        intentos = (user['intentos_fallidos'] or 0) + 1
+        conn = sqlite3.connect(DB_PATH)
+        if intentos >= 5:
+            bloqueado = (ahora + timedelta(minutes=15)).strftime('%Y-%m-%d %H:%M:%S')
+            conn.execute(
+                'UPDATE users SET intentos_fallidos = ?, bloqueado_hasta = ? WHERE username = ?',
+                (intentos, bloqueado, username),
+            )
+            conn.commit()
+            conn.close()
+            return False, 'Usuario bloqueado temporalmente. Contacte al administrador.', 423
+        conn.execute(
+            'UPDATE users SET intentos_fallidos = ? WHERE username = ?',
+            (intentos, username),
+        )
+        conn.commit()
+        conn.close()
+        return False, 'Credenciales inválidas', 401
+
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute(
+        'UPDATE users SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE username = ?',
+        (username,),
+    )
+    conn.commit()
+    conn.close()
+    return True, {
+        'username': user['username'],
+        'role': user['role'],
+        'es_superadmin': int(user['es_superadmin'] or 0),
+    }, 200
 
 
 def login_required(f):
@@ -50,12 +107,26 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
+def superadmin_required(f):
+    """Decorador: requiere sesión activa y es_superadmin == 1."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'username' not in session:
+            if request.path.startswith('/api/'):
+                return jsonify({'error': 'No autenticado. Inicia sesión.'}), 401
+            return redirect(url_for('login_page'))
+        if session.get('es_superadmin') != 1:
+            return jsonify({'error': 'Acceso denegado. Se requiere rol de superadministrador.'}), 403
+        return f(*args, **kwargs)
+    return decorated
+
 def get_current_user():
     """Retorna información del usuario actual."""
     if 'username' in session:
         return {
             'username': session['username'],
-            'role': session['role']
+            'role': session['role'],
+            'es_superadmin': int(session.get('es_superadmin', 0)),
         }
     return None
 
@@ -78,7 +149,7 @@ def admin_reset_password(username, new_password, admin_username):
         conn.close()
         return False, "Usuario no encontrado."
     new_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
-    conn.execute('UPDATE users SET password_hash = ? WHERE username = ?', (new_hash, username))
+    conn.execute('UPDATE users SET password_hash = ?, intentos_fallidos = 0, bloqueado_hasta = NULL WHERE username = ?', (new_hash, username))
     conn.commit()
     conn.close()
 

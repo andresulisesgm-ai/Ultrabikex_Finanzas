@@ -53,10 +53,17 @@ function logout() {
 
 function updateUserInfo() {
   const info = G('userInfo');
-  if(currentUser) {
-    const roleClass = currentUser.role === 'viewer' ? 'viewer' : '';
-    const roleName = currentUser.role === 'admin' ? 'Administrador' : 'Visor';
-    info.innerHTML = `<span class="user-badge ${roleClass}">${currentUser.username} - ${roleName}</span>`;
+  if(currentUser && info) {
+    info.innerHTML = `
+      <button class="tb-sel" type="button" onclick="toggleUserProfileMenu(event)" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+        <i class="ph ph-user-circle" style="font-size:15px"></i>
+        <span>${currentUser.username}</span>
+        <span style="font-size:10px;opacity:.85">▾</span>
+      </button>
+      <div id="user-profile-menu" style="display:none;position:absolute;top:calc(100% + 6px);right:0;min-width:190px;background:#fff;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 8px 24px rgba(15,23,42,.18);padding:6px;z-index:999">
+        <button onclick="if(typeof abrirMiPerfil==='function') abrirMiPerfil();" style="display:block;width:100%;text-align:left;padding:7px 9px;border:none;background:transparent;border-radius:6px;font-size:12px;color:#0f172a;cursor:pointer">🔑 Cambiar clave</button>
+        <button onclick="logout()" style="display:block;width:100%;text-align:left;padding:7px 9px;border:none;background:transparent;border-radius:6px;font-size:12px;color:#b91c1c;cursor:pointer">⏻ Cerrar sesión</button>
+      </div>`;
   }
   const sysEmpNav = document.getElementById('nav-sistema-empresas');
   if (sysEmpNav) {
@@ -64,10 +71,7 @@ function updateUserInfo() {
   }
   const resetPwdNav = document.getElementById('nav-reset-pwd');
   if (resetPwdNav) {
-    resetPwdNav.style.display = (currentUser && currentUser.username === 'AdminSys') ? '' : 'none';
-  }
-  if (currentUser && currentUser.username === 'AdminSys') {
-    loadUsersForReset();
+    resetPwdNav.style.display = (currentUser && currentUser.es_superadmin === 1) ? '' : 'none';
   }
 }
 
@@ -101,12 +105,6 @@ async function fillYears(){
 }
 
 function showA(id,msg){const e=G(id);e.textContent=msg;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),7000);}
-// ── CERRAR APP ────────────────────────────────────────────────────────────
-async function closeApp(){
-  if(!confirm('¿Cerrar Ultrabikex Financial Analytics? Esto detendrá el servidor.'))return;
-  try{await fetch('/api/shutdown',{method:'POST'});}catch{}
-  document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:DM Sans,sans-serif;color:#64748b;flex-direction:column;gap:10px"><div style="font-size:32px">⏻</div><div style="font-weight:600">Servidor detenido.</div><div style="font-size:12px">Puedes cerrar esta ventana.</div></div>';
-}
 // Deshabilita en el selector de trimestre las opciones sin tasa BCV/paralela
 // completa (3 meses cargados en tasas_periodo) para el año activo. Solo
 // bloquea -- no selecciona ningun valor. Se llama al activar Divisa Real y
@@ -239,6 +237,9 @@ function reloadCurrentPage(){
 document.addEventListener('click',function(e){
   var sel=document.getElementById('company-sel');
   if(sel && !sel.contains(e.target)) sel.classList.remove('open');
+  var pm=document.getElementById('user-profile-menu');
+  var ui=document.getElementById('userInfo');
+  if(pm && ui && !ui.contains(e.target)) pm.style.display='none';
 });
 document.addEventListener('DOMContentLoaded',function(){
   const now=new Date();
@@ -246,6 +247,8 @@ document.addEventListener('DOMContentLoaded',function(){
   const my=G('metodos-year');const mm=G('metodos-month');
   if(my)my.value=now.getFullYear();
   if(mm){mm.value=MONTHS[now.getMonth()];}
+  const uye=G('up-year-err'); if(uye) uye.value=now.getFullYear();
+  const uys=G('up-year-esf'); if(uys) uys.value=now.getFullYear();
   const pinned=localStorage.getItem('sb-pinned')!=='0';
   const sb=document.querySelector('.sidebar');
   const main=document.querySelector('.main');
@@ -258,14 +261,32 @@ document.addEventListener('DOMContentLoaded',function(){
     main.classList.add('collapsed');
   }
 });
+function toggleNavSection(key, headerEl){
+  const grp = G('nav-group-' + key);
+  if(!grp) return;
+  const open = grp.style.display !== 'none';
+  grp.style.display = open ? 'none' : '';
+  const arrow = headerEl ? headerEl.querySelector('.nav-sec-arrow') : null;
+  if(arrow) arrow.textContent = open ? '▸' : '▾';
+}
+
 function showPage(name,el){
   CURRENT_PAGE = name;
+  const CONFIG_PAGES = ['carga','mapping','config_tasas','historial','datos'];
+  const SISTEMA_PAGES = ['export_ai','backup','sistema_empresas','reset_pwd'];
+  if(CONFIG_PAGES.includes(name)){
+    const g = G('nav-group-config');
+    if(g){ g.style.display = ''; const a = g.previousElementSibling?.querySelector('.nav-sec-arrow'); if(a) a.textContent = '▾'; }
+  } else if(SISTEMA_PAGES.includes(name)){
+    const g = G('nav-group-sistema');
+    if(g){ g.style.display = ''; const a = g.previousElementSibling?.querySelector('.nav-sec-arrow'); if(a) a.textContent = '▾'; }
+  }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   G('page-'+name).classList.add('active');
   if(el) el.classList.add('active');
-  const T={home:'Home',dashboard:'Dashboard Financiero',carga:'Cargar Reportes',historial:'Historial de Cargas',mapping:'Mapeo de Cuentas',datos:'Ver Datos',backup:'Backup y Restaurar',comparativa:'Comparativas',eerr:'Estados de Resultados (EERR)',eerrdet:'ERR Detallado',esf:'Estado de Situación Financiera (ESF)',presupuesto:'Presupuesto vs Real',config_tasas:'Configuración de Tasas',err_divisa:'Estados de Resultados Divisa Real (EERR)',esf_divisa:'ESF Divisa Real',export_ai:'Exportar Briefing IA',sistema_empresas:'Empresas y Unidades'};
-  const S={home:'Resumen del holding — Divisa Real',dashboard:'Estado de resultados consolidado',carga:'Importar XLS de Odoo',historial:'Auditoría y reversión',mapping:'Configuración de cuentas contables',datos:'Explorador de datos',backup:'Gestión de copias de seguridad',comparativa:'Mismo período vs año anterior',eerr:'P&L estructurado por partida',eerrdet:'Desglose por tipo de ingreso + ACUM EJEC',esf:'Balance trimestral Q1–Q4',presupuesto:'Real vs valores presupuestados',config_tasas:'Tasas BCV/Paralela y métodos de pago por cuenta',esf_divisa:'Revalorización trimestral de efectivo en Bs',export_ai:'Generar prompt y datos para análisis con IA',sistema_empresas:'Administración de empresas legales y unidades de negocio'};
+  const T={home:'Home',dashboard:'Dashboard Financiero',carga:'Cargar Reportes',historial:'Historial de Cargas',mapping:'Mapeo de Cuentas',datos:'Ver Datos',backup:'Backup y Restaurar',comparativa:'Comparativas',eerr:'Estados de Resultados (EERR)',eerrdet:'ERR Detallado',esf:'Estado de Situación Financiera (ESF)',presupuesto:'Presupuesto vs Real',config_tasas:'Configuración de Tasas',err_divisa:'Estados de Resultados Divisa Real (EERR)',esf_divisa:'ESF Divisa Real',export_ai:'Exportar Briefing IA',sistema_empresas:'Empresas y Unidades',reset_pwd:'Usuarios y Claves'};
+  const S={home:'Resumen del holding — Divisa Real',dashboard:'Estado de resultados consolidado',carga:'Importar XLS de Odoo',historial:'Auditoría y reversión',mapping:'Configuración de cuentas contables',datos:'Explorador de datos',backup:'Gestión de copias de seguridad',comparativa:'Mismo período vs año anterior',eerr:'P&L estructurado por partida',eerrdet:'Desglose por tipo de ingreso + ACUM EJEC',esf:'Balance trimestral Q1–Q4',presupuesto:'Real vs valores presupuestados',config_tasas:'Tasas BCV/Paralela y métodos de pago por cuenta',esf_divisa:'Revalorización trimestral de efectivo en Bs',export_ai:'Generar prompt y datos para análisis con IA',sistema_empresas:'Administración de empresas legales y unidades de negocio',reset_pwd:'Administración de usuarios, roles y contraseñas'};
   G('ptitle').textContent=T[name]||''; G('psub').textContent=S[name]||'';
   if(name==='home')       loadHome();
   if(name==='dashboard'){ initDivisaToggle(); loadDash(); }
@@ -283,6 +304,7 @@ function showPage(name,el){
   if(name==='esf_divisa') loadESFDivisaReal();
   if(name==='export_ai') cargarPromptConfigurado();
   if(name==='sistema_empresas' && typeof loadSistemaEmpresas==='function') loadSistemaEmpresas();
+  if(name==='reset_pwd' && typeof loadSistemaUsuarios==='function') loadSistemaUsuarios();
 
   const PAGES_WITH_EXCEL = ['eerr','err_divisa','esf','esf_divisa','presupuesto','comparativa','indicadores'];
   const btnExcel = document.getElementById('btn-export-excel');

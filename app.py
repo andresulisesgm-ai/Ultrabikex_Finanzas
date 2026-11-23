@@ -7,7 +7,7 @@ from flask_limiter.util import get_remote_address
 load_dotenv()
 
 from db import init_db, migrate_db, close_db, get_db
-from auth import login_required, admin_required, verify_password, get_current_user, admin_reset_password, list_users
+from auth import login_required, admin_required, superadmin_required, verify_password, authenticate_user, get_current_user, admin_reset_password, list_users
 from blueprints.backup import backup_bp
 from blueprints.tasas import tasas_bp
 from blueprints.metodo_pago import metodo_pago_bp
@@ -27,6 +27,7 @@ from blueprints.briefing import briefing_bp
 from blueprints.mapeo import mapeo_bp
 from blueprints.upload import upload_bp
 from blueprints.sistema_empresas import sistema_empresas_bp
+from blueprints.sistema_usuarios import sistema_usuarios_bp
 from constants import MONTHS
 
 app = Flask(__name__)
@@ -49,6 +50,7 @@ app.register_blueprint(briefing_bp)
 app.register_blueprint(mapeo_bp)
 app.register_blueprint(upload_bp)
 app.register_blueprint(sistema_empresas_bp)
+app.register_blueprint(sistema_usuarios_bp)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 FLASK_SECRET_KEY = os.environ.get('FLASK_SECRET_KEY')
 if not FLASK_SECRET_KEY:
@@ -118,13 +120,14 @@ def login():
     if not username or not password:
         return jsonify({'error': 'Usuario y contraseña son requeridos'}), 400
 
-    role = verify_password(username, password)
-    if role:
-        session['username'] = username
-        session['role'] = role
-        return jsonify({'success': True, 'role': role})
+    ok, res, status = authenticate_user(username, password)
+    if ok:
+        session['username'] = res['username']
+        session['role'] = res['role']
+        session['es_superadmin'] = res['es_superadmin']
+        return jsonify({'success': True, 'role': res['role'], 'es_superadmin': res['es_superadmin']})
 
-    return jsonify({'error': 'Credenciales inválidas'}), 401
+    return jsonify({'error': res}), status
 
 @app.route('/api/logout', methods=['POST'])
 def logout():
@@ -137,18 +140,13 @@ def current_user():
     return jsonify(get_current_user())
 
 @app.route('/api/admin/list_users', methods=['GET'])
-
-@login_required
+@superadmin_required
 def admin_list_users_route():
-    if session.get('username') != 'AdminSys':
-        return jsonify({'error': 'Acceso denegado.'}), 403
     return jsonify(list_users())
 
 @app.route('/api/admin/reset_password', methods=['POST'])
-@login_required
+@superadmin_required
 def admin_reset_password_route():
-    if session.get('username') != 'AdminSys':
-        return jsonify({'error': 'Acceso denegado.'}), 403
     data = request.get_json()
     username = data.get('username', '')
     new_password = data.get('new_password', '')
@@ -174,38 +172,6 @@ def index():
         'SELECT nombre FROM unidades WHERE activo = 1 ORDER BY empresa_id, id'
     ).fetchall()]
     return render_template('index.html', units=units_activas, months=MONTHS, user=user)
-
-
-# ── Shutdown ──────────────────────────────────────────────────────────────────
-
-@app.route('/api/shutdown', methods=['POST'])
-@admin_required
-def shutdown():
-    import threading, time, subprocess
-    def _stop():
-        time.sleep(0.3)
-        # Antes de auto-matarse, cerrar cualquier OTRO proceso python.exe que
-        # tambien este escuchando en el puerto 5000 (zombie de un cierre
-        # incompleto anterior) -- identificado por puerto especifico via
-        # netstat, nunca por nombre generico de proceso.
-        try:
-            propio_pid = os.getpid()
-            out = subprocess.run(
-                ['netstat', '-ano'], capture_output=True, text=True, timeout=3
-            ).stdout
-            for linea in out.splitlines():
-                if ':5000' in linea and 'LISTENING' in linea:
-                    pid = linea.strip().split()[-1]
-                    if pid.isdigit() and int(pid) != propio_pid:
-                        subprocess.run(
-                            ['taskkill', '/F', '/PID', pid],
-                            capture_output=True, timeout=3
-                        )
-        except Exception:
-            pass  # limpieza best-effort, nunca debe bloquear el apagado normal
-        os._exit(0)
-    threading.Thread(target=_stop, daemon=True).start()
-    return jsonify({'ok': True})
 
 
 if __name__ == '__main__':

@@ -55,28 +55,23 @@
   <div class="nav-item" onclick="showPage('esf_divisa',this)"><span class="nav-icon"><i class="ph ph-currency-circle-dollar"></i></span>ESF Divisa Real</div>
   <div class="nav-item" onclick="showPage('presupuesto',this)" style="display:none"><span class="nav-icon"><i class="ph ph-target"></i></span>Presupuesto vs Real</div>
   <div class="nav-item" onclick="showPage('comparativa',this)"><span class="nav-icon"><i class="ph ph-arrows-down-up"></i></span>Comparativas</div>
-  <div class="nav-sec">Configuración</div>
-  <div class="nav-item" id="nav-cargar" onclick="showPage('carga',this)"><span class="nav-icon"><i class="ph ph-upload-simple"></i></span>Cargar Reportes</div>
-  <div class="nav-item" onclick="showPage('mapping',this)"><span class="nav-icon"><i class="ph ph-arrows-left-right"></i></span>Mapeo de Cuentas</div>
-  <div class="nav-item" id="nav-tasas" onclick="showPage('config_tasas',this)"><span class="nav-icon"><i class="ph ph-sliders"></i></span>Configuración de Tasas</div>
-  <div class="nav-item" onclick="showPage('historial',this)"><span class="nav-icon"><i class="ph ph-clock-countdown"></i></span>Historial</div>
-  <div class="nav-item" onclick="showPage('datos',this)"><span class="nav-icon"><i class="ph ph-table"></i></span>Ver Datos</div>
-  <div class="nav-sec">Sistema</div>
-  <div class="nav-item" onclick="showPage('export_ai',this)"><span class="nav-icon"><i class="ph ph-sparkle"></i></span>Exportar Briefing IA</div>
-  <div class="nav-item" onclick="showPage('backup',this)"><span class="nav-icon"><i class="ph ph-archive"></i></span>Backup / Restaurar</div>
-  <div class="nav-item" id="nav-sistema-empresas" onclick="showPage('sistema_empresas',this)" style="display:none"><span class="nav-icon"><i class="ph ph-buildings"></i></span>Empresas y Unidades</div>
-  <div class="nav-item" id="nav-reset-pwd" onclick="showPage('reset_pwd',this)" style="display:none"><span class="nav-icon"><i class="ph ph-key"></i></span>Restablecer Clave</div>
+  <div class="nav-sec nav-sec-toggle" onclick="toggleNavSection('config', this)"><span>Configuración</span><span class="nav-sec-arrow">▸</span></div>
+  <div id="nav-group-config" class="nav-group-items" style="display:none">
+    <div class="nav-item" id="nav-cargar" onclick="showPage('carga',this)"><span class="nav-icon"><i class="ph ph-upload-simple"></i></span>Cargar Reportes</div>
+    <div class="nav-item" onclick="showPage('mapping',this)"><span class="nav-icon"><i class="ph ph-arrows-left-right"></i></span>Mapeo de Cuentas</div>
+    <div class="nav-item" id="nav-tasas" onclick="showPage('config_tasas',this)"><span class="nav-icon"><i class="ph ph-sliders"></i></span>Configuración de Tasas</div>
+    <div class="nav-item" onclick="showPage('historial',this)"><span class="nav-icon"><i class="ph ph-clock-countdown"></i></span>Historial</div>
+    <div class="nav-item" onclick="showPage('datos',this)"><span class="nav-icon"><i class="ph ph-table"></i></span>Ver Datos</div>
+  </div>
+  <div class="nav-sec nav-sec-toggle" onclick="toggleNavSection('sistema', this)"><span>Sistema</span><span class="nav-sec-arrow">▸</span></div>
+  <div id="nav-group-sistema" class="nav-group-items" style="display:none">
+    <div class="nav-item" onclick="showPage('export_ai',this)"><span class="nav-icon"><i class="ph ph-sparkle"></i></span>Exportar Briefing IA</div>
+    <div class="nav-item" onclick="showPage('backup',this)"><span class="nav-icon"><i class="ph ph-archive"></i></span>Backup / Restaurar</div>
+    <div class="nav-item" id="nav-sistema-empresas" onclick="showPage('sistema_empresas',this)" style="display:none"><span class="nav-icon"><i class="ph ph-buildings"></i></span>Empresas y Unidades</div>
+    <div class="nav-item" id="nav-reset-pwd" onclick="showPage('reset_pwd',this)" style="display:none"><span class="nav-icon"><i class="ph ph-key"></i></span>Usuarios y Claves</div>
+  </div>
 
   <div class="sidebar-footer">
-    <div id="userInfo"></div>
-    <div class="footer-actions">
-      <button class="btn-footer btn-logout" onclick="logout()" title="Cerrar sesión">
-        <span class="btn-icon">⏻</span><span class="btn-label"> Sesión</span>
-      </button>
-      <button class="btn-footer btn-close-app" onclick="closeApp()" title="Apagar servidor">
-        <span class="btn-icon">⏻</span><span class="btn-label"> Servidor</span>
-      </button>
-    </div>
     <div class="footer-copyright">Ultrabikex Financial Analytics © 2026</div>
   </div>
 </nav>
@@ -88,8 +83,9 @@
       <button class="tb-sel" id="btn-export-excel" onclick="openExcelModal()" 
         title="Exportar a Excel" style="cursor:pointer;display:none">📊 Exportar Excel</button>
       <button class="tb-sel" id="btnprint" onclick="openPrintModal()" 
-        title="Imprimir o guardar como PDF esta hoja, con los filtros actuales" 
-        style="cursor:pointer">🖨 Imprimir / PDF</button>
+        title="Imprimir o guardar como PDF" 
+        style="cursor:pointer;padding:6px 10px"><i class="ph ph-download-simple" style="font-size:15px"></i></button>
+      <div id="userInfo" style="position:relative;display:inline-flex;align-items:center"></div>
     </div>
   </div>
 
@@ -799,18 +795,16 @@
     <div style="margin-top:11px;padding:9px 13px;background:var(--amber-l);border:1px solid rgba(217,119,6,.2);border-radius:8px;font-size:11px;color:var(--amber);max-width:600px">⚠️ La restauración reemplaza <strong>todos</strong> los datos actuales.</div>
   </div>
 
-  <!-- RESTABLECER CLAVE -->
+  <!-- USUARIOS Y CLAVES -->
   <div class="page" id="page-reset_pwd">
-    <div class="al al-ok" id="rp-ok"></div><div class="al al-er" id="rp-er"></div>
-    <div class="bkgrid">
-      <div class="bkcard">
-        <div style="font-size:24px;margin-bottom:7px">🔑</div><h3>Restablecer Clave de Usuario</h3>
-        <p>Solo para uso administrativo de emergencia.</p>
-        <div class="fg"><label>Usuario</label><select id="rp-user"></select></div>
-        <div class="fg"><label>Clave nueva</label><input type="password" id="rp-newpass" placeholder="Minimo 8 caracteres"></div>
-        <button class="bkdl" onclick="doResetPassword()">🔑 Restablecer Clave</button>
-      </div>
+    <div class="al al-ok" id="su-ok"></div>
+    <div class="al al-er" id="su-er"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+      <div style="font-size:13px;color:var(--mu)">Administración de usuarios, roles, bloqueos y restablecimiento de claves.</div>
+      <button class="bkdl" style="width:auto;padding:8px 14px" onclick="abrirFormNuevoUsuario()">+ Nuevo usuario</button>
     </div>
+    <div id="su-form-wrap" style="display:none;background:#fff;border:1px solid var(--border,#e2e8f0);border-radius:10px;padding:14px;margin-bottom:14px"></div>
+    <div id="su-tabla-wrap" style="background:#fff;border:1px solid var(--border,#e2e8f0);border-radius:10px;overflow:auto"></div>
   </div>
 
   <!-- EMPRESAS Y UNIDADES -->
@@ -825,6 +819,22 @@
     <div id="se-lista"></div>
   </div>
 
+</div>
+
+<!-- MODAL MI PERFIL -->
+<div class="ov" id="modal-mi-perfil">
+  <div class="modal" style="max-width:400px">
+    <h3>Mi Perfil — Cambiar Clave</h3>
+    <div class="al al-ok" id="mp-ok"></div>
+    <div class="al al-er" id="mp-er"></div>
+    <div class="fg"><label>Clave actual</label><input type="password" id="mp-actual" autocomplete="current-password"></div>
+    <div class="fg"><label>Clave nueva (mínimo 8 caracteres)</label><input type="password" id="mp-nueva" autocomplete="new-password"></div>
+    <div class="fg"><label>Confirmar clave nueva</label><input type="password" id="mp-confirmar" autocomplete="new-password"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button class="btns" onclick="cerrarMiPerfil()">Cancelar</button>
+      <button class="btnm" onclick="guardarMiClave()">Guardar clave</button>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL MAPPING -->
@@ -960,6 +970,7 @@
 <script src="/static/js/print.js"></script>
 <script src="/static/js/trazabilidad.js"></script>
 <script src="/static/js/sistema_empresas.js"></script>
+<script src="/static/js/sistema_usuarios.js"></script>
 <div id="traza-panel">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
     <div class="tp-title" id="tp-title"></div>

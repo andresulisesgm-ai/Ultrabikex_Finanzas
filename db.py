@@ -964,6 +964,17 @@ def migrate_db():
         conn.execute("ALTER TABLE unidades ADD COLUMN recibe_plug_divisa INTEGER NOT NULL DEFAULT 0")
         conn.execute("UPDATE unidades SET recibe_plug_divisa = 1 WHERE nombre = 'Rodeo'")
 
+    cols_usr = {r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()}
+    if 'activo' not in cols_usr:
+        conn.execute("ALTER TABLE users ADD COLUMN activo INTEGER NOT NULL DEFAULT 1")
+    if 'es_superadmin' not in cols_usr:
+        conn.execute("ALTER TABLE users ADD COLUMN es_superadmin INTEGER NOT NULL DEFAULT 0")
+        conn.execute("UPDATE users SET es_superadmin = 1 WHERE username = 'AdminSys'")
+    if 'intentos_fallidos' not in cols_usr:
+        conn.execute("ALTER TABLE users ADD COLUMN intentos_fallidos INTEGER NOT NULL DEFAULT 0")
+    if 'bloqueado_hasta' not in cols_usr:
+        conn.execute("ALTER TABLE users ADD COLUMN bloqueado_hasta TEXT NULL")
+
     # Actualizar income_type en registros existentes del mapping inicial
     if INITIAL_MAPPING:
         conn.executemany(
