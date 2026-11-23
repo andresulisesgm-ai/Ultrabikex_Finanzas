@@ -1,7 +1,8 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, session
 from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
+from audit import registrar_auditoria
 from auth import admin_required
 from db import get_db
 from engine import OdooParser, MONTH_TO_QUARTER
@@ -211,6 +212,13 @@ def upload():
                 print(f"  Code: {u['code']:20s} | Name: {u['name']:50s} | Amount: {u['amount']:>15,.2f}")
             print("="*80 + "\n")
 
+        registrar_auditoria(
+            db,
+            session.get('username', 'sistema'),
+            'cargas',
+            'cargar_reporte',
+            f"tipo={'ESF' if is_esf else 'EERR'}, unit={unit}, month={month}, year={year}, empresa_id={empresa_id}, archivo={file.filename}",
+        )
         return jsonify({
             'inserted_financials': inserted_fin,
             'inserted_esf': inserted_esf,

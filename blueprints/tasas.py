@@ -1,4 +1,5 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
+from audit import registrar_auditoria
 from db import get_db
 from auth import admin_required
 
@@ -76,6 +77,13 @@ def save_tasas():
             factor_diferencial = excluded.factor_diferencial
     ''', (year, month, bcv_ini, bcv_fin, bcv_prom, par_ini, par_fin, par_prom, diferencial))
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'tasas',
+        'guardar_tasa',
+        f'year={year}, month={month}',
+    )
 
     return jsonify({
         'ok': True,
@@ -93,4 +101,11 @@ def delete_tasa(tasa_id):
     db = get_db()
     db.execute('DELETE FROM tasas_periodo WHERE id = ?', (tasa_id,))
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'tasas',
+        'eliminar_tasa',
+        f'tasa_id={tasa_id}',
+    )
     return jsonify({'ok': True})

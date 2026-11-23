@@ -1,4 +1,5 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
+from audit import registrar_auditoria
 from auth import admin_required
 from db import get_db
 
@@ -97,6 +98,13 @@ def crear_empresa():
             (nombre_corto, new_id, 1, 1),
         )
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'empresas',
+        'crear_empresa',
+        f'id={new_id}, nombre_corto={nombre_corto}, unidad_unica={unidad_unica}',
+    )
 
     return jsonify({
         'id': new_id,
@@ -139,6 +147,13 @@ def actualizar_empresa(empresa_id):
         (nombre_corto, nombre_legal, empresa_id),
     )
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'empresas',
+        'editar_empresa',
+        f'id={empresa_id}, nombre_corto={nombre_corto}',
+    )
     return jsonify({
         'id': empresa_id,
         'nombre_corto': nombre_corto,
@@ -167,6 +182,13 @@ def toggle_empresa(empresa_id):
     if nuevo_activo == 0:
         db.execute('UPDATE unidades SET activo = 0 WHERE empresa_id = ?', (empresa_id,))
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'empresas',
+        'toggle_empresa',
+        f'id={empresa_id}, activo={nuevo_activo}',
+    )
     return jsonify({'id': empresa_id, 'activo': nuevo_activo}), 200
 
 
@@ -209,6 +231,13 @@ def crear_unidad():
         (nombre, empresa_id, es_pseudo, excluir_comparativas, recibe_plug_divisa),
     )
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'empresas',
+        'crear_unidad',
+        f'empresa_id={empresa_id}, nombre={nombre}',
+    )
     return jsonify({
         'id': cur.lastrowid,
         'nombre': nombre,
@@ -264,6 +293,13 @@ def actualizar_unidad(unidad_id):
         (nombre, es_pseudo, excluir_comparativas, recibe_plug_divisa, unidad_id),
     )
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'empresas',
+        'editar_unidad',
+        f'id={unidad_id}, nombre={nombre}',
+    )
     return jsonify({
         'id': unidad_id,
         'nombre': nombre,
@@ -295,4 +331,11 @@ def toggle_unidad(unidad_id):
 
     db.execute('UPDATE unidades SET activo = ? WHERE id = ?', (nuevo_activo, unidad_id))
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'empresas',
+        'toggle_unidad',
+        f'id={unidad_id}, activo={nuevo_activo}',
+    )
     return jsonify({'id': unidad_id, 'activo': nuevo_activo}), 200

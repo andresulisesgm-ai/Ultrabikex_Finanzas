@@ -1,6 +1,7 @@
-from flask import Blueprint, jsonify, request, send_file, send_from_directory
+from flask import Blueprint, jsonify, request, send_file, send_from_directory, session
 from datetime import datetime, timezone, timedelta
 import sqlite3, os, re, shutil, tempfile
+from audit import registrar_auditoria
 from db import DB_PATH
 from auth import admin_required
 from backup_scheduler import BACKUP_DIR
@@ -40,6 +41,9 @@ def restore():
             return jsonify({'error': f'DB inválida. Tablas: {tables}'}), 400
         shutil.copy2(DB_PATH, DB_PATH + '.bk')
         shutil.move(tmp, DB_PATH)
+        conn_aud = sqlite3.connect(DB_PATH)
+        registrar_auditoria(conn_aud, session.get('username', 'sistema'), 'backup', 'restaurar_manual', f'archivo={file.filename}')
+        conn_aud.close()
         return jsonify({'ok': True, 'message': 'Base de datos restaurada correctamente'})
     except Exception as e:
         if os.path.exists(tmp): os.remove(tmp)
@@ -109,6 +113,9 @@ def restore_auto_backup(filename):
             return jsonify({'error': f'DB inválida. Tablas: {tables}'}), 400
         shutil.copy2(DB_PATH, DB_PATH + '.bk')
         shutil.copy2(full_path, DB_PATH)
+        conn_aud = sqlite3.connect(DB_PATH)
+        registrar_auditoria(conn_aud, session.get('username', 'sistema'), 'backup', 'restaurar_auto', f'archivo={filename}')
+        conn_aud.close()
         return jsonify({'ok': True, 'message': f'Base de datos restaurada desde {filename}'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500

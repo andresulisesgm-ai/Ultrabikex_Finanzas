@@ -2,14 +2,15 @@ from datetime import datetime
 import re
 import bcrypt
 from flask import Blueprint, jsonify, request, session
-from auth import login_required, superadmin_required
+from audit import registrar_auditoria
+from auth import login_required, admin_required
 from db import get_db
 
 sistema_usuarios_bp = Blueprint('sistema_usuarios', __name__)
 
 
 @sistema_usuarios_bp.route('/api/admin/users', methods=['GET'])
-@superadmin_required
+@admin_required
 def listar_usuarios():
     """Lista todos los usuarios sin password_hash e indica si están bloqueados."""
     db = get_db()
@@ -33,7 +34,7 @@ def listar_usuarios():
 
 
 @sistema_usuarios_bp.route('/api/admin/users', methods=['POST'])
-@superadmin_required
+@admin_required
 def crear_usuario():
     """Crea un nuevo usuario con rol admin o viewer y clave bcrypt."""
     data = request.get_json(silent=True) or {}
@@ -63,6 +64,13 @@ def crear_usuario():
         (username, pw_hash, role),
     )
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'usuarios',
+        'crear_usuario',
+        f'username={username}, role={role}',
+    )
     return jsonify({
         'username': username,
         'role': role,
@@ -72,16 +80,18 @@ def crear_usuario():
 
 
 @sistema_usuarios_bp.route('/api/admin/users/<username>', methods=['PUT'])
-@superadmin_required
+@admin_required
 def actualizar_usuario(username):
     """Actualiza el rol y estado activo de un usuario."""
     db = get_db()
     usr = db.execute(
-        'SELECT username FROM users WHERE username = ?',
+        'SELECT username, es_superadmin FROM users WHERE username = ?',
         (username,),
     ).fetchone()
     if not usr:
         return jsonify({'error': 'Usuario no encontrado'}), 404
+    if usr['es_superadmin'] == 1 and session.get('es_superadmin') != 1:
+        return jsonify({'error': 'No puedes modificar una cuenta superadministrador'}), 403
 
     data = request.get_json(silent=True) or {}
     role = (data.get('role') or '').strip()
@@ -97,26 +107,42 @@ def actualizar_usuario(username):
         (role, activo, username),
     )
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'usuarios',
+        'editar_usuario',
+        f'username={username}, role={role}, activo={activo}',
+    )
     return jsonify({'username': username, 'role': role, 'activo': activo}), 200
 
 
 @sistema_usuarios_bp.route('/api/admin/users/<username>/unlock', methods=['POST'])
-@superadmin_required
+@admin_required
 def desbloquear_usuario(username):
     """Desbloquea un usuario y reinicia su contador de intentos fallidos."""
     db = get_db()
     usr = db.execute(
-        'SELECT username FROM users WHERE username = ?',
+        'SELECT username, es_superadmin FROM users WHERE username = ?',
         (username,),
     ).fetchone()
     if not usr:
         return jsonify({'error': 'Usuario no encontrado'}), 404
+    if usr['es_superadmin'] == 1 and session.get('es_superadmin') != 1:
+        return jsonify({'error': 'No puedes modificar una cuenta superadministrador'}), 403
 
     db.execute(
         'UPDATE users SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE username = ?',
         (username,),
     )
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'usuarios',
+        'desbloquear_usuario',
+        f'username={username}',
+    )
     return jsonify({'ok': True, 'username': username}), 200
 
 
@@ -151,4 +177,11 @@ def cambiar_clave_propia():
         (new_hash, username),
     )
     db.commit()
+    registrar_auditoria(
+        db,
+        username,
+        'usuarios',
+        'cambiar_clave_propia',
+        f'username={username}',
+    )
     return jsonify({'ok': True, 'message': 'Clave actualizada correctamente'}), 200

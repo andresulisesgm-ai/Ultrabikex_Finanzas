@@ -1,4 +1,5 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
+from audit import registrar_auditoria
 from db import get_db
 from auth import admin_required
 
@@ -61,6 +62,13 @@ def save_metodo_pago():
         ''', (year, month, unit, code, pct_cash))
 
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'metodo_pago',
+        'guardar_metodo_pago',
+        f'year={year}, month={month}, inserted={len(metodos)}',
+    )
     return jsonify({'ok': True, 'inserted': len(metodos)})
 
 
@@ -117,4 +125,11 @@ def copiar_metodo_pago():
         ''', (to_y, to_m, r['unit'], r['odoo_code'], r['pct_cash']))
 
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'metodo_pago',
+        'copiar_metodo_pago',
+        f'from={from_y}/{from_m}, to={to_y}/{to_m}, copied={len(rows)}',
+    )
     return jsonify({'ok': True, 'copied': len(rows)})

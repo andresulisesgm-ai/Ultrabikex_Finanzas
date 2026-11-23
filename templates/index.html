@@ -69,6 +69,7 @@
     <div class="nav-item" onclick="showPage('backup',this)"><span class="nav-icon"><i class="ph ph-archive"></i></span>Backup / Restaurar</div>
     <div class="nav-item" id="nav-sistema-empresas" onclick="showPage('sistema_empresas',this)" style="display:none"><span class="nav-icon"><i class="ph ph-buildings"></i></span>Empresas y Unidades</div>
     <div class="nav-item" id="nav-reset-pwd" onclick="showPage('reset_pwd',this)" style="display:none"><span class="nav-icon"><i class="ph ph-key"></i></span>Usuarios y Claves</div>
+    <div class="nav-item" id="nav-sistema-auditoria" onclick="showPage('sistema_auditoria',this)" style="display:none"><span class="nav-icon"><i class="ph ph-clipboard-text"></i></span>Log de Auditoría</div>
   </div>
 
   <div class="sidebar-footer">
@@ -829,6 +830,20 @@
     <div id="se-lista"></div>
   </div>
 
+  <!-- LOG DE AUDITORÍA -->
+  <div class="page" id="page-sistema_auditoria">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;background:#fff;border:1px solid var(--border,#e2e8f0);border-radius:10px;padding:12px">
+      <div><label style="display:block;font-size:11px;color:var(--mu);margin-bottom:3px">Módulo</label><select id="aud-modulo" style="padding:6px 9px;border:1px solid var(--border,#cbd5e1);border-radius:6px;font-size:12px"><option value="">Todos</option></select></div>
+      <div><label style="display:block;font-size:11px;color:var(--mu);margin-bottom:3px">Usuario</label><input type="text" id="aud-usuario" placeholder="Ej. Yoce" style="padding:6px 9px;border:1px solid var(--border,#cbd5e1);border-radius:6px;font-size:12px;width:140px"></div>
+      <div><label style="display:block;font-size:11px;color:var(--mu);margin-bottom:3px">Desde</label><input type="date" id="aud-desde" style="padding:5px 8px;border:1px solid var(--border,#cbd5e1);border-radius:6px;font-size:12px"></div>
+      <div><label style="display:block;font-size:11px;color:var(--mu);margin-bottom:3px">Hasta</label><input type="date" id="aud-hasta" style="padding:5px 8px;border:1px solid var(--border,#cbd5e1);border-radius:6px;font-size:12px"></div>
+      <button class="btnm" onclick="loadAuditoria()">Filtrar</button>
+      <button class="btns" onclick="limpiarFiltrosAuditoria()">Limpiar</button>
+      <span id="aud-total" style="margin-left:auto;font-size:12px;color:var(--mu)"></span>
+    </div>
+    <div id="aud-tabla-wrap" style="background:#fff;border:1px solid var(--border,#e2e8f0);border-radius:10px;overflow:auto"></div>
+  </div>
+
 </div>
 
 <!-- MODAL MI PERFIL -->
@@ -981,6 +996,7 @@
 <script src="/static/js/trazabilidad.js"></script>
 <script src="/static/js/sistema_empresas.js"></script>
 <script src="/static/js/sistema_usuarios.js"></script>
+<script src="/static/js/sistema_auditoria.js"></script>
 <div id="traza-panel">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
     <div class="tp-title" id="tp-title"></div>

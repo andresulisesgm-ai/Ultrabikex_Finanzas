@@ -1,5 +1,6 @@
-from flask import Blueprint, request, jsonify, Response
+from flask import Blueprint, request, jsonify, Response, session
 from datetime import datetime
+from audit import registrar_auditoria
 from auth import admin_required
 from db import get_db
 
@@ -76,6 +77,13 @@ def save_briefing_prompt():
             updated_at = excluded.updated_at
     """, (tipo, texto))
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'briefing',
+        'guardar_prompt',
+        f'tipo={tipo}',
+    )
 
     return jsonify({'status': 'ok', 'tipo_reporte': tipo})
 

@@ -975,6 +975,16 @@ def migrate_db():
     if 'bloqueado_hasta' not in cols_usr:
         conn.execute("ALTER TABLE users ADD COLUMN bloqueado_hasta TEXT NULL")
 
+    conn.execute('''CREATE TABLE IF NOT EXISTS audit_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fecha_hora TEXT NOT NULL,
+        usuario TEXT NOT NULL,
+        modulo TEXT NOT NULL,
+        accion TEXT NOT NULL,
+        detalle TEXT
+    )''')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_audit_log_fecha ON audit_log(fecha_hora DESC)')
+
     # Actualizar income_type en registros existentes del mapping inicial
     if INITIAL_MAPPING:
         conn.executemany(

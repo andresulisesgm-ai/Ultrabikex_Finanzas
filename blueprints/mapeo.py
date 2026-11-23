@@ -1,4 +1,5 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session
+from audit import registrar_auditoria
 from auth import admin_required
 from db import get_db
 
@@ -74,6 +75,13 @@ def add_mapping():
                     (group_name, d['odoo_code'], 'eerr', 100)
                 )
         db.commit()
+        registrar_auditoria(
+            db,
+            session.get('username', 'sistema'),
+            'mapeo',
+            'guardar_mapeo',
+            f"odoo_code={d['odoo_code']}, partida={d['partida']}",
+        )
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -152,6 +160,13 @@ def delete_mapping(code):
         )
     db.execute('DELETE FROM mapping WHERE odoo_code=?', (code,))
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'mapeo',
+        'eliminar_mapeo',
+        f'code={code}',
+    )
     return jsonify({'ok': True})
 
 
@@ -173,6 +188,13 @@ def restore_mapping_log(lid):
         (entry['odoo_code'], entry['odoo_name'], entry['partida'], entry['sign'], entry['income_type'])
     )
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'mapeo',
+        'restaurar_mapeo',
+        f'log_id={lid}',
+    )
     return jsonify({'ok': True})
 
 

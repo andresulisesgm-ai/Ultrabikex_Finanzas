@@ -7,6 +7,7 @@ from flask_limiter.util import get_remote_address
 load_dotenv()
 
 from db import init_db, migrate_db, close_db, get_db
+from audit import registrar_auditoria
 from auth import login_required, admin_required, superadmin_required, verify_password, authenticate_user, get_current_user, admin_reset_password, list_users
 from blueprints.backup import backup_bp
 from blueprints.tasas import tasas_bp
@@ -28,6 +29,7 @@ from blueprints.mapeo import mapeo_bp
 from blueprints.upload import upload_bp
 from blueprints.sistema_empresas import sistema_empresas_bp
 from blueprints.sistema_usuarios import sistema_usuarios_bp
+from blueprints.sistema_auditoria import sistema_auditoria_bp
 from constants import MONTHS
 
 app = Flask(__name__)
@@ -51,6 +53,7 @@ app.register_blueprint(mapeo_bp)
 app.register_blueprint(upload_bp)
 app.register_blueprint(sistema_empresas_bp)
 app.register_blueprint(sistema_usuarios_bp)
+app.register_blueprint(sistema_auditoria_bp)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 FLASK_SECRET_KEY = os.environ.get('FLASK_SECRET_KEY')
 if not FLASK_SECRET_KEY:
@@ -125,8 +128,11 @@ def login():
         session['username'] = res['username']
         session['role'] = res['role']
         session['es_superadmin'] = res['es_superadmin']
+        registrar_auditoria(get_db(), res['username'], 'auth', 'login_ok', f"role={res['role']}")
         return jsonify({'success': True, 'role': res['role'], 'es_superadmin': res['es_superadmin']})
 
+    if status in (403, 423):
+        registrar_auditoria(get_db(), username, 'auth', 'login_bloqueado' if status == 423 else 'login_inactivo', res)
     return jsonify({'error': res}), status
 
 @app.route('/api/logout', methods=['POST'])
@@ -140,19 +146,24 @@ def current_user():
     return jsonify(get_current_user())
 
 @app.route('/api/admin/list_users', methods=['GET'])
-@superadmin_required
+@admin_required
 def admin_list_users_route():
     return jsonify(list_users())
 
 @app.route('/api/admin/reset_password', methods=['POST'])
-@superadmin_required
+@admin_required
 def admin_reset_password_route():
     data = request.get_json()
     username = data.get('username', '')
     new_password = data.get('new_password', '')
+    db = get_db()
+    target = db.execute('SELECT es_superadmin FROM users WHERE username = ?', (username,)).fetchone()
+    if target and target['es_superadmin'] == 1 and session.get('es_superadmin') != 1:
+        return jsonify({'error': 'No puedes restablecer la clave de un superadministrador'}), 403
     admin_username = session['username']
     success, message = admin_reset_password(username, new_password, admin_username)
     if success:
+        registrar_auditoria(get_db(), admin_username, 'usuarios', 'resetear_clave', f'usuario={username}')
         return jsonify({'success': True, 'message': message})
     return jsonify({'success': False, 'message': message}), 400
 

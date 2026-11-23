@@ -71,7 +71,11 @@ function updateUserInfo() {
   }
   const resetPwdNav = document.getElementById('nav-reset-pwd');
   if (resetPwdNav) {
-    resetPwdNav.style.display = (currentUser && currentUser.es_superadmin === 1) ? '' : 'none';
+    resetPwdNav.style.display = (currentUser && currentUser.role === 'admin') ? '' : 'none';
+  }
+  const audNav = document.getElementById('nav-sistema-auditoria');
+  if (audNav) {
+    audNav.style.display = (currentUser && currentUser.role === 'admin') ? '' : 'none';
   }
 }
 
@@ -273,7 +277,7 @@ function toggleNavSection(key, headerEl){
 function showPage(name,el){
   CURRENT_PAGE = name;
   const CONFIG_PAGES = ['carga','mapping','config_tasas','historial','datos'];
-  const SISTEMA_PAGES = ['export_ai','backup','sistema_empresas','reset_pwd'];
+  const SISTEMA_PAGES = ['export_ai','backup','sistema_empresas','reset_pwd','sistema_auditoria'];
   if(CONFIG_PAGES.includes(name)){
     const g = G('nav-group-config');
     if(g){ g.style.display = ''; const a = g.previousElementSibling?.querySelector('.nav-sec-arrow'); if(a) a.textContent = '▾'; }
@@ -285,8 +289,8 @@ function showPage(name,el){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   G('page-'+name).classList.add('active');
   if(el) el.classList.add('active');
-  const T={home:'Home',dashboard:'Dashboard Financiero',carga:'Cargar Reportes',historial:'Historial de Cargas',mapping:'Mapeo de Cuentas',datos:'Ver Datos',backup:'Backup y Restaurar',comparativa:'Comparativas',eerr:'Estados de Resultados (EERR)',eerrdet:'ERR Detallado',esf:'Estado de Situación Financiera (ESF)',presupuesto:'Presupuesto vs Real',config_tasas:'Configuración de Tasas',err_divisa:'Estados de Resultados Divisa Real (EERR)',esf_divisa:'ESF Divisa Real',export_ai:'Exportar Briefing IA',sistema_empresas:'Empresas y Unidades',reset_pwd:'Usuarios y Claves'};
-  const S={home:'Resumen del holding — Divisa Real',dashboard:'Estado de resultados consolidado',carga:'Importar XLS de Odoo',historial:'Auditoría y reversión',mapping:'Configuración de cuentas contables',datos:'Explorador de datos',backup:'Gestión de copias de seguridad',comparativa:'Mismo período vs año anterior',eerr:'P&L estructurado por partida',eerrdet:'Desglose por tipo de ingreso + ACUM EJEC',esf:'Balance trimestral Q1–Q4',presupuesto:'Real vs valores presupuestados',config_tasas:'Tasas BCV/Paralela y métodos de pago por cuenta',esf_divisa:'Revalorización trimestral de efectivo en Bs',export_ai:'Generar prompt y datos para análisis con IA',sistema_empresas:'Administración de empresas legales y unidades de negocio',reset_pwd:'Administración de usuarios, roles y contraseñas'};
+  const T={home:'Home',dashboard:'Dashboard Financiero',carga:'Cargar Reportes',historial:'Historial de Cargas',mapping:'Mapeo de Cuentas',datos:'Ver Datos',backup:'Backup y Restaurar',comparativa:'Comparativas',eerr:'Estados de Resultados (EERR)',eerrdet:'ERR Detallado',esf:'Estado de Situación Financiera (ESF)',presupuesto:'Presupuesto vs Real',config_tasas:'Configuración de Tasas',err_divisa:'Estados de Resultados Divisa Real (EERR)',esf_divisa:'ESF Divisa Real',export_ai:'Exportar Briefing IA',sistema_empresas:'Empresas y Unidades',reset_pwd:'Usuarios y Claves',sistema_auditoria:'Log de Auditoría'};
+  const S={home:'Resumen del holding — Divisa Real',dashboard:'Estado de resultados consolidado',carga:'Importar XLS de Odoo',historial:'Auditoría y reversión',mapping:'Configuración de cuentas contables',datos:'Explorador de datos',backup:'Gestión de copias de seguridad',comparativa:'Mismo período vs año anterior',eerr:'P&L estructurado por partida',eerrdet:'Desglose por tipo de ingreso + ACUM EJEC',esf:'Balance trimestral Q1–Q4',presupuesto:'Real vs valores presupuestados',config_tasas:'Tasas BCV/Paralela y métodos de pago por cuenta',esf_divisa:'Revalorización trimestral de efectivo en Bs',export_ai:'Generar prompt y datos para análisis con IA',sistema_empresas:'Administración de empresas legales y unidades de negocio',reset_pwd:'Administración de usuarios, roles y contraseñas',sistema_auditoria:'Registro de actividad administrativa (hora Venezuela)'};
   G('ptitle').textContent=T[name]||''; G('psub').textContent=S[name]||'';
   if(name==='home')       loadHome();
   if(name==='dashboard'){ initDivisaToggle(); loadDash(); }
@@ -306,6 +310,7 @@ function showPage(name,el){
   if(name==='sistema_empresas' && typeof loadSistemaEmpresas==='function') loadSistemaEmpresas();
   if(name==='reset_pwd' && typeof loadSistemaUsuarios==='function') loadSistemaUsuarios();
   if(name==='backup' && typeof loadAutoBackups==='function') loadAutoBackups();
+  if(name==='sistema_auditoria' && typeof loadAuditoria==='function') loadAuditoria();
 
   const PAGES_WITH_EXCEL = ['eerr','err_divisa','esf','esf_divisa','presupuesto','comparativa','indicadores'];
   const btnExcel = document.getElementById('btn-export-excel');

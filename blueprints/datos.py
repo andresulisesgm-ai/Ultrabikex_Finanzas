@@ -1,5 +1,6 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 from datetime import datetime
+from audit import registrar_auditoria
 from db import get_db
 from auth import admin_required
 
@@ -95,6 +96,13 @@ def data_override():
         (year, month, unit, odoo_code, report_type, valor_anterior, valor_nuevo, ts, empresa_id)
     )
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'datos',
+        'guardar_override',
+        f'year={year}, month={month}, unit={unit}, odoo_code={odoo_code}, valor_nuevo={valor_nuevo}',
+    )
     return jsonify({'ok': True, 'valor_anterior': valor_anterior, 'valor_nuevo': valor_nuevo})
 
 
@@ -154,4 +162,11 @@ def data_override_undo():
     # Eliminar el log revertido
     db.execute('DELETE FROM financials_override_log WHERE id=?', (log['id'],))
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'datos',
+        'deshacer_override',
+        f'year={year}, month={month}, unit={unit}, odoo_code={odoo_code}, valor_revertido={valor_revertido}',
+    )
     return jsonify({'ok': True, 'valor_revertido': valor_revertido})

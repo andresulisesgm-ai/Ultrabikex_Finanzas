@@ -34,10 +34,12 @@ function renderSistemaUsuarios() {
   }
 
   const me = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.username : '';
+  const soySA = (typeof currentUser !== 'undefined' && currentUser && currentUser.es_superadmin === 1);
 
   const filas = _suUsuarios.map(u => {
     const esYo = u.username === me;
     const esSA = u.es_superadmin === 1;
+    const bloqueadoPorSA = esSA && !soySA;
     const rolBadge = esSA
       ? '<span style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600">Superadmin</span>'
       : (u.role === 'admin'
@@ -55,13 +57,15 @@ function renderSistemaUsuarios() {
     const disableRol = esYo || esSA;
     const btnRol = `<button style="padding:4px 9px;font-size:11px;border:1px solid var(--border,#cbd5e1);border-radius:6px;background:#fff;${disableRol ? 'opacity:.45;cursor:not-allowed' : 'cursor:pointer'}" ${disableRol ? 'disabled' : ''} onclick="cambiarRolUsuario('${_suEsc(u.username)}', '${_suEsc(u.role)}', ${u.activo ? 1 : 0})">Cambiar rol</button>`;
 
-    const btnToggle = esYo
+    const btnToggle = (esYo || bloqueadoPorSA)
       ? ''
       : `<button style="padding:4px 9px;font-size:11px;border:1px solid var(--border,#cbd5e1);border-radius:6px;background:#fff;cursor:pointer" onclick="toggleEstadoUsuario('${_suEsc(u.username)}', '${_suEsc(u.role)}', ${u.activo ? 1 : 0})">${u.activo ? 'Desactivar' : 'Activar'}</button>`;
 
-    const btnReset = `<button style="padding:4px 9px;font-size:11px;border:1px solid var(--border,#cbd5e1);border-radius:6px;background:#fff;cursor:pointer" onclick="abrirFormResetUsuario('${_suEsc(u.username)}')">Restablecer clave</button>`;
+    const btnReset = bloqueadoPorSA
+      ? '<span style="font-size:11px;color:var(--mu,#64748b)">🔒 Protegida</span>'
+      : `<button style="padding:4px 9px;font-size:11px;border:1px solid var(--border,#cbd5e1);border-radius:6px;background:#fff;cursor:pointer" onclick="abrirFormResetUsuario('${_suEsc(u.username)}')">Restablecer clave</button>`;
 
-    const btnUnlock = u.bloqueado
+    const btnUnlock = (u.bloqueado && !bloqueadoPorSA)
       ? `<button style="padding:4px 9px;font-size:11px;border:1px solid #f59e0b;border-radius:6px;background:#fffbeb;color:#92400e;cursor:pointer" onclick="desbloquearUsuario('${_suEsc(u.username)}')">Desbloquear ahora</button>`
       : '';
 

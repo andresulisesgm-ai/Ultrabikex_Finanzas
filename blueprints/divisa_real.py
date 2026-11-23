@@ -1,5 +1,6 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 from datetime import datetime
+from audit import registrar_auditoria
 from db import get_db
 from auth import login_required
 from helpers import get_clasificacion
@@ -322,6 +323,13 @@ def save_ganancia_perdida_divisa():
             ganancia=excluded.ganancia, perdida=excluded.perdida, updated_at=excluded.updated_at
     ''', (year, quarter, empresa_id, ganancia, perdida))
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'divisa_real',
+        'guardar_override',
+        f'year={year}, quarter={quarter}, empresa_id={empresa_id}, ganancia={ganancia}, perdida={perdida}',
+    )
     return jsonify({'ok': True, 'year': year, 'quarter': quarter, 'empresa_id': empresa_id, 'ganancia': ganancia, 'perdida': perdida})
 
 
@@ -340,4 +348,11 @@ def undo_ganancia_perdida_divisa():
         (year, quarter, empresa_id)
     )
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'divisa_real',
+        'deshacer_override',
+        f'year={year}, quarter={quarter}, empresa_id={empresa_id}',
+    )
     return jsonify({'ok': True})

@@ -1,4 +1,5 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, session
+from audit import registrar_auditoria
 from db import get_db
 from auth import admin_required
 from engine import MONTH_TO_QUARTER
@@ -27,4 +28,11 @@ def revert_history(hid):
         db.execute('DELETE FROM financials WHERE year=? AND month=? AND unit=?', (h['year'], h['month'], h['unit']))
     db.execute('UPDATE history SET reverted=1 WHERE id=?', (hid,))
     db.commit()
+    registrar_auditoria(
+        db,
+        session.get('username', 'sistema'),
+        'cargas',
+        'revertir_carga',
+        f"history_id={hid}, year={h['year']}, month={h['month']}, unit={h['unit']}",
+    )
     return jsonify({'ok': True})
