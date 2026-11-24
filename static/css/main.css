@@ -662,6 +662,27 @@ input[type=file]{display:none;}
   background: #f1f5f9 !important;
 }
 
+/* Métodos de Pago (% Cash): columnas fijas + barra de meses + celdas modificadas */
+.metodos-tw{max-height:520px;overflow:auto;position:relative;border:1px solid var(--bd);border-radius:8px}
+.metodos-table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%}
+.metodos-table thead th{position:sticky;top:0;z-index:3;background:var(--sf2);border-bottom:1px solid var(--bd);white-space:nowrap}
+.metodos-table th.col-fix-1,.metodos-table td.col-fix-1{position:sticky;left:0;width:105px;min-width:105px;max-width:105px;z-index:2;background:var(--bg);border-right:1px solid var(--bd)}
+.metodos-table th.col-fix-2,.metodos-table td.col-fix-2{position:sticky;left:105px;width:230px;min-width:230px;max-width:230px;z-index:2;background:var(--bg);border-right:2px solid var(--bd);box-shadow:3px 0 6px -2px rgba(0,0,0,0.12);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.metodos-table thead th.col-fix-1,.metodos-table thead th.col-fix-2{z-index:5;background:var(--sf2)}
+.metodos-table tbody tr:hover td.col-fix-1,.metodos-table tbody tr:hover td.col-fix-2{background:var(--sf2)}
+.pct-input.pct-mod{background:#fff7ed !important;border:1.5px solid #f59e0b !important;color:#9a3412 !important;font-weight:700}
+.metodos-meses-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.mes-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid var(--bd);background:var(--sf2);color:var(--mu);cursor:pointer;transition:all .15s}
+.mes-pill:hover{border-color:var(--primary);color:var(--tx)}
+.mes-pill.mod{background:#eff6ff;border-color:#93c5fd;color:#1e40af}
+.mes-pill.mod .mes-dot{width:7px;height:7px;border-radius:50%;background:#2563eb;display:inline-block}
+.mes-pill.active{background:#11285a;border-color:#11285a;color:#fff}
+.mes-pill.active .mes-dot{background:#60a5fa}
+.mes-pill .mes-cnt{font-size:10px;opacity:.85;font-weight:500}
+.metodos-resumen-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;margin-bottom:10px;border-radius:6px;background:var(--sf2);border:1px solid var(--bd);font-size:11px;color:var(--tx)}
+.metodos-badge-mod{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:700;font-size:11px}
+.metodos-badge-clean{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;background:#e2e8f0;color:#475569;font-weight:600;font-size:11px}
+
 
 
 

@@ -722,19 +722,26 @@
           Porción pagada en Bs a tasa BCV = 100 - % Cash<br>Se ajusta con diferencial (tasa paralela / tasa BCV)
         </div>
       </div>
-      <input type="text" id="metodos-buscador" placeholder="Buscar por código o nombre de cuenta..." oninput="filtrarMetodos()" style="width:100%;padding:6px 10px;font-size:11px;border-radius:6px;background:var(--sf2);margin-bottom:10px">
+      <div id="metodos-meses-bar" class="metodos-meses-bar"></div>
+      <div id="metodos-resumen-bar" class="metodos-resumen-bar" style="display:none"></div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
+        <input type="text" id="metodos-buscador" placeholder="Buscar por código o nombre de cuenta..." oninput="filtrarMetodos()" style="flex:1;padding:6px 10px;font-size:11px;border-radius:6px;background:var(--sf2)">
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--tx);cursor:pointer;white-space:nowrap;padding:5px 10px;border-radius:6px;background:var(--sf2);border:1px solid var(--bd)">
+          <input type="checkbox" id="metodos-solo-mod" onchange="filtrarMetodos()"> Solo modificadas
+        </label>
+      </div>
 
       <div id="metodos-loading" style="padding:20px;text-align:center;color:var(--mu)">Cargando cuentas...</div>
       <div id="metodos-container" style="display:none">
-        <div class="tw" style="max-height:500px">
-          <table>
+        <div class="tw metodos-tw">
+          <table class="metodos-table">
             <thead>
               <tr>
-                <th style="width:15%">Código Odoo</th>
-                <th style="width:30%">Cuenta</th>
-                <th style="width:10%">Tipo</th>
+                <th class="col-fix-1">Código Odoo</th>
+                <th class="col-fix-2">Cuenta</th>
+                <th style="min-width:52px;text-align:center">Tipo</th>
                 {% for u in units %}
-                <th style="width:{{ 45 // units|length }}%">{{ u }}<br><span style="font-size:9px;font-weight:400;color:var(--mu)">% Cash</span></th>
+                <th style="min-width:92px">{{ u }}<br><span style="font-size:9px;font-weight:400;color:var(--mu)">% Cash</span></th>
                 {% endfor %}
               </tr>
             </thead>

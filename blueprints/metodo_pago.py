@@ -1,3 +1,4 @@
+import re
 from flask import Blueprint, jsonify, request, session
 from audit import registrar_auditoria
 from db import get_db
@@ -22,6 +23,72 @@ def get_metodo_pago():
     ).fetchall()
 
     return jsonify([dict(r) for r in rows])
+
+
+@metodo_pago_bp.route('/api/metodo_pago/resumen', methods=['GET'])
+def get_metodo_pago_resumen():
+    """Retorna por cada mes del año cuántos % Cash difieren de 100%, fecha y usuario del último cambio."""
+    year = request.args.get('year')
+    if not year:
+        return jsonify({'error': 'Se requiere year'}), 400
+
+    db = get_db()
+    rows = db.execute('''
+        SELECT
+            month,
+            COUNT(*) AS total,
+            SUM(CASE WHEN pct_cash != 100 THEN 1 ELSE 0 END) AS modificados,
+            COUNT(DISTINCT CASE WHEN pct_cash != 100 THEN odoo_code END) AS cuentas_modificadas,
+            MAX(created_at) AS ultima_fecha
+        FROM metodo_pago_cuenta
+        WHERE year = ?
+        GROUP BY month
+    ''', (year,)).fetchall()
+
+    meses = {}
+    for r in rows:
+        meses[r['month']] = {
+            'total': int(r['total'] or 0),
+            'modificados': int(r['modificados'] or 0),
+            'cuentas_modificadas': int(r['cuentas_modificadas'] or 0),
+            'ultima_fecha': r['ultima_fecha'],
+            'ultimo_usuario': None,
+        }
+
+    try:
+        audit_rows = db.execute('''
+            SELECT usuario, fecha, detalle
+            FROM audit_log
+            WHERE modulo = 'metodo_pago'
+              AND (detalle LIKE ? OR detalle LIKE ?)
+            ORDER BY id DESC
+        ''', (f'%year={year},%', f'%to={year}/%')).fetchall()
+
+        pat_save = re.compile(r'year=' + re.escape(str(year)) + r',\s*month=([A-Z]+)')
+        pat_copy = re.compile(r'to=' + re.escape(str(year)) + r'/([A-Z]+)')
+
+        for ar in audit_rows:
+            det = ar['detalle'] or ''
+            m_match = pat_save.search(det) or pat_copy.search(det)
+            if not m_match:
+                continue
+            m_key = m_match.group(1)
+            if m_key not in meses:
+                meses[m_key] = {
+                    'total': 0,
+                    'modificados': 0,
+                    'cuentas_modificadas': 0,
+                    'ultima_fecha': ar['fecha'],
+                    'ultimo_usuario': ar['usuario'],
+                }
+            elif meses[m_key]['ultimo_usuario'] is None:
+                meses[m_key]['ultimo_usuario'] = ar['usuario']
+                if ar['fecha']:
+                    meses[m_key]['ultima_fecha'] = ar['fecha']
+    except Exception:
+        pass
+
+    return jsonify({'year': str(year), 'meses': meses})
 
 
 @metodo_pago_bp.route('/api/metodo_pago', methods=['POST'])
