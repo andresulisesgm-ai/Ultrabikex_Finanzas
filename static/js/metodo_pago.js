@@ -1,6 +1,20 @@
 const METODOS_MONTHS = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEPT','OCT','NOV','DIC'];
 let _metodosResumenCache = { year: null, meses: {} };
 
+function initMetodosYearSelect(){
+  const sel = G('metodos-year');
+  if(!sel || sel.options.length > 0) return;
+  const currentYear = new Date().getFullYear();
+  const maxYear = currentYear + 1;
+  for(let y = 2025; y <= maxYear; y++){
+    const opt = document.createElement('option');
+    opt.value = String(y);
+    opt.textContent = String(y);
+    sel.appendChild(opt);
+  }
+  sel.value = String(currentYear);
+}
+
 async function cargarResumenMetodos(year){
   try{
     const r = await fetch(`/api/metodo_pago/resumen?year=${year}`);
@@ -16,11 +30,6 @@ async function cargarResumenMetodos(year){
   renderMesesBar();
 }
 
-function seleccionarMesMetodos(m){
-  G('metodos-month').value = m;
-  cargarMetodosPago();
-}
-
 function renderMesesBar(){
   const year = G('metodos-year').value;
   const activeMonth = G('metodos-month').value;
@@ -32,16 +41,9 @@ function renderMesesBar(){
       const info = meses[m] || { modificados: 0, total: 0 };
       const isActive = m === activeMonth;
       const isMod = (info.modificados || 0) > 0;
-      pillsHtml += `<button type="button" class="mes-pill${isActive ? ' active' : ''}${isMod ? ' mod' : ''}" onclick="seleccionarMesMetodos('${m}')">${isMod ? '<span class="mes-dot"></span>' : ''}${m}${isMod ? `<span class="mes-cnt">(${info.modificados})</span>` : ''}</button>`;
+      pillsHtml += `<span class="mes-pill${isActive ? ' active' : ''}${isMod ? ' mod' : ''}">${isMod ? '<span class="mes-dot"></span>' : ''}${m}${isMod ? `<span class="mes-cnt">(${info.modificados})</span>` : ''}</span>`;
     }
     bar.innerHTML = pillsHtml;
-  }
-  const sel = G('metodos-month');
-  if(sel){
-    for(const opt of sel.options){
-      const info = meses[opt.value];
-      opt.textContent = (info && info.modificados > 0) ? `${opt.value} ● (${info.modificados})` : opt.value;
-    }
   }
 }
 
@@ -88,6 +90,7 @@ function onPctInputChange(inp){
 }
 
 async function cargarMetodosPago(){
+  initMetodosYearSelect();
   const year=G('metodos-year').value, month=G('metodos-month').value;
   G('metodos-loading').style.display='block';
   G('metodos-container').style.display='none';
