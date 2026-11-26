@@ -295,26 +295,60 @@ def get_ganancia_perdida_divisa():
         'SELECT ganancia, perdida FROM ganancia_perdida_divisa_override WHERE year=? AND quarter=? AND empresa_id IS ?',
         (year, quarter, empresa_id)
     ).fetchone()
+    unidades = []
+    distribucion = {}
+    if empresa_id is not None:
+        u_rows = db.execute(
+            'SELECT nombre, recibe_plug_divisa FROM unidades WHERE empresa_id=? AND activo=1 ORDER BY id',
+            (empresa_id,)
+        ).fetchall()
+        unidades = [{'nombre': r['nombre'], 'recibe_plug_divisa': bool(r['recibe_plug_divisa'])} for r in u_rows]
+        d_rows = db.execute(
+            'SELECT unit, porcentaje FROM ganancia_perdida_divisa_distribucion WHERE year=? AND quarter=? AND empresa_id=?',
+            (year, quarter, empresa_id)
+        ).fetchall()
+        distribucion = {r['unit']: float(r['porcentaje'] or 0.0) for r in d_rows}
     return jsonify({
         'year': year, 'quarter': quarter, 'empresa_id': empresa_id,
         'sugerido_ganancia': sugerido if sugerido > 0 else 0.0,
         'sugerido_perdida': abs(sugerido) if sugerido < 0 else 0.0,
         'override_ganancia': row['ganancia'] if row else None,
         'override_perdida': row['perdida'] if row else None,
+        'unidades': unidades,
+        'distribucion': distribucion,
     })
 
 
 @divisa_real_bp.route('/api/divisa_real/ganancia_perdida', methods=['POST'])
 def save_ganancia_perdida_divisa():
-    """Guarda el ajuste manual de Yocelin para Ganancia/Perdida en tasa cambiaria."""
+    """Guarda el ajuste manual de Yocelin para Ganancia/Perdida en tasa cambiaria y su distribucion % por unidad."""
     data = request.get_json() or {}
     year = data.get('year')
     quarter = data.get('quarter')
     empresa_id = data.get('empresa_id')
-    ganancia = data.get('ganancia', 0) or 0
-    perdida = data.get('perdida', 0) or 0
+    ganancia = float(data.get('ganancia', 0) or 0)
+    perdida = float(data.get('perdida', 0) or 0)
+    distribucion = data.get('distribucion')
     if not year or not quarter:
         return jsonify({'error': 'year y quarter son requeridos'}), 400
+
+    dist_limpia = None
+    if distribucion is not None and empresa_id is not None:
+        if not isinstance(distribucion, dict):
+            return jsonify({'error': 'distribucion debe ser un objeto {unidad: porcentaje}'}), 400
+        dist_limpia = {}
+        for u, pct in distribucion.items():
+            try:
+                v = float(pct or 0)
+            except (TypeError, ValueError):
+                return jsonify({'error': f'Porcentaje invalido para {u}'}), 400
+            if v < 0 or v > 100:
+                return jsonify({'error': f'Porcentaje fuera de rango (0-100) para {u}'}), 400
+            dist_limpia[str(u)] = round(v, 4)
+        total_pct = round(sum(dist_limpia.values()), 2)
+        if (ganancia > 0 or perdida > 0) and abs(total_pct - 100.0) > 0.01:
+            return jsonify({'error': f'La distribucion por unidad debe sumar 100% (actual: {total_pct:.2f}%)'}), 400
+
     db = get_db()
     db.execute('''
         INSERT INTO ganancia_perdida_divisa_override (year, quarter, empresa_id, ganancia, perdida, updated_at)
@@ -322,20 +356,35 @@ def save_ganancia_perdida_divisa():
         ON CONFLICT(year, quarter, empresa_id) DO UPDATE SET
             ganancia=excluded.ganancia, perdida=excluded.perdida, updated_at=excluded.updated_at
     ''', (year, quarter, empresa_id, ganancia, perdida))
+
+    if dist_limpia is not None and empresa_id is not None:
+        db.execute(
+            'DELETE FROM ganancia_perdida_divisa_distribucion WHERE year=? AND quarter=? AND empresa_id=?',
+            (year, quarter, empresa_id)
+        )
+        for u, pct in dist_limpia.items():
+            db.execute('''
+                INSERT INTO ganancia_perdida_divisa_distribucion (year, quarter, empresa_id, unit, porcentaje, updated_at)
+                VALUES (?, ?, ?, ?, ?, datetime('now','localtime'))
+            ''', (year, quarter, empresa_id, u, pct))
+
     db.commit()
     registrar_auditoria(
         db,
         session.get('username', 'sistema'),
         'divisa_real',
         'guardar_override',
-        f'year={year}, quarter={quarter}, empresa_id={empresa_id}, ganancia={ganancia}, perdida={perdida}',
+        f'year={year}, quarter={quarter}, empresa_id={empresa_id}, ganancia={ganancia}, perdida={perdida}, distribucion={dist_limpia}',
     )
-    return jsonify({'ok': True, 'year': year, 'quarter': quarter, 'empresa_id': empresa_id, 'ganancia': ganancia, 'perdida': perdida})
+    return jsonify({
+        'ok': True, 'year': year, 'quarter': quarter, 'empresa_id': empresa_id,
+        'ganancia': ganancia, 'perdida': perdida, 'distribucion': dist_limpia,
+    })
 
 
 @divisa_real_bp.route('/api/divisa_real/ganancia_perdida/undo', methods=['POST'])
 def undo_ganancia_perdida_divisa():
-    """Elimina el ajuste manual guardado, volviendo al valor sugerido por el sistema."""
+    """Elimina el ajuste manual guardado y su distribucion por unidad."""
     data = request.get_json() or {}
     year = data.get('year')
     quarter = data.get('quarter')
@@ -347,6 +396,11 @@ def undo_ganancia_perdida_divisa():
         'DELETE FROM ganancia_perdida_divisa_override WHERE year=? AND quarter=? AND empresa_id IS ?',
         (year, quarter, empresa_id)
     )
+    if empresa_id is not None:
+        db.execute(
+            'DELETE FROM ganancia_perdida_divisa_distribucion WHERE year=? AND quarter=? AND empresa_id=?',
+            (year, quarter, empresa_id)
+        )
     db.commit()
     registrar_auditoria(
         db,

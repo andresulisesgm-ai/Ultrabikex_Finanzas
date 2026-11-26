@@ -236,16 +236,16 @@ EERR_STRUCTURE = [
     ('Deterioro de inventarios', False, None, False, None, 3, True, 'Otros Gastos no Operacionales', 3),
     ('Faltante de inventarios', False, None, False, None, 3, True, 'Otros Gastos no Operacionales', 3),
     ('Total Gastos Operacionales y No Operacionales', True, None, True, 'FFFFFF00', 0, False, None, 0),
-    ('Otros Ingresos no Operacionales', True, None, True, None, 0, False, None, 1),
-    ('Ingresos por alquileres', False, None, False, None, 3, False, None, 2),
-    ('Ingresos por intereses', False, None, False, None, 3, False, None, 2),
-    ('Ingresos por comisiones', False, None, False, None, 3, False, None, 2),
-    ('Ingresos por servicios administrativos', False, None, False, None, 3, False, None, 2),
-    ('Sobrante en ventas', False, None, False, None, 3, False, None, 2),
-    ('Sobrante de inventarios', False, None, False, None, 3, False, None, 2),
-    ('Ganancia en venta de activos', False, None, False, None, 3, False, None, 2),
-    ('Ganancia por tasa cambiaria', False, None, False, None, 3, False, None, 2),
-    ('Ganancia por diferencias en pagos', False, None, False, None, 3, False, None, 2),
+    ('Otros Ingresos no Operacionales', True, None, True, None, 0, False, None, 0),
+    ('Ingresos por alquileres', False, None, False, None, 3, False, 'Otros Ingresos no Operacionales', 1),
+    ('Ingresos por intereses', False, None, False, None, 3, False, 'Otros Ingresos no Operacionales', 1),
+    ('Ingresos por comisiones', False, None, False, None, 3, False, 'Otros Ingresos no Operacionales', 1),
+    ('Ingresos por servicios administrativos', False, None, False, None, 3, False, 'Otros Ingresos no Operacionales', 1),
+    ('Sobrante en ventas', False, None, False, None, 3, False, 'Otros Ingresos no Operacionales', 1),
+    ('Sobrante de inventarios', False, None, False, None, 3, False, 'Otros Ingresos no Operacionales', 1),
+    ('Ganancia en venta de activos', False, None, False, None, 3, False, 'Otros Ingresos no Operacionales', 1),
+    ('Ganancia por tasa cambiaria', False, None, False, None, 3, False, 'Otros Ingresos no Operacionales', 1),
+    ('Ganancia por diferencias en pagos', False, None, False, None, 3, False, 'Otros Ingresos no Operacionales', 1),
     ('Utilidad Neta', True, None, True, 'FF66FF66', 0, False, None, 0),
     ('ISLR', True, None, True, None, 0, False, None, 0),
     ('Utilidad Neta despues de ISLR', True, None, True, 'FF66FF66', 0, False, None, 0),
@@ -901,7 +901,16 @@ def esf_engine(year, unit='', aplicar_divisa_real=False, empresa_id=None,
         
         # Nivel 4: cuentas individuales que componen este nodo hoja
         if not is_header and name not in ('Resultados acumulados', 'Resultados del ejercicio'):
+            es_revalorizable = aplicar_divisa_real and (name in PARTIDAS_ESF_DIVISA_REAL)
             for (odoo_code, odoo_name), q_vals in detail_by_group.get(name, {}).items():
+                if es_revalorizable:
+                    q_vals_out = {}
+                    for q_num in (1, 2, 3, 4):
+                        val_orig = q_vals.get(q_num, 0.0)
+                        ratio = tasas_por_quarter.get(q_num)
+                        q_vals_out[q_num] = round(val_orig * (ratio[0] / ratio[1]), 2) if ratio else round(val_orig, 2)
+                else:
+                    q_vals_out = q_vals
                 rows.append({
                     'partida':    odoo_name,
                     'odoo_code':  odoo_code,
@@ -911,7 +920,7 @@ def esf_engine(year, unit='', aplicar_divisa_real=False, empresa_id=None,
                     'level':      4,
                     'parent_name': name,
                     'indent':     indent + 1,
-                    'quarters':   q_vals
+                    'quarters':   q_vals_out
                 })
         
     result = {
@@ -1045,6 +1054,68 @@ SUBTOTAL_EXCLUSIONS = {
     'Gastos de TI+I': ['Gastos de dominio de página web', 'Gastos de servidores', 'Gastos de software tecnológico'],
     'Otros Gastos no Operacionales': ['Deterioro de inventarios', 'Faltante de inventarios'],
 }
+
+
+def distribuir_monto_unidades(monto, distribucion):
+    """
+    Reparte `monto` entre las unidades segun `distribucion` ({unit: pct}, suma=100),
+    ajustando cualquier residual de centavos ($0.01) en la unidad con mayor porcentaje
+    para que la suma de unidades cuadre al centavo exacto con `monto`.
+    """
+    if not distribucion or monto == 0:
+        return {u: 0.0 for u in distribucion}
+    asignados = {u: round(monto * (pct / 100.0), 2) for u, pct in distribucion.items()}
+    total_asignado = round(sum(asignados.values()), 2)
+    diff = round(round(monto, 2) - total_asignado, 2)
+    if diff != 0:
+        unidad_mayor = max(distribucion.keys(), key=lambda u: distribucion[u])
+        asignados[unidad_mayor] = round(asignados[unidad_mayor] + diff, 2)
+    return asignados
+
+
+def plug_divisa_para_unidad(conn, year, unit, empresa_id, plug_efectivo_q):
+    """
+    Calcula el diccionario acumulado {1..4} de Ganancia/Perdida en tasa cambiaria que
+    corresponde a `unit`:
+    - Si `unit` esta vacio (consolidado), devuelve `plug_efectivo_q` completo.
+    - Si hay distribucion porcentual guardada en `ganancia_perdida_divisa_distribucion`
+      para (year, q, empresa_id), aplica ese % (con ajuste de centavos en la unidad mayor).
+    - Si no hay distribucion guardada para ese trimestre, mantiene retrocompatibilidad
+      via `unidades.recibe_plug_divisa`.
+    """
+    if not unit:
+        return plug_efectivo_q
+    emp_id = empresa_id
+    if emp_id is None:
+        row_u = conn.execute('SELECT empresa_id FROM unidades WHERE nombre = ?', (unit,)).fetchone()
+        emp_id = row_u['empresa_id'] if row_u else None
+    row_plug = conn.execute('SELECT recibe_plug_divisa FROM unidades WHERE nombre = ?', (unit,)).fetchone()
+    fallback_recibe = bool(row_plug and row_plug['recibe_plug_divisa'])
+
+    plug_unit_q = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}
+    acum = 0.0
+    for q in (1, 2, 3, 4):
+        inc_q = round(plug_efectivo_q.get(q, 0.0) - plug_efectivo_q.get(q - 1, 0.0), 2)
+        inc_unit = 0.0
+        if inc_q != 0 and emp_id is not None:
+            try:
+                dist_rows = conn.execute(
+                    'SELECT unit, porcentaje FROM ganancia_perdida_divisa_distribucion WHERE year=? AND quarter=? AND empresa_id=?',
+                    (year, q, emp_id)
+                ).fetchall()
+            except Exception:
+                dist_rows = []
+            dist_map = {r['unit']: float(r['porcentaje'] or 0.0) for r in dist_rows}
+            if dist_map and sum(dist_map.values()) > 0:
+                reparto = distribuir_monto_unidades(inc_q, dist_map)
+                inc_unit = reparto.get(unit, 0.0)
+            else:
+                inc_unit = inc_q if fallback_recibe else 0.0
+        elif inc_q != 0:
+            inc_unit = inc_q if fallback_recibe else 0.0
+        acum = round(acum + inc_unit, 2)
+        plug_unit_q[q] = acum
+    return plug_unit_q
 
 
 def calcular_estados_reales(year, unit='', empresa_id=None, db=None):
@@ -1182,14 +1253,7 @@ def calcular_estados_reales(year, unit='', empresa_id=None, db=None):
         # -- las demas unidades (PiedeMonte, Terracota, Ucafe, Barinas, Naranjos) no lo llevan.
         # Confirmado con datos literales de "N EERR RODEO" vs "N EERR ULTRAX" (valores identicos)
         # vs "N EERR PIEDEM"/"N EERR TERRA"/"N EERR UCAFE"/"N EERR BARINAS"/"N EERR LOS NA" (vacios).
-        if not unit:
-            unit_recibe_plug = True
-        else:
-            _row_plug = conn_estados.execute(
-                'SELECT recibe_plug_divisa FROM unidades WHERE nombre = ?', (unit,)
-            ).fetchone()
-            unit_recibe_plug = bool(_row_plug and _row_plug[0])
-        plug_a_inyectar = plug_efectivo_q if unit_recibe_plug else None
+        plug_a_inyectar = plug_divisa_para_unidad(conn_estados, year, unit, empresa_id, plug_efectivo_q)
         eerr_real = _calcular_eerr_divisa_real(conn_estados, year, unit, empresa_id=empresa_id, plug_divisa_q=plug_a_inyectar)
         if 'error' in eerr_real:
             return eerr_real
@@ -2821,7 +2885,7 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
     cos_aa  = acum_eerr['costos']
     esf_last = quarters_data[max(q for q in [1,2,3,4] if quarters_data[q]['esf']['tot_activos'] != 0) if any(quarters_data[q]['esf']['tot_activos'] for q in [1,2,3,4]) else 4]['esf']
 
-    def build_ind(nombre, referencia, val_prev, vals_q, val_aa, es_pct=False, es_ratio=False, num_q=None, den_q=None, num_aa=None, den_aa=None):
+    def build_ind(nombre, referencia, val_prev, vals_q, val_aa, es_pct=False, es_ratio=False, num_q=None, den_q=None, num_aa=None, den_aa=None, vals_acum_q=None, num_acum_q=None):
         resultado = {'nombre': nombre, 'referencia': referencia, 'es_pct': es_pct, 'es_ratio': es_ratio}
         resultado['year_prev'] = val_prev
         resultado['anio_actual'] = val_aa
@@ -2837,6 +2901,10 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
                 t['numerador'] = num_q.get(q)
             if den_q is not None:
                 t['denominador'] = den_q.get(q)
+            if vals_acum_q is not None:
+                t['valor_acum'] = vals_acum_q.get(q)
+            if num_acum_q is not None:
+                t['numerador_acum'] = num_acum_q.get(q)
             trimestres.append(t)
             if v is not None:
                 vp = v
@@ -2914,7 +2982,9 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
             num_q={q: inc_esf(q,'res_ejercicio') for q in [1,2,3,4]},
             den_q={q: prom_esf(q,'patrimonio') for q in [1,2,3,4]},
             num_aa=esf_last['res_ejercicio'] if hay_esf_prev else None,
-            den_aa=prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'patrimonio') if hay_esf_prev else None),
+            den_aa=prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'patrimonio') if hay_esf_prev else None,
+            vals_acum_q={q: (safe_div(qe(q,'res_ejercicio'), prom_esf(q,'patrimonio')) if q in _esf_quarters_available else None) for q in [1,2,3,4]},
+            num_acum_q={q: (qe(q,'res_ejercicio') if q in _esf_quarters_available else None) for q in [1,2,3,4]}),
         build_ind('Rotación de Inventarios (2 y 3 meses)', '2-3 meses',
             None,
             {q: safe_div(prom_esf(q,'inventarios')*3, qv(q,'costo_merc')) if prom_esf(q,'inventarios') is not None else None for q in [1,2,3,4]},
@@ -2926,7 +2996,9 @@ def compute_indicadores_v2(db, year, empresa_id=None, datos_precalculados=None):
             num_q={q: inc_esf(q,'res_ejercicio') for q in [1,2,3,4]},
             den_q={q: prom_esf(q,'tot_activos') for q in [1,2,3,4]},
             num_aa=esf_last['res_ejercicio'] if hay_esf_prev else None,
-            den_aa=prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'tot_activos') if hay_esf_prev else None),
+            den_aa=prom_esf(max(_esf_quarters_available) if _esf_quarters_available else 4, 'tot_activos') if hay_esf_prev else None,
+            vals_acum_q={q: (safe_div(qe(q,'res_ejercicio'), prom_esf(q,'tot_activos')) if q in _esf_quarters_available else None) for q in [1,2,3,4]},
+            num_acum_q={q: (qe(q,'res_ejercicio') if q in _esf_quarters_available else None) for q in [1,2,3,4]}),
         ind_pc,
         build_ind('Ratio Corriente (entre 1,5 y 2)', '1.5-2',
             None,

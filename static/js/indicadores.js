@@ -21,9 +21,9 @@
   const cStyle="font-size:11px;padding:7px 6px;text-align:right;font-family:'DM Mono',monospace;border:1px solid var(--bd)";
   const lStyle='font-size:11px;padding:8px 10px;text-align:left;border:1px solid var(--bd);white-space:nowrap;min-width:260px';
 
-  function fmtInd(v, esPct, esRatio){
+  function fmtInd(v, esPct, esRatio, decPct){
     if(v===null||v===undefined) return '<span style="color:var(--mu)">—</span>';
-    if(esPct) return (v*100).toFixed(1)+'%';
+    if(esPct) return (v*100).toFixed(decPct||1)+'%';
     if(esRatio) return v.toFixed(2);
     return fmt(v);
   }
@@ -57,14 +57,15 @@
     const esPct=ind.es_pct;
     const esRatio=ind.es_ratio;
     const nombre=ind.nombre;
+    const decPct=(nombre.startsWith('ROE')||nombre.startsWith('ROA'))?2:1;
     let row=`<tr><td style="${lStyle};position:sticky;left:0;background:#fff;z-index:4">${nombre}</td>`;
-    row+=`<td style="${cStyle}">${fmtInd(ind.year_prev,esPct,esRatio)}</td>`;
+    row+=`<td style="${cStyle}">${fmtInd(ind.year_prev,esPct,esRatio,decPct)}</td>`;
     for(let j=0;j<4;j++){
       const t=ind.trimestres[j];
-      row+=`<td style="${cStyle}">${fmtInd(t.valor,esPct,esRatio)}</td>`;
+      row+=`<td style="${cStyle}">${fmtInd(t.valor,esPct,esRatio,decPct)}</td>`;
       row+=`<td style="${cStyle}">${variCol(t.vari_rel)}</td>`;
     }
-    row+=`<td style="${cStyle};font-weight:700">${fmtInd(ind.anio_actual,esPct,esRatio)}</td>`;
+    row+=`<td style="${cStyle};font-weight:700">${fmtInd(ind.anio_actual,esPct,esRatio,decPct)}</td>`;
     row+=`<td style="${cStyle}">${variCol(ind.vari_rel_aa)}</td>`;
     row+='</tr>';
     rows+=row;

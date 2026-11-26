@@ -170,7 +170,7 @@ const DEFAULT_DASHBOARD_CONFIG = [
     "id": "wc-roa",
     "type": "chart",
     "title": "ROA Acumulado",
-    "subtitle": "Ingresos acumulados / Activos promedio",
+    "subtitle": "Utilidad Neta acumulada / Activos promedio",
     "visible": true,
     "order": 17.4,
     "size": "s",
@@ -1694,7 +1694,7 @@ function _renderTrazaItems(titulo, total, items, divisaReal) {
 
 function _renderTrazaRatio(titulo, valorPct, numerador, denominador, labelNum, labelDen, divisaReal) {
   G('tp-title').textContent = titulo;
-  G('tp-total').textContent = `${valorPct.toFixed(1)}%${divisaReal ? ' · Divisa Real' : ''}`;
+  G('tp-total').textContent = `${valorPct.toFixed(2)}%${divisaReal ? ' · Divisa Real' : ''}`;
   G('tp-rows').innerHTML = `
     <div class="tp-row"><span class="tp-name">${labelNum}</span><span class="tp-val">${fmtS(numerador)}</span></div>
     <div class="tp-row"><span class="tp-name">${labelDen}</span><span class="tp-val">${fmtS(denominador)}</span></div>
@@ -2433,23 +2433,32 @@ function loadROEROA() {
         if (!ind) return;
         const trimestres = ind.trimestres || [];
         const selectedQuarterRoe = G('dash-quarter') ? G('dash-quarter').value : '';
+        const esAcumRoe = isDashAcum();
         let idxConDatos = [0, 1, 2, 3].filter(i => trimestres[i] && trimestres[i].valor !== null);
         if (selectedQuarterRoe) {
-          idxConDatos = idxConDatos.filter(i => String(i + 1) === selectedQuarterRoe);
+          const qSel = parseInt(selectedQuarterRoe, 10);
+          idxConDatos = esAcumRoe
+            ? idxConDatos.filter(i => (i + 1) <= qSel)
+            : idxConDatos.filter(i => (i + 1) === qSel);
         }
         if (!idxConDatos.length) return;
         const labels = idxConDatos.map(i => 'Q' + (i + 1));
         const valores = idxConDatos.map(i => (trimestres[i].valor || 0) * 100);
-        // El gauge muestra el acumulado real "Año Actual" (utilidad acumulada /
-        // promedio del periodo completo), no el ultimo trimestre -- activado en
-        // el backend esta misma sesion (engine.py, hay_esf_prev). Si no hay
-        // acumulado disponible (ej. un solo trimestre sin fallback valido),
-        // usar el ultimo trimestre como estaba antes.
-        const ultimoVal = (ind.anio_actual != null) ? ind.anio_actual * 100 : valores[valores.length - 1];
+        // Gauge: sin filtro = acumulado del año (anio_actual); con trimestre puntual =
+        // valor de ese trimestre; con trimestre acumulado = valor_acum hasta ese trimestre.
+        let ultimoVal;
+        if (!selectedQuarterRoe) {
+          ultimoVal = (ind.anio_actual != null) ? ind.anio_actual * 100 : valores[valores.length - 1];
+        } else if (esAcumRoe) {
+          const tSel = trimestres[parseInt(selectedQuarterRoe, 10) - 1];
+          ultimoVal = (tSel && tSel.valor_acum != null) ? tSel.valor_acum * 100 : valores[valores.length - 1];
+        } else {
+          ultimoVal = valores[valores.length - 1];
+        }
 
         crearGauge(gaugeCanvasId, ultimoVal, color);
         const numEl = G(gaugeNumId);
-        if (numEl) numEl.textContent = ultimoVal.toFixed(1) + '%';
+        if (numEl) numEl.textContent = ultimoVal.toFixed(2) + '%';
 
         const canvas = G(barCanvasId);
         if (!canvas) return;
@@ -2465,7 +2474,7 @@ function loadROEROA() {
               const idx = idxConDatos[els[0].index];
               const t = trimestres[idx];
               if (!t || t.numerador === undefined || t.numerador === null) return;
-              const labelNum = 'Resultados del Ejercicio (acumulado)';
+              const labelNum = 'Utilidad Neta del trimestre';
               const labelDen = id === 'roe' ? 'Patrimonio promedio' : 'Activos promedio';
               _posicionarTraza(e);
               _renderTrazaRatio(`${id.toUpperCase()} — Q${idx+1}`, valores[els[0].index], t.numerador, t.denominador, labelNum, labelDen, modoDivisaReal);
@@ -2474,7 +2483,7 @@ function loadROEROA() {
             datasets: { bar: { maxBarThickness: 40, categoryPercentage: 0.9, barPercentage: 0.95 } },
             plugins: {
               legend: { display: false },
-              tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%` } }
+              tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toFixed(2)}%` } }
             }
           }
         });
@@ -2482,7 +2491,7 @@ function loadROEROA() {
         // Leyenda propia, 1 columna simple, Q1/Q2 en negrita.
         const legendEl = G(id + '-legend');
         if (legendEl) {
-          const montos = labels.map((lbl, i) => `<strong style="color:var(--tx)">${lbl}</strong> ${valores[i].toFixed(1)}%`).join(' &middot; ');
+          const montos = labels.map((lbl, i) => `<strong style="color:var(--tx)">${lbl}</strong> ${valores[i].toFixed(2)}%`).join(' &middot; ');
           legendEl.innerHTML = `<div style="text-align:center">
             <div style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px"><span style="width:9px;height:9px;background:${color};border-radius:2px;display:inline-block;flex-shrink:0"></span>${id.toUpperCase()}</div>
             <div style="font-size:10px;color:var(--mu2);margin-top:4px">${montos}</div>

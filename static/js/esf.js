@@ -116,6 +116,36 @@ async function renderESFDivisaPartidasDetalle(detalle){
     const ganancia = d.override_ganancia !== null ? d.override_ganancia : d.sugerido_ganancia;
     const perdida = d.override_perdida !== null ? d.override_perdida : d.sugerido_perdida;
     const esOverride = d.override_ganancia !== null;
+    const unidades = d.unidades || [];
+    const distGuardada = d.distribucion || {};
+    const tieneDistGuardada = Object.keys(distGuardada).length > 0 &&
+      Object.values(distGuardada).reduce((a, b) => a + (parseFloat(b) || 0), 0) > 0;
+
+    let distHtml = '';
+    if (unidades.length) {
+      const filasU = unidades.map((u, uIdx) => {
+        let pctInit = 0;
+        if (tieneDistGuardada) {
+          pctInit = distGuardada[u.nombre] != null ? distGuardada[u.nombre] : 0;
+        } else if (unidades.length === 1) {
+          pctInit = 100;
+        } else if (u.recibe_plug_divisa) {
+          pctInit = 100;
+        }
+        return `<div style="display:flex;justify-content:space-between;align-items:center;gap:4px;font-size:10px;padding:2px 0">
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${u.nombre}">${u.nombre}</span>
+          <input type="number" class="pct-input gpd-dist-pct" data-q="${q}" data-unit="${u.nombre}" id="gpd-dist-${q}-${uIdx}" value="${pctInit}" min="0" max="100" step="0.01" oninput="actualizarDistribucionGPD(${q})" style="width:58px;text-align:right;font-size:10px;padding:2px 4px">
+          <span style="font-size:10px;color:var(--mu2)">%</span>
+          <span id="gpd-dist-monto-${q}-${uIdx}" style="width:68px;text-align:right;font-family:'DM Mono',monospace;font-size:10px;color:var(--tx2)">$0.00</span>
+        </div>`;
+      }).join('');
+      distHtml = `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)">
+        <div style="font-size:10px;font-weight:700;color:var(--mu);margin-bottom:3px">Distribución por Unidad (%)</div>
+        ${filasU}
+        <div id="gpd-dist-status-${q}" style="font-size:10px;margin-top:4px;padding:4px 6px;border-radius:4px;display:flex;justify-content:space-between;align-items:center"></div>
+      </div>`;
+    }
+
     html += `<div style="margin-bottom:12px;border-bottom:1px solid var(--bd);padding-bottom:8px">
       <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;padding:4px 0">
         <span>Q${q}</span>
@@ -123,19 +153,78 @@ async function renderESFDivisaPartidasDetalle(detalle){
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:3px 0">
         <span>Ganancia</span>
-        <input type="number" class="pct-input" id="gpd-ganancia-${q}" value="${ganancia}" step="0.01" style="width:100px;text-align:right">
+        <input type="number" class="pct-input" id="gpd-ganancia-${q}" value="${ganancia}" step="0.01" oninput="actualizarDistribucionGPD(${q})" style="width:100px;text-align:right">
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:3px 0">
         <span>Pérdida</span>
-        <input type="number" class="pct-input" id="gpd-perdida-${q}" value="${perdida}" step="0.01" style="width:100px;text-align:right">
+        <input type="number" class="pct-input" id="gpd-perdida-${q}" value="${perdida}" step="0.01" oninput="actualizarDistribucionGPD(${q})" style="width:100px;text-align:right">
       </div>
-      <div style="display:flex;gap:6px;margin-top:4px">
-        <button class="btnm-sm" onclick="guardarGananciaPerdidaDivisa(${q})">Guardar Q${q}</button>
+      ${distHtml}
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <button class="btnm-sm" id="gpd-save-btn-${q}" onclick="guardarGananciaPerdidaDivisa(${q})">Guardar Q${q}</button>
         ${esOverride ? `<button class="btnm-sm" style="background:var(--amber-l);color:var(--amber)" onclick="deshacerGananciaPerdidaDivisa(${q})">Deshacer</button>` : ''}
       </div>
     </div>`;
   });
   cont.innerHTML = html || '<p style="color:var(--mu);font-size:11px;padding:10px 0">Sin datos.</p>';
+  quarters.forEach(q => actualizarDistribucionGPD(q));
+}
+
+function actualizarDistribucionGPD(q){
+  const inputs = [...document.querySelectorAll(`.gpd-dist-pct[data-q="${q}"]`)];
+  const statusEl = G(`gpd-dist-status-${q}`);
+  const saveBtn = G(`gpd-save-btn-${q}`);
+  if (!inputs.length || !statusEl) return;
+
+  const ganancia = parseFloat(G(`gpd-ganancia-${q}`)?.value) || 0;
+  const perdida = parseFloat(G(`gpd-perdida-${q}`)?.value) || 0;
+  const neto = Math.round((ganancia - perdida) * 100) / 100;
+  const absNeto = Math.abs(neto);
+
+  const pcts = inputs.map(inp => Math.max(0, parseFloat(inp.value) || 0));
+  const totalPct = Math.round(pcts.reduce((a, b) => a + b, 0) * 100) / 100;
+  const montos = pcts.map(p => Math.round(absNeto * (p / 100) * 100) / 100);
+
+  // Ajuste de centavos en la unidad con mayor % cuando cuadra al 100%
+  if (absNeto > 0 && Math.abs(totalPct - 100) <= 0.01) {
+    const sumM = Math.round(montos.reduce((a, b) => a + b, 0) * 100) / 100;
+    const diffC = Math.round((absNeto - sumM) * 100) / 100;
+    if (diffC !== 0) {
+      let maxIdx = 0;
+      for (let i = 1; i < pcts.length; i++) {
+        if (pcts[i] > pcts[maxIdx]) maxIdx = i;
+      }
+      montos[maxIdx] = Math.round((montos[maxIdx] + diffC) * 100) / 100;
+    }
+  }
+
+  inputs.forEach((inp, idx) => {
+    const mEl = G(`gpd-dist-monto-${q}-${idx}`);
+    if (mEl) {
+      const signo = neto < 0 && montos[idx] > 0 ? '-' : '';
+      mEl.textContent = signo + fmt(montos[idx]);
+    }
+  });
+
+  const pendientePct = Math.round((100 - totalPct) * 100) / 100;
+  const sumAsignado = Math.round(montos.reduce((a, b) => a + b, 0) * 100) / 100;
+  const pendienteMonto = Math.round((absNeto - sumAsignado) * 100) / 100;
+  const cuadrado = (absNeto === 0) || Math.abs(pendientePct) <= 0.01;
+
+  if (cuadrado) {
+    statusEl.style.background = 'var(--green-l)';
+    statusEl.style.color = 'var(--green)';
+    statusEl.innerHTML = `<span>Total: <strong>${totalPct.toFixed(2)}%</strong></span><span>Pendiente: <strong>$0.00 ✓</strong></span>`;
+  } else {
+    statusEl.style.background = 'var(--red-l)';
+    statusEl.style.color = 'var(--red)';
+    statusEl.innerHTML = `<span>Total: <strong>${totalPct.toFixed(2)}%</strong></span><span>Pendiente: <strong>${pendientePct.toFixed(2)}% (${fmt(pendienteMonto)})</strong></span>`;
+  }
+  if (saveBtn) {
+    saveBtn.disabled = !cuadrado;
+    saveBtn.style.opacity = cuadrado ? '1' : '0.5';
+    saveBtn.style.cursor = cuadrado ? 'pointer' : 'not-allowed';
+  }
 }
 
 async function guardarGananciaPerdidaDivisa(q){
@@ -143,15 +232,33 @@ async function guardarGananciaPerdidaDivisa(q){
   const empresaId = CURRENT_EMPRESA_ID || null;
   const ganancia = parseFloat(G(`gpd-ganancia-${q}`).value) || 0;
   const perdida = parseFloat(G(`gpd-perdida-${q}`).value) || 0;
+  const inputs = [...document.querySelectorAll(`.gpd-dist-pct[data-q="${q}"]`)];
+  const distribucion = {};
+  let totalPct = 0;
+  inputs.forEach(inp => {
+    const pct = parseFloat(inp.value) || 0;
+    distribucion[inp.dataset.unit] = pct;
+    totalPct += pct;
+  });
+  if (inputs.length && (ganancia > 0 || perdida > 0) && Math.abs(totalPct - 100) > 0.01) {
+    alert(`La distribución por unidad debe sumar 100% (actual: ${totalPct.toFixed(2)}%).`);
+    return;
+  }
   const r = await fetch('/api/divisa_real/ganancia_perdida', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({year, quarter: q, empresa_id: empresaId, ganancia, perdida})
+    body: JSON.stringify({year, quarter: q, empresa_id: empresaId, ganancia, perdida, distribucion: inputs.length ? distribucion : null})
   });
   if (r.ok) {
-    renderESFDivisaPartidasDetalle(null);
+    ESFDIV_CACHE = {};
+    if (typeof loadESFDivisa === 'function') {
+      loadESFDivisa();
+    } else {
+      renderESFDivisaPartidasDetalle(null);
+    }
   } else {
-    alert('Error al guardar el ajuste.');
+    const err = await r.json().catch(() => ({}));
+    alert(err.error || 'Error al guardar el ajuste.');
   }
 }
 
@@ -165,7 +272,12 @@ async function deshacerGananciaPerdidaDivisa(q){
     body: JSON.stringify({year, quarter: q, empresa_id: empresaId})
   });
   if (r.ok) {
-    renderESFDivisaPartidasDetalle(null);
+    ESFDIV_CACHE = {};
+    if (typeof loadESFDivisa === 'function') {
+      loadESFDivisa();
+    } else {
+      renderESFDivisaPartidasDetalle(null);
+    }
   } else {
     alert('Error al deshacer el ajuste.');
   }

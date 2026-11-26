@@ -120,41 +120,13 @@ class ESFDivisaRealExporter:
         for col in ('C', 'D', 'E', 'F'):
             ws.column_dimensions[col].width = 14
 
-        from engine import PARTIDAS_ESF_DIVISA_REAL, QUARTER_MONTH_CIERRE
-        from db import get_db as _get_db_notas
-
-        db_notas = _get_db_notas()
-        tasas_por_quarter_notas = {}
-        for q_num, month_cierre in QUARTER_MONTH_CIERRE.items():
-            row_tasa = db_notas.execute(
-                'SELECT tasa_bcv_fin, tasa_paralela_fin FROM tasas_periodo WHERE year=? AND month=?',
-                (self.year, month_cierre)
-            ).fetchone()
-            if row_tasa and row_tasa['tasa_bcv_fin'] and row_tasa['tasa_paralela_fin']:
-                tasas_por_quarter_notas[q_num] = (row_tasa['tasa_bcv_fin'], row_tasa['tasa_paralela_fin'])
-
         rows_by_parent = defaultdict(list)
         for r in data_curr.get('rows', []):
             if r.get('level') == 4:
-                parent = r['parent_name']
-                if parent in PARTIDAS_ESF_DIVISA_REAL:
-                    # Aplicar el mismo ratio BCV/Paralela que el motor aplica al header,
-                    # cuenta por cuenta, para que el detalle de notas quede consistente
-                    # con el total ya ajustado (engine.py, esf_engine, líneas 787-802).
-                    r_ajustada = dict(r)
-                    q_orig = r.get('quarters', {})
-                    q_ajustado = {}
-                    for q_num in (1, 2, 3, 4):
-                        valor_real = q_orig.get(q_num, 0.0)
-                        ratio = tasas_por_quarter_notas.get(q_num)
-                        if ratio:
-                            q_ajustado[q_num] = valor_real * (ratio[0] / ratio[1])
-                        else:
-                            q_ajustado[q_num] = valor_real
-                    r_ajustada['quarters'] = q_ajustado
-                    rows_by_parent[parent].append(r_ajustada)
-                else:
-                    rows_by_parent[parent].append(r)
+                # esf_engine(aplicar_divisa_real=True) ya devuelve las filas nivel 4 de
+                # PARTIDAS_ESF_DIVISA_REAL revalorizadas cuenta por cuenta con el ratio
+                # BCV/Paralela -- no re-multiplicar aqui para evitar doble ajuste.
+                rows_by_parent[r['parent_name']].append(r)
 
         row_num = 3
         parent_row_ranges = {}

@@ -738,6 +738,17 @@ def init_db():
             UNIQUE(year, quarter, empresa_id)
         );
 
+        CREATE TABLE IF NOT EXISTS ganancia_perdida_divisa_distribucion (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            year            TEXT NOT NULL,
+            quarter         INTEGER NOT NULL,
+            empresa_id      INTEGER NOT NULL,
+            unit            TEXT NOT NULL,
+            porcentaje      REAL NOT NULL DEFAULT 0,
+            updated_at      TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+            UNIQUE(year, quarter, empresa_id, unit)
+        );
+
         CREATE TABLE IF NOT EXISTS esf_divisa_real_override_log (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             year            TEXT NOT NULL,

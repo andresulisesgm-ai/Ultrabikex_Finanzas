@@ -41,24 +41,15 @@ SEGMENTO_PARTIDAS = {
 def _plug_divisa_para_unit(year, unit_real, empresa_id, db):
     """
     Obtiene el ajuste real de Ganancia/Perdida en tasa cambiaria (plug_efectivo_q)
-    para pasar a cargar_montos_divisa_real, respetando la regla de negocio de que
-    solo el consolidado y la unidad 'Rodeo' reciben el ajuste (ver
-    calcular_estados_reales en engine.py). Devuelve None si la unidad no lo recibe
-    o si el calculo fallo.
+    para pasar a cargar_montos_divisa_real, aplicando la distribucion porcentual
+    por unidad de negocio via plug_divisa_para_unidad() en engine.py.
     """
-    from engine import calcular_estados_reales
+    from engine import calcular_estados_reales, plug_divisa_para_unidad
     estados = calcular_estados_reales(year, unit_real, empresa_id=empresa_id, db=db)
     if isinstance(estados, dict) and 'error' in estados:
         return None
     plug_efectivo_q = estados.get('plug_efectivo_q', {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0})
-    if not unit_real:
-        unit_recibe_plug = True
-    else:
-        _row_plug = db.execute(
-            'SELECT recibe_plug_divisa FROM unidades WHERE nombre = ?', (unit_real,)
-        ).fetchone()
-        unit_recibe_plug = bool(_row_plug and _row_plug[0])
-    return plug_efectivo_q if unit_recibe_plug else None
+    return plug_divisa_para_unidad(db, year, unit_real, empresa_id, plug_efectivo_q)
 
 def _leer_total_header(year, unit_real, empresa_id, db, divisa_real, periodo_meses):
     """
@@ -259,7 +250,7 @@ DEFAULT_DASHBOARD_CONFIG = [
     "id": "wc-roa",
     "type": "chart",
     "title": "ROA Acumulado",
-    "subtitle": "Ingresos acumulados / Activos promedio",
+    "subtitle": "Utilidad Neta acumulada / Activos promedio",
     "visible": True,
     "order": 17.4,
     "size": "s",
