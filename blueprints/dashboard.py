@@ -873,7 +873,24 @@ def grafico_detalle():
 
     elif chart_id == 'ch-cascada':
         step = request.args.get('step', '')
-        periodo_meses = MONTHS
+        quarter = request.args.get('quarter', '')
+        acum = request.args.get('acum', '') == '1'
+        QUARTER_MONTHS_MAP = {'1': ['ENE','FEB','MAR'], '2': ['ABR','MAY','JUN'],
+                              '3': ['JUL','AGO','SEPT'], '4': ['OCT','NOV','DIC']}
+        if month and month in MONTHS:
+            periodo_meses = [month]
+            periodo_lbl = month
+        elif quarter in QUARTER_MONTHS_MAP:
+            if acum:
+                idx = int(quarter)
+                periodo_meses = [m for q in range(1, idx + 1) for m in QUARTER_MONTHS_MAP[str(q)]]
+                periodo_lbl = 'Q1' if idx == 1 else f'Acum. Q1–Q{idx}'
+            else:
+                periodo_meses = QUARTER_MONTHS_MAP[quarter]
+                periodo_lbl = f'Q{quarter}'
+        else:
+            periodo_meses = MONTHS
+            periodo_lbl = 'Año'
         unit_real = '' if (not unit or unit == 'TODAS') else unit
 
         total_de, err = _leer_total_header(year, unit_real, empresa_id, db, divisa_real, periodo_meses)
@@ -908,26 +925,26 @@ def grafico_detalle():
 
         if step == 'ingresos':
             items = listar_partidas([p for p in ing_p if p not in OTROS_INGRESOS_NO_OP])
-            return jsonify({'titulo': 'Ingresos — Año', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total_de('Total Ingresos')})
+            return jsonify({'titulo': f'Ingresos — {periodo_lbl}', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total_de('Total Ingresos')})
         elif step == 'costo_ventas':
             items = listar_partidas(list(cos_p))
-            return jsonify({'titulo': 'Costo de Ventas — Año', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total_de('Total Costo de Ventas')})
+            return jsonify({'titulo': f'Costo de Ventas — {periodo_lbl}', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total_de('Total Costo de Ventas')})
         elif step == 'utilidad_bruta':
             componentes = [
                 {'nombre': 'Total Ingresos', 'total': total_de('Total Ingresos')},
                 {'nombre': 'Costo de Ventas', 'total': total_de('Total Costo de Ventas')}
             ]
-            return jsonify({'titulo': 'Utilidad Bruta — Año', 'chart_id': chart_id, 'divisa_real': divisa_real, 'componentes': componentes, 'total': total_de('Utilidad Bruta')})
+            return jsonify({'titulo': f'Utilidad Bruta — {periodo_lbl}', 'chart_id': chart_id, 'divisa_real': divisa_real, 'componentes': componentes, 'total': total_de('Utilidad Bruta')})
         elif step == 'gastos':
             items = listar_partidas([p for p in gas_p if p not in GASTOS_NO_OP])
             total = round(total_de('Total Gastos Operacionales y No Operacionales') - total_de('Otros Gastos no Operacionales'), 2)
-            return jsonify({'titulo': 'Gastos Operacionales — Año', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total})
+            return jsonify({'titulo': f'Gastos Operacionales — {periodo_lbl}', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total})
         elif step == 'otros_ingresos':
             items = listar_partidas([p for p in ing_p if p in OTROS_INGRESOS_NO_OP])
-            return jsonify({'titulo': 'Otros Ingresos No Operativos — Año', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total_de('Otros Ingresos no Operacionales')})
+            return jsonify({'titulo': f'Otros Ingresos No Operativos — {periodo_lbl}', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total_de('Otros Ingresos no Operacionales')})
         elif step == 'otros_gastos':
             items = listar_partidas([p for p in gas_p if p in GASTOS_NO_OP])
-            return jsonify({'titulo': 'Otros Gastos No Operativos — Año', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total_de('Otros Gastos no Operacionales')})
+            return jsonify({'titulo': f'Otros Gastos No Operativos — {periodo_lbl}', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total_de('Otros Gastos no Operacionales')})
         elif step == 'utilidad_neta':
             componentes = [
                 {'nombre': 'Total Ingresos', 'total': total_de('Total Ingresos')},
@@ -936,12 +953,16 @@ def grafico_detalle():
                 {'nombre': 'Otros Ingresos No Operativos', 'total': total_de('Otros Ingresos no Operacionales')},
                 {'nombre': 'Otros Gastos No Operativos', 'total': total_de('Otros Gastos no Operacionales')}
             ]
-            return jsonify({'titulo': 'Utilidad Neta — Año', 'chart_id': chart_id, 'divisa_real': divisa_real, 'componentes': componentes, 'total': total_de('Utilidad Neta')})
+            return jsonify({'titulo': f'Utilidad Neta — {periodo_lbl}', 'chart_id': chart_id, 'divisa_real': divisa_real, 'componentes': componentes, 'total': total_de('Utilidad Neta')})
         else:
             return jsonify({'error': 'step invalido'}), 400
 
     elif chart_id == 'ch-dona-segmento':
         segmento = request.args.get('segmento', '')
+        quarter = request.args.get('quarter', '')
+        acum = request.args.get('acum', '') == '1'
+        QUARTER_MONTHS_MAP = {'1': ['ENE','FEB','MAR'], '2': ['ABR','MAY','JUN'],
+                              '3': ['JUL','AGO','SEPT'], '4': ['OCT','NOV','DIC']}
         unit_real = '' if (not unit or unit == 'TODAS') else unit
         SEGMENTO_HEADER = {
             'Venta de Mercancía': 'Subtotal Ingresos por Venta de Mercancia',
@@ -951,7 +972,20 @@ def grafico_detalle():
         }
         if segmento not in SEGMENTO_HEADER:
             return jsonify({'error': 'segmento invalido'}), 400
-        periodo_meses = MONTHS
+        if month and month in MONTHS:
+            periodo_meses = [month]
+            periodo_lbl = month
+        elif quarter in QUARTER_MONTHS_MAP:
+            if acum:
+                idx = int(quarter)
+                periodo_meses = [m for q in range(1, idx + 1) for m in QUARTER_MONTHS_MAP[str(q)]]
+                periodo_lbl = 'Q1' if idx == 1 else f'Acum. Q1–Q{idx}'
+            else:
+                periodo_meses = QUARTER_MONTHS_MAP[quarter]
+                periodo_lbl = f'Q{quarter}'
+        else:
+            periodo_meses = MONTHS
+            periodo_lbl = 'Año'
         total_de, err = _leer_total_header(year, unit_real, empresa_id, db, divisa_real, periodo_meses)
         if err:
             return jsonify(err), 400
@@ -976,7 +1010,7 @@ def grafico_detalle():
                 [year] + list(ps) + list(periodo_meses) + uc_params
             ).fetchall()
             items = [{'partida': r['partida'], 'total': round(r['t'] or 0, 2)} for r in prows if (r['t'] or 0)]
-        return jsonify({'titulo': f'Ingresos por {segmento} — Año', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total_de(SEGMENTO_HEADER[segmento])})
+        return jsonify({'titulo': f'Ingresos por {segmento} — {periodo_lbl}', 'chart_id': chart_id, 'divisa_real': divisa_real, 'partidas': items, 'total': total_de(SEGMENTO_HEADER[segmento])})
 
     else:
         return jsonify({'error': 'chart_id no reconocido'}), 400

@@ -1053,12 +1053,18 @@ function poblarSelectorEmpresaESF(){
   const sel = G('up-empresa-esf');
   if(!sel) return;
   sel.innerHTML = '';
-  EMPRESAS_CACHE.filter(function(e){ return e.id !== 1; }).forEach(function(emp){
+  const lista = CURRENT_EMPRESA_ID !== null
+    ? EMPRESAS_CACHE.filter(function(e){ return e.id === CURRENT_EMPRESA_ID; })
+    : EMPRESAS_CACHE.filter(function(e){ return e.id !== 1; });
+  lista.forEach(function(emp){
     const opt = document.createElement('option');
     opt.value = emp.id;
     opt.textContent = emp.nombre_corto;
     sel.appendChild(opt);
   });
+  if(CURRENT_EMPRESA_ID !== null && lista.length === 1){
+    sel.value = String(CURRENT_EMPRESA_ID);
+  }
 }
 
 function poblarSelectorEmpresaDatos(){
@@ -1237,6 +1243,8 @@ function updateUnitSelectorsForEmpresa(){
       upUnitErr.disabled = true;
     }
   }
+
+  poblarSelectorEmpresaESF();
 }
 
 function updateSidebarForEmpresa(){
@@ -1731,17 +1739,38 @@ function renderMargenDetalle(d) {
   if (CH['ch-det']) { CH['ch-det'].destroy(); delete CH['ch-det']; }
 }
 
+function isDashAcum() {
+  const q = G('dash-quarter') ? G('dash-quarter').value : '';
+  const m = G('dash-qmode') ? G('dash-qmode').value : 'puntual';
+  return Boolean(q) && m === 'acum';
+}
+
+function getDashPeriodoLabel() {
+  const mes = G('dash-month') ? G('dash-month').value : '';
+  if (mes) return mes;
+  const q = G('dash-quarter') ? G('dash-quarter').value : '';
+  if (!q) return 'Año';
+  if (isDashAcum()) return q === '1' ? 'Q1' : `Acum. Q1–Q${q}`;
+  return `Q${q}`;
+}
+
 async function chartCascadaClick(e, step) {
   const year = G('dash-year').value, unit = G('dash-unit').value;
   const divisaReal = DD && DD._modo_divisa ? 1 : 0;
-  const url = `/api/grafico/detalle?chart_id=ch-cascada&year=${year}&unit=${encodeURIComponent(unit)}&empresa_id=${CURRENT_EMPRESA_ID||''}&step=${step}&divisa_real=${divisaReal}`;
+  const month = G('dash-month') ? G('dash-month').value : '';
+  const quarter = G('dash-quarter') ? G('dash-quarter').value : '';
+  const acum = isDashAcum() ? 1 : 0;
+  const url = `/api/grafico/detalle?chart_id=ch-cascada&year=${year}&unit=${encodeURIComponent(unit)}&empresa_id=${CURRENT_EMPRESA_ID||''}&step=${step}&divisa_real=${divisaReal}&month=${encodeURIComponent(month)}&quarter=${encodeURIComponent(quarter)}&acum=${acum}`;
   _fetchYMostrarTraza(e, url);
 }
 
 async function chartDonaSegmentoClick(e, segmento) {
   const year = G('dash-year').value, unit = G('dash-unit').value;
   const divisaReal = DD && DD._modo_divisa ? 1 : 0;
-  const url = `/api/grafico/detalle?chart_id=ch-dona-segmento&year=${year}&unit=${encodeURIComponent(unit)}&empresa_id=${CURRENT_EMPRESA_ID||''}&segmento=${encodeURIComponent(segmento)}&divisa_real=${divisaReal}`;
+  const month = G('dash-month') ? G('dash-month').value : '';
+  const quarter = G('dash-quarter') ? G('dash-quarter').value : '';
+  const acum = isDashAcum() ? 1 : 0;
+  const url = `/api/grafico/detalle?chart_id=ch-dona-segmento&year=${year}&unit=${encodeURIComponent(unit)}&empresa_id=${CURRENT_EMPRESA_ID||''}&segmento=${encodeURIComponent(segmento)}&divisa_real=${divisaReal}&month=${encodeURIComponent(month)}&quarter=${encodeURIComponent(quarter)}&acum=${acum}`;
   _fetchYMostrarTraza(e, url);
 }
 
@@ -1754,7 +1783,7 @@ function chartUnidadClick(e, nombre) {
   const campos = [['ingresos','Ingresos'], ['costos','Costos'], ['gastos','Gastos'], ['utilidad_bruta','Utilidad Bruta'], ['utilidad_neta','Utilidad Neta']];
   const items = campos.filter(([k]) => item[k] !== undefined).map(([k,label]) => ({ label, total: item[k] }));
   _posicionarTraza(e);
-  _renderTrazaItems(`${nombre} — Año`, item.utilidad_neta, items, DD && DD._modo_divisa);
+  _renderTrazaItems(`${nombre} — ${getDashPeriodoLabel()}`, item.utilidad_neta, items, DD && DD._modo_divisa);
 }
 
 function rebuildMain(){
@@ -2476,18 +2505,28 @@ function loadIngresosCostosMargen() {
   const QUARTER_MONTHS_MARGEN = {1:['ENE','FEB','MAR'],2:['ABR','MAY','JUN'],3:['JUL','AGO','SEPT'],4:['OCT','NOV','DIC']};
   const selectedMonth = G('dash-month') && G('dash-month').value;
   const selectedQuarter = G('dash-quarter') && G('dash-quarter').value;
+  const esAcum = isDashAcum();
   let conDatos;
   if (DD._modo_divisa) {
     // Divisa Real: DD.months ya viene agrupado por trimestre ('Q1','Q2'...), no
     // por mes -- QUARTER_MONTHS_MARGEN asume nombres de mes reales, no aplica aqui.
-    const mesesDR = selectedQuarter ? meses.filter(mm => mm.month === 'Q' + selectedQuarter) : meses;
+    const mesesDR = (selectedQuarter && !esAcum)
+      ? meses.filter(mm => mm.month === 'Q' + selectedQuarter)
+      : meses;
     conDatos = mesesDR.map(mm => ({ label: mm.month, meses: [mm] }));
   } else if (selectedMonth) {
     const m = meses.find(mm => mm.month === selectedMonth);
     conDatos = m ? [{ label: selectedMonth, meses: [m] }] : [];
   } else if (selectedQuarter) {
-    const mesesQ = meses.filter(mm => QUARTER_MONTHS_MARGEN[selectedQuarter].includes(mm.month));
-    conDatos = mesesQ.length ? [{ label: 'Q' + selectedQuarter, meses: mesesQ }] : [];
+    if (esAcum) {
+      const qMax = parseInt(selectedQuarter, 10);
+      const qs = Array.from({length: qMax}, (_, idx) => idx + 1);
+      conDatos = qs.map(q => ({ label: 'Q' + q, meses: meses.filter(mm => QUARTER_MONTHS_MARGEN[q].includes(mm.month)) }))
+                   .filter(t => t.meses.some(m => (m.ingresos || 0) !== 0));
+    } else {
+      const mesesQ = meses.filter(mm => QUARTER_MONTHS_MARGEN[selectedQuarter].includes(mm.month));
+      conDatos = mesesQ.length ? [{ label: 'Q' + selectedQuarter, meses: mesesQ }] : [];
+    }
   } else {
     conDatos = [1,2,3,4].map(q => ({ label: 'Q' + q, meses: meses.filter(mm => QUARTER_MONTHS_MARGEN[q].includes(mm.month)) })).filter(t => t.meses.some(m => (m.ingresos || 0) !== 0));
   }
@@ -3043,9 +3082,11 @@ async function loadDash(){
           const dataEerr=await rEerr.json();
           if (mySeq !== _dashSeq) return;
 
+          const esAcum = isDashAcum();
           let quartersUsar;
           if(qParam){
-            quartersUsar=[parseInt(qParam)];
+            const qInt = parseInt(qParam, 10);
+            quartersUsar = esAcum ? Array.from({length: qInt}, (_, idx) => idx + 1) : [qInt];
           }else{
             quartersUsar=[1,2,3,4];
           }
@@ -3088,7 +3129,7 @@ async function loadDash(){
                 ratio_gasto:ing?gas/ing*100:0
               };
             }),
-            loaded:[{unit:unit==='TODAS'?'TODAS':unit,month:month||'ANUAL'}],
+            loaded:[{unit:unit==='TODAS'?'TODAS':unit,month:qParam?(esAcum?(qParam==='1'?'Q1':`ACUM Q1–Q${qParam}`):`Q${qParam}`):(month||'ANUAL')}],
             por_unidad:(dataEerr.por_unidad||[]).map(pu=>{
               const t={ingresos:0,costos:0,gastos:0,utilidad_bruta:0,utilidad_neta:0};
               quartersUsar.forEach(q=>{
@@ -3130,9 +3171,10 @@ async function loadDash(){
           if (mySeq !== _dashSeq) return;
           }
         }else{
-      // Modo BCV normal: carga año completo
+      // Modo BCV normal: carga año completo o trimestre (puntual / acumulado)
       const qParam = G('dash-quarter') ? G('dash-quarter').value : '';
-      const res=await fetch(`/api/dashboard?year=${year}&unit=${unit}&empresa_id=${CURRENT_EMPRESA_ID||''}&quarter=${qParam}`);
+      const esAcum = isDashAcum();
+      const res=await fetch(`/api/dashboard?year=${year}&unit=${unit}&empresa_id=${CURRENT_EMPRESA_ID||''}&quarter=${qParam}&acum=${esAcum ? '1' : '0'}`);
       if(!res.ok){G('schips').innerHTML=`<span style="color:var(--red);font-size:12px">Error ${res.status} — recarga</span>`;return;}
       DD=await res.json();
       if (mySeq !== _dashSeq) return;
@@ -3146,9 +3188,17 @@ async function loadDash(){
       // Modo Normal: filtro trimestral universal. QUARTER_MONTHS_DASH replica el
       // mismo agrupamiento que ya usa el backend (engine.py QUARTER_MONTHS).
       const selectedQuarter = G('dash-quarter') ? G('dash-quarter').value : '';
+      const esAcumNormal = isDashAcum();
       const QUARTER_MONTHS_DASH = {'1':['ENE','FEB','MAR'],'2':['ABR','MAY','JUN'],'3':['JUL','AGO','SEPT'],'4':['OCT','NOV','DIC']};
       if (!selectedQuarter) {
         mesesFiltrados = DD.months;
+      } else if (esAcumNormal) {
+        const qMax = parseInt(selectedQuarter, 10);
+        const mesesAcum = [];
+        for (let qi = 1; qi <= qMax; qi++) {
+          mesesAcum.push(...QUARTER_MONTHS_DASH[String(qi)]);
+        }
+        mesesFiltrados = DD.months.filter(m => mesesAcum.includes(m.month));
       } else {
         mesesFiltrados = DD.months.filter(m => QUARTER_MONTHS_DASH[selectedQuarter].includes(m.month));
       }
@@ -3162,6 +3212,12 @@ async function loadDash(){
 
     // Texto del banner según modo
     let bannerText=isTodas?'Vista Consolidada — Todas las Unidades':`Vista Detallada — ${unit}`;
+    const qBanner = G('dash-quarter') ? G('dash-quarter').value : '';
+    if (qBanner) {
+      bannerText += isDashAcum()
+        ? (qBanner === '1' ? ' · Q1' : ` · Acumulado Q1–Q${qBanner}`)
+        : ` · Q${qBanner} (Puntual)`;
+    }
     if(DD._modo_divisa){
       bannerText+=' · 💵 DIVISA REAL';
       const tasas=DD._tasas;
@@ -3378,10 +3434,12 @@ async function loadDash(){
   G('dash-month').addEventListener('change', function() {
     const hasMes = this.value !== '';
     const qsel = G('dash-quarter');
+    const qmode = G('dash-qmode');
     if (qsel) {
       if (hasMes) {
         qsel.value = '';
         qsel.disabled = true;
+        if (qmode) { qmode.value = 'puntual'; qmode.style.display = 'none'; }
       } else {
         qsel.disabled = false;
       }
@@ -3393,6 +3451,7 @@ async function loadDash(){
   G('dash-quarter').addEventListener('change', function() {
     const hasQ = this.value !== '';
     const msel = G('dash-month');
+    const qmode = G('dash-qmode');
     if (msel) {
       if (hasQ) {
         msel.value = '';
@@ -3401,9 +3460,24 @@ async function loadDash(){
         msel.disabled = false;
       }
     }
+    if (qmode) {
+      if (hasQ) {
+        qmode.style.display = '';
+      } else {
+        qmode.value = 'puntual';
+        qmode.style.display = 'none';
+      }
+    }
     updateVisibilidadSeccionESF();
     loadDash();
   });
+
+  const qmodeSel = G('dash-qmode');
+  if (qmodeSel) {
+    qmodeSel.addEventListener('change', function() {
+      loadDash();
+    });
+  }
 
   loadHome();
 })();
