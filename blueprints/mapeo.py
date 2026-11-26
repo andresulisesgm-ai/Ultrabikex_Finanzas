@@ -84,6 +84,7 @@ def add_mapping():
         )
         return jsonify({'ok': True})
     except Exception as e:
+        db.rollback()
         return jsonify({'error': str(e)}), 500
 
 
@@ -152,14 +153,18 @@ def get_mapping_sin_clasificar_esf():
 @admin_required
 def delete_mapping(code):
     db  = get_db()
-    row = db.execute('SELECT * FROM mapping WHERE odoo_code=?', (code,)).fetchone()
-    if row:
-        db.execute(
-            'INSERT INTO mapping_log (action, odoo_code, odoo_name, partida, sign, income_type) VALUES (?,?,?,?,?,?)',
-            ('DELETE', row['odoo_code'], row['odoo_name'], row['partida'], row['sign'], row['income_type'])
-        )
-    db.execute('DELETE FROM mapping WHERE odoo_code=?', (code,))
-    db.commit()
+    try:
+        row = db.execute('SELECT * FROM mapping WHERE odoo_code=?', (code,)).fetchone()
+        if row:
+            db.execute(
+                'INSERT INTO mapping_log (action, odoo_code, odoo_name, partida, sign, income_type) VALUES (?,?,?,?,?,?)',
+                ('DELETE', row['odoo_code'], row['odoo_name'], row['partida'], row['sign'], row['income_type'])
+            )
+        db.execute('DELETE FROM mapping WHERE odoo_code=?', (code,))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 500
     registrar_auditoria(
         db,
         session.get('username', 'sistema'),
@@ -183,11 +188,15 @@ def restore_mapping_log(lid):
     entry = db.execute('SELECT * FROM mapping_log WHERE id=?', (lid,)).fetchone()
     if not entry:                        return jsonify({'error': 'No encontrado'}), 404
     if entry['action'] != 'DELETE':      return jsonify({'error': 'Solo se pueden restaurar eliminaciones'}), 400
-    db.execute(
-        'INSERT OR IGNORE INTO mapping (odoo_code, odoo_name, partida, sign, income_type) VALUES (?,?,?,?,?)',
-        (entry['odoo_code'], entry['odoo_name'], entry['partida'], entry['sign'], entry['income_type'])
-    )
-    db.commit()
+    try:
+        db.execute(
+            'INSERT OR IGNORE INTO mapping (odoo_code, odoo_name, partida, sign, income_type) VALUES (?,?,?,?,?)',
+            (entry['odoo_code'], entry['odoo_name'], entry['partida'], entry['sign'], entry['income_type'])
+        )
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 500
     registrar_auditoria(
         db,
         session.get('username', 'sistema'),

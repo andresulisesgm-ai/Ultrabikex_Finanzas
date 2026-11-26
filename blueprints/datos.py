@@ -60,42 +60,46 @@ def data_override():
     valor_anterior = row['amount_sign']
     report_type    = row['report_type']
     partida        = row['partida']
-    # Actualizar financials_detail
-    db.execute(
-        'UPDATE financials_detail SET amount_sign=? WHERE year=? AND month=? AND unit=? AND odoo_code=? AND empresa_id IS ?',
-        (valor_nuevo, year, month, unit, odoo_code, empresa_id)
-    )
-    # Actualizar en cascada financials o esf_data
-    if report_type == 'eerr':
+    try:
+        # Actualizar financials_detail
         db.execute(
-            '''UPDATE financials SET amount=(
-                SELECT SUM(amount_sign) FROM financials_detail
-                WHERE year=? AND month=? AND unit=? AND partida=? AND report_type='eerr'
-               ) WHERE year=? AND month=? AND unit=? AND partida=?''',
-            (year, month, unit, partida, year, month, unit, partida)
+            'UPDATE financials_detail SET amount_sign=? WHERE year=? AND month=? AND unit=? AND odoo_code=? AND empresa_id IS ?',
+            (valor_nuevo, year, month, unit, odoo_code, empresa_id)
         )
-    else:
-        row_esf = db.execute(
-            'SELECT quarter FROM financials_detail WHERE year=? AND month=? AND unit=? AND odoo_code=? AND empresa_id IS ?',
-            (year, month, unit, odoo_code, empresa_id)
-        ).fetchone()
-        if row_esf:
-            quarter = row_esf['quarter']
+        # Actualizar en cascada financials o esf_data
+        if report_type == 'eerr':
             db.execute(
-                '''UPDATE esf_data SET amount=(
+                '''UPDATE financials SET amount=(
                     SELECT SUM(amount_sign) FROM financials_detail
-                    WHERE year=? AND unit=? AND partida=? AND report_type='esf' AND quarter=? AND empresa_id IS ?
-                   ) WHERE year=? AND quarter=? AND unit=? AND partida=? AND empresa_id IS ?''',
-                (year, unit, partida, quarter, empresa_id, year, quarter, unit, partida, empresa_id)
+                    WHERE year=? AND month=? AND unit=? AND partida=? AND report_type='eerr'
+                   ) WHERE year=? AND month=? AND unit=? AND partida=?''',
+                (year, month, unit, partida, year, month, unit, partida)
             )
-    # Guardar en log
-    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    db.execute(
-        '''INSERT INTO financials_override_log (year, month, unit, odoo_code, report_type, valor_anterior, valor_nuevo, timestamp, empresa_id)
-           VALUES (?,?,?,?,?,?,?,?,?)''',
-        (year, month, unit, odoo_code, report_type, valor_anterior, valor_nuevo, ts, empresa_id)
-    )
-    db.commit()
+        else:
+            row_esf = db.execute(
+                'SELECT quarter FROM financials_detail WHERE year=? AND month=? AND unit=? AND odoo_code=? AND empresa_id IS ?',
+                (year, month, unit, odoo_code, empresa_id)
+            ).fetchone()
+            if row_esf:
+                quarter = row_esf['quarter']
+                db.execute(
+                    '''UPDATE esf_data SET amount=(
+                        SELECT SUM(amount_sign) FROM financials_detail
+                        WHERE year=? AND unit=? AND partida=? AND report_type='esf' AND quarter=? AND empresa_id IS ?
+                       ) WHERE year=? AND quarter=? AND unit=? AND partida=? AND empresa_id IS ?''',
+                    (year, unit, partida, quarter, empresa_id, year, quarter, unit, partida, empresa_id)
+                )
+        # Guardar en log
+        ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        db.execute(
+            '''INSERT INTO financials_override_log (year, month, unit, odoo_code, report_type, valor_anterior, valor_nuevo, timestamp, empresa_id)
+               VALUES (?,?,?,?,?,?,?,?,?)''',
+            (year, month, unit, odoo_code, report_type, valor_anterior, valor_nuevo, ts, empresa_id)
+        )
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 500
     registrar_auditoria(
         db,
         session.get('username', 'sistema'),
@@ -137,31 +141,35 @@ def data_override_undo():
     ).fetchone()
     partida = row['partida']
     quarter = row['quarter']
-    # Revertir financials_detail
-    db.execute(
-        'UPDATE financials_detail SET amount_sign=? WHERE year=? AND month=? AND unit=? AND odoo_code=? AND empresa_id IS ?',
-        (valor_revertido, year, month, unit, odoo_code, log_empresa_id)
-    )
-    # Revertir en cascada
-    if report_type == 'eerr':
+    try:
+        # Revertir financials_detail
         db.execute(
-            '''UPDATE financials SET amount=(
-                SELECT SUM(amount_sign) FROM financials_detail
-                WHERE year=? AND month=? AND unit=? AND partida=? AND report_type='eerr'
-               ) WHERE year=? AND month=? AND unit=? AND partida=?''',
-            (year, month, unit, partida, year, month, unit, partida)
+            'UPDATE financials_detail SET amount_sign=? WHERE year=? AND month=? AND unit=? AND odoo_code=? AND empresa_id IS ?',
+            (valor_revertido, year, month, unit, odoo_code, log_empresa_id)
         )
-    else:
-        db.execute(
-            '''UPDATE esf_data SET amount=(
-                SELECT SUM(amount_sign) FROM financials_detail
-                WHERE year=? AND unit=? AND partida=? AND report_type='esf' AND quarter=? AND empresa_id IS ?
-               ) WHERE year=? AND quarter=? AND unit=? AND partida=? AND empresa_id IS ?''',
-            (year, unit, partida, quarter, log_empresa_id, year, quarter, unit, partida, log_empresa_id)
-        )
-    # Eliminar el log revertido
-    db.execute('DELETE FROM financials_override_log WHERE id=?', (log['id'],))
-    db.commit()
+        # Revertir en cascada
+        if report_type == 'eerr':
+            db.execute(
+                '''UPDATE financials SET amount=(
+                    SELECT SUM(amount_sign) FROM financials_detail
+                    WHERE year=? AND month=? AND unit=? AND partida=? AND report_type='eerr'
+                   ) WHERE year=? AND month=? AND unit=? AND partida=?''',
+                (year, month, unit, partida, year, month, unit, partida)
+            )
+        else:
+            db.execute(
+                '''UPDATE esf_data SET amount=(
+                    SELECT SUM(amount_sign) FROM financials_detail
+                    WHERE year=? AND unit=? AND partida=? AND report_type='esf' AND quarter=? AND empresa_id IS ?
+                   ) WHERE year=? AND quarter=? AND unit=? AND partida=? AND empresa_id IS ?''',
+                (year, unit, partida, quarter, log_empresa_id, year, quarter, unit, partida, log_empresa_id)
+            )
+        # Eliminar el log revertido
+        db.execute('DELETE FROM financials_override_log WHERE id=?', (log['id'],))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 500
     registrar_auditoria(
         db,
         session.get('username', 'sistema'),

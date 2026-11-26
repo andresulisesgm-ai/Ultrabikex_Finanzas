@@ -9,15 +9,22 @@ from flask import session, redirect, url_for, jsonify, request
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'data', 'ultrax.db')
 
+def _connect():
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
+    conn.execute('PRAGMA busy_timeout=30000')
+    return conn
+
 def get_user(username):
     """Obtiene un usuario desde la tabla users."""
-    conn = sqlite3.connect(DB_PATH)
-    row = conn.execute(
-        'SELECT username, password_hash, role, activo, es_superadmin, intentos_fallidos, bloqueado_hasta '
-        'FROM users WHERE username = ?',
-        (username,)
-    ).fetchone()
-    conn.close()
+    conn = _connect()
+    try:
+        row = conn.execute(
+            'SELECT username, password_hash, role, activo, es_superadmin, intentos_fallidos, bloqueado_hasta '
+            'FROM users WHERE username = ?',
+            (username,)
+        ).fetchone()
+    finally:
+        conn.close()
     if not row:
         return None
     return {
@@ -55,31 +62,40 @@ def authenticate_user(username, password):
 
     if not bcrypt.checkpw(password.encode(), user['password_hash'].encode()):
         intentos = (user['intentos_fallidos'] or 0) + 1
-        conn = sqlite3.connect(DB_PATH)
-        if intentos >= 5:
-            bloqueado = (ahora + timedelta(minutes=15)).strftime('%Y-%m-%d %H:%M:%S')
+        conn = _connect()
+        try:
+            if intentos >= 5:
+                bloqueado = (ahora + timedelta(minutes=15)).strftime('%Y-%m-%d %H:%M:%S')
+                conn.execute(
+                    'UPDATE users SET intentos_fallidos = ?, bloqueado_hasta = ? WHERE username = ?',
+                    (intentos, bloqueado, username),
+                )
+                conn.commit()
+                return False, 'Usuario bloqueado temporalmente. Contacte al administrador.', 423
             conn.execute(
-                'UPDATE users SET intentos_fallidos = ?, bloqueado_hasta = ? WHERE username = ?',
-                (intentos, bloqueado, username),
+                'UPDATE users SET intentos_fallidos = ? WHERE username = ?',
+                (intentos, username),
             )
             conn.commit()
+            return False, 'Credenciales inválidas', 401
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
             conn.close()
-            return False, 'Usuario bloqueado temporalmente. Contacte al administrador.', 423
+
+    conn = _connect()
+    try:
         conn.execute(
-            'UPDATE users SET intentos_fallidos = ? WHERE username = ?',
-            (intentos, username),
+            'UPDATE users SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE username = ?',
+            (username,),
         )
         conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
         conn.close()
-        return False, 'Credenciales inválidas', 401
-
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        'UPDATE users SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE username = ?',
-        (username,),
-    )
-    conn.commit()
-    conn.close()
     return True, {
         'username': user['username'],
         'role': user['role'],
@@ -143,15 +159,19 @@ def admin_reset_password(username, new_password, admin_username):
     """Resetea la clave de un usuario sin requerir la clave anterior. Solo para uso admin. Registra el evento en log."""
     if len(new_password) < 8:
         return False, "La clave nueva debe tener al menos 8 caracteres."
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.execute('SELECT username FROM users WHERE username = ?', (username,))
-    if not cur.fetchone():
+    conn = _connect()
+    try:
+        cur = conn.execute('SELECT username FROM users WHERE username = ?', (username,))
+        if not cur.fetchone():
+            return False, "Usuario no encontrado."
+        new_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+        conn.execute('UPDATE users SET password_hash = ?, intentos_fallidos = 0, bloqueado_hasta = NULL WHERE username = ?', (new_hash, username))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
         conn.close()
-        return False, "Usuario no encontrado."
-    new_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
-    conn.execute('UPDATE users SET password_hash = ?, intentos_fallidos = 0, bloqueado_hasta = NULL WHERE username = ?', (new_hash, username))
-    conn.commit()
-    conn.close()
 
     import datetime
     log_path = os.path.join(os.path.dirname(__file__), 'password_reset_audit.log')
@@ -163,9 +183,11 @@ def admin_reset_password(username, new_password, admin_username):
 
 def list_users():
     """Retorna username y role de todos los usuarios, sin el hash."""
-    conn = sqlite3.connect(DB_PATH)
-    rows = conn.execute('SELECT username, role FROM users ORDER BY username').fetchall()
-    conn.close()
+    conn = _connect()
+    try:
+        rows = conn.execute('SELECT username, role FROM users ORDER BY username').fetchall()
+    finally:
+        conn.close()
     return [{'username': r[0], 'role': r[1]} for r in rows]
 
 

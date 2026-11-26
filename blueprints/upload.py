@@ -85,7 +85,6 @@ def upload():
                 'DELETE FROM financials_detail WHERE year=? AND quarter=? AND unit=? AND report_type=\'esf\' AND empresa_id=?',
                 (year, quarter, unit, empresa_id)
             )
-            db.commit()
         else:
             db.execute(
                 'DELETE FROM financials WHERE year=? AND month=? AND unit=?',
@@ -95,7 +94,6 @@ def upload():
                 'DELETE FROM financials_detail WHERE year=? AND month=? AND unit=? AND report_type=\'eerr\'',
                 (year, month, unit)
             )
-            db.commit()
 
         for code, amount in accounts.items():
             is_balance = OdooParser.is_balance_account(code)
@@ -121,7 +119,6 @@ def upload():
                         'INSERT OR IGNORE INTO mapping (odoo_code, odoo_name, partida, sign, income_type) VALUES (?,?,?,?,?)',
                         (code, parser.names.get(code, ''), auto['partida'], auto['sign'], auto['income_type'])
                     )
-                    db.commit()
                     m = auto
 
             if m:
@@ -228,4 +225,8 @@ def upload():
         })
 
     except Exception as e:
+        try:
+            get_db().rollback()
+        except Exception:
+            pass
         return jsonify({'error': str(e)}), 500
