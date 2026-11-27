@@ -184,6 +184,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);overf
 .wcard.wl { grid-column: span 3; }
 .wcard.wxl { grid-column: span 4; }
 #wc-roe { grid-column: 1 / span 1; }
+#wc-dona-unidad { grid-column: 1 / span 1; }
 .wcard.dragging{opacity:.4;transform:scale(.97);}
 .wcard.dragover{border-color:var(--blue);box-shadow:0 0 0 2px rgba(17,40,90,.2);}
 .wcard.whidden{display:none!important;}
