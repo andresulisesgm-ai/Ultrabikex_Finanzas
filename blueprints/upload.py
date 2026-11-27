@@ -95,6 +95,9 @@ def upload():
                 (year, month, unit)
             )
 
+        esf_totals = {}
+        fin_totals = {}
+
         for code, amount in accounts.items():
             is_balance = OdooParser.is_balance_account(code)
 
@@ -140,22 +143,29 @@ def upload():
                 )
 
                 if is_balance or is_esf:
-                    db.execute(
-                        '''INSERT INTO esf_data (year, quarter, unit, partida, amount, empresa_id) VALUES (?,?,?,?,?,?)
-                           ON CONFLICT(year, quarter, unit, partida, empresa_id) DO UPDATE SET amount=excluded.amount''',
-                        (year, quarter, unit, m['partida'], signed_amount, empresa_id if is_esf else None)
-                    )
+                    esf_key = (year, quarter, unit, m['partida'], empresa_id if is_esf else None)
+                    esf_totals[esf_key] = esf_totals.get(esf_key, 0.0) + signed_amount
                     inserted_esf += 1
                 else:
-                    db.execute(
-                        '''INSERT INTO financials (year, month, unit, partida, amount) VALUES (?,?,?,?,?)
-                           ON CONFLICT(year, month, unit, partida) DO UPDATE SET amount=excluded.amount''',
-                        (year, month, unit, m['partida'], signed_amount)
-                    )
+                    fin_key = (year, month, unit, m['partida'])
+                    fin_totals[fin_key] = fin_totals.get(fin_key, 0.0) + signed_amount
                     inserted_fin += 1
             else:
                 unmapped.append({'code': code, 'name': parser.names.get(code, ''), 'amount': amount})
                 skipped += 1
+
+        for (yr, qtr, u, part, emp_id), total_amt in esf_totals.items():
+            db.execute(
+                '''INSERT INTO esf_data (year, quarter, unit, partida, amount, empresa_id) VALUES (?,?,?,?,?,?)
+                   ON CONFLICT(year, quarter, unit, partida, empresa_id) DO UPDATE SET amount=excluded.amount''',
+                (yr, qtr, u, part, round(total_amt, 2), emp_id)
+            )
+        for (yr, mo, u, part), total_amt in fin_totals.items():
+            db.execute(
+                '''INSERT INTO financials (year, month, unit, partida, amount) VALUES (?,?,?,?,?)
+                   ON CONFLICT(year, month, unit, partida) DO UPDATE SET amount=excluded.amount''',
+                (yr, mo, u, part, round(total_amt, 2))
+            )
 
         db.commit()
         if force:

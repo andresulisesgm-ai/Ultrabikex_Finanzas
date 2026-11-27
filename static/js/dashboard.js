@@ -1921,7 +1921,8 @@ function loadEstructuraCapital() {
       const selectedQuarterEstcap = G('dash-quarter') ? G('dash-quarter').value : '';
       let quartersConDatos = [1,2,3,4].filter(q => (rActivos.quarters[q] || 0) !== 0);
       if (selectedQuarterEstcap) {
-        quartersConDatos = quartersConDatos.filter(q => String(q) === selectedQuarterEstcap);
+        const qNum = parseInt(selectedQuarterEstcap, 10);
+        quartersConDatos = quartersConDatos.filter(q => isDashAcum() ? q <= qNum : q === qNum);
       }
       if (!quartersConDatos.length) return;
 
@@ -2026,7 +2027,8 @@ function loadDeudaCobertura() {
       const selectedQuarterDC = G('dash-quarter') ? G('dash-quarter').value : '';
       let quartersConDatos = [1,2,3,4].filter(q => (rPasivos.quarters[q] || 0) !== 0);
       if (selectedQuarterDC) {
-        quartersConDatos = quartersConDatos.filter(q => String(q) === selectedQuarterDC);
+        const qNum = parseInt(selectedQuarterDC, 10);
+        quartersConDatos = quartersConDatos.filter(q => isDashAcum() ? q <= qNum : q === qNum);
       }
       if (!quartersConDatos.length) return;
 
@@ -2097,7 +2099,8 @@ function loadEstructuraCapitalDetallada() {
       const selectedQuarterDet = G('dash-quarter') ? G('dash-quarter').value : '';
       let quartersConDatos = [1,2,3,4].filter(q => totalRow && (totalRow.quarters[q] || 0) !== 0);
       if (selectedQuarterDet) {
-        quartersConDatos = quartersConDatos.filter(q => String(q) === selectedQuarterDet);
+        const qNum = parseInt(selectedQuarterDet, 10);
+        quartersConDatos = quartersConDatos.filter(q => isDashAcum() ? q <= qNum : q === qNum);
       }
       if (!quartersConDatos.length) return;
       const labels = quartersConDatos.map(q => 'Q'+q);
@@ -2256,7 +2259,8 @@ function loadSituacionFinanciera() {
       const selectedQuarterSF = G('dash-quarter') ? G('dash-quarter').value : '';
       let quartersConDatos = [1,2,3,4].filter(q => (rAC.quarters[q] || 0) !== 0);
       if (selectedQuarterSF) {
-        quartersConDatos = quartersConDatos.filter(q => String(q) === selectedQuarterSF);
+        const qNum = parseInt(selectedQuarterSF, 10);
+        quartersConDatos = quartersConDatos.filter(q => isDashAcum() ? q <= qNum : q === qNum);
       }
       if (!quartersConDatos.length) return;
       const labels = quartersConDatos.map(q => 'Q'+q);
@@ -2348,7 +2352,8 @@ function loadPeriodoCobro() {
       const selectedQuarterPC = G('dash-quarter') ? G('dash-quarter').value : '';
       let idxConDatos = [0, 1, 2, 3].filter(i => trimestres[i] && trimestres[i].valor !== null);
       if (selectedQuarterPC) {
-        idxConDatos = idxConDatos.filter(i => String(i + 1) === selectedQuarterPC);
+        const qNum = parseInt(selectedQuarterPC, 10);
+        idxConDatos = idxConDatos.filter(i => isDashAcum() ? (i + 1) <= qNum : (i + 1) === qNum);
       }
       if (!idxConDatos.length) return;
       const labels = idxConDatos.map(i => 'Q' + (i + 1));
@@ -2872,7 +2877,7 @@ function loadDonaUnidad() {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      rotation: -180,
+      rotation: 0,
       onClick: (e, els) => {
         if (!els || !els.length) return;
         const nombre = labels[els[0].index];
@@ -2926,7 +2931,7 @@ function loadDonaSegmento() {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      rotation: -180,
+      rotation: 0,
       onClick: (e, els) => {
         if (!els || !els.length) return;
         const segmento = labels[els[0].index];
